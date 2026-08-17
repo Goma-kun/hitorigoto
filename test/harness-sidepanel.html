@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!-- chrome.* をスタブして本番の sidepanel を通す検証用ページ（開発チェックManualの型）。
+     本物の sidepanel.html から style と body を移植するので、DOM と JS のずれも検出できる。
+     パッケージには含めない -->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <script>
+    // ---- chrome スタブ（このページ専用） ----
+    const _store = {
+      hg_lang: 'en-US',
+      hg_engine: 'auto',
+      hg_transcript: '',
+      en_sessions: [],
+      en_recurring: [
+        { text: 'concentrate to → concentrate on', count: 4, last_seen: '2026-08-10' },
+        { text: 'in the weekend → on the weekend', count: 2, last_seen: '2026-08-12' },
+      ],
+    };
+    window.chrome = {
+      i18n: { getMessage: (k) => ({
+        appTitle: '💬 独り言', tabSpeak: '話す', tabHistory: '履歴', btnStart: '▶ 開始', btnStop: '■ 停止',
+        enHint: '「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。',
+        enRecurring: '繰り返し出ている点', enGood: 'よかった点', enIssues: '指摘',
+        enCorrected: '修正版（音読用）', enDoubt: '聞き取りが怪しい箇所',
+        enDoubtNote: '音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。',
+        enNoPronunciation: '※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。',
+        enNanoNote: '端末内AI（Gemini Nano）で処理しました', btnCopy: '📋 コピー',
+        btnCopyWithIssues: '📋 コピー（指摘つき）', typePhrasing: '言い回し', typeVocabulary: '語彙', typeGrammar: '文法',
+        enTimes: '$1 回', enIssueCount: '指摘 $1 件', settingsTip: '設定',
+        enSetupNano: 'この端末では、キー不要の内蔵AIが使えます。設定から一度だけ有効化（モデルのダウンロード）をしてください。',
+        btnOpenSettings: '⚙️ 設定を開く',
+      }[k] || '') },
+      storage: {
+        local: {
+          get: async (keys) => {
+            const ks = Array.isArray(keys) ? keys : [keys];
+            return Object.fromEntries(ks.filter(k => k in _store).map(k => [k, _store[k]]));
+          },
+          set: async (obj) => Object.assign(_store, obj),
+          remove: async (k) => { delete _store[k]; },
+        },
+        session: { get: async () => ({}), set: async () => {}, remove: async () => {} },
+        onChanged: { addListener() {} },
+      },
+      runtime: {
+        getManifest: () => ({ version: '1.0.0' }),
+        openOptionsPage: () => console.log('[harness] openOptionsPage'),
+        getURL: (p) => p,
+      },
+    };
+  </script>
+</head>
+<body>
+  <script>
+    (async () => {
+      // 本物の sidepanel.html から style と body（スクリプト以外）を移植する
+      const html = await (await fetch('../extension/sidepanel.html')).text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const style = doc.querySelector('style');
+      if (style) document.head.appendChild(style.cloneNode(true));
+      doc.querySelectorAll('script').forEach(s => s.remove());
+      document.body.insertAdjacentHTML('afterbegin', doc.body.innerHTML);
+
+      const load = (src) => new Promise((ok, ng) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = ok; s.onerror = ng;
+        document.body.appendChild(s);
+      });
+      try {
+        for (const f of ['english-core.js', 'ai-providers.js', 'speech.js', 'history-store.js', 'sidepanel.js']) {
+          await load('../extension/' + f);
+        }
+        // sidepanel.js は DOMContentLoaded 待ちなので、合図を出し直す
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        await new Promise(r => setTimeout(r, 300));
+
+        // サンプルのフィードバックを流し込んで描画経路を全部通す
+        // （このページの Chrome では Nano が未DL状態のため、描画確認用に available を装う）
+        nanoState = 'available';
+        enLatest = {
+          engineId: 'nano',
+          corrected_text: 'I went to the park yesterday and practiced speaking English.',
+          issues: [
+            { type: 'grammar', original: 'I go to park', suggestion: 'I went to the park', reason: '過去のことなので過去形にします。' },
+            { type: 'vocabulary', original: 'develop my English', suggestion: 'improve my English', reason: 'develop は能力そのものを作る意味合いになります。' },
+          ],
+          recurring: ['concentrate の前置詞'],
+          recognition_doubt: ['french fries and extractions'],
+          good: '文のつなぎが自然でした。',
+        };
+        renderEnglish();
+        console.log('[harness] renderEnglish OK');
+
+        // 履歴側も通す
+        enSessions = [{
+          id: new Date().toISOString(),
+          transcript: 'I go to park yesterday.',
+          corrected_text: 'I went to the park yesterday.',
+          issues: enLatest.issues,
+          good: enLatest.good,
+        }, { id: '2026-08-01T00:00:00.000Z', folded: true, issues: [{ type: 'grammar', suggestion: 'I went there' }] }];
+        renderHistory();
+        console.log('[harness] renderHistory OK');
+        document.title = 'HARNESS-RENDER-OK';
+      } catch (e) {
+        document.title = 'HARNESS-FAIL';
+        console.error('[harness] FAIL', e);
+      }
+    })();
+  </script>
+</body>
+</html>

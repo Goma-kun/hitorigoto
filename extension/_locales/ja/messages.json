@@ -1,0 +1,373 @@
+{
+  "extName": {
+    "message": "独り言"
+  },
+  "extDescription": {
+    "message": "英語で独り言を話すとAIが添削。Chrome内蔵AI（Gemini Nano）ならAPIキー不要・端末内で完結。話して、直して、音読で身につける英語練習。"
+  },
+  "actionTitle": {
+    "message": "独り言"
+  },
+  "appTitle": {
+    "message": "💬 独り言"
+  },
+  "tabSpeak": {
+    "message": "話す"
+  },
+  "tabHistory": {
+    "message": "履歴"
+  },
+  "btnStart": {
+    "message": "▶ 開始"
+  },
+  "btnStop": {
+    "message": "■ 停止"
+  },
+  "settingsTip": {
+    "message": "設定"
+  },
+  "btnExpand": {
+    "message": "全文"
+  },
+  "btnCollapse": {
+    "message": "閉じる"
+  },
+  "btnCopy": {
+    "message": "📋 コピー"
+  },
+  "btnCopied": {
+    "message": "✓ コピー済"
+  },
+  "copyFailed": {
+    "message": "コピーに失敗しました"
+  },
+  "speechUnavailable": {
+    "message": "音声認識が利用できません"
+  },
+  "speechError": {
+    "message": "音声認識エラー: "
+  },
+  "langChanged": {
+    "message": "🌐 言語設定を変更しました（次の録音から反映）"
+  },
+  "lockedWhileRec": {
+    "message": "録音中はタブを切り替えられません"
+  },
+  "enHint": {
+    "message": "「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。"
+  },
+  "enNoAi": {
+    "message": "添削に使うAIがありません。この端末のChromeは内蔵AIに対応していないため、設定からGemini APIキーを登録してください。"
+  },
+  "enSetupNano": {
+    "message": "この端末では、キー不要の内蔵AIが使えます。設定から一度だけ有効化（モデルのダウンロード）をしてください。"
+  },
+  "btnOpenSettings": {
+    "message": "⚙️ 設定を開く"
+  },
+  "enAnalyzing": {
+    "message": "🧠 フィードバックを作成中..."
+  },
+  "enError": {
+    "message": "フィードバックのエラー: "
+  },
+  "enParseError": {
+    "message": "AIの応答を読み取れませんでした。もう一度お試しください。"
+  },
+  "enGood": {
+    "message": "よかった点"
+  },
+  "enIssues": {
+    "message": "指摘"
+  },
+  "enNoIssues": {
+    "message": "今回の指摘はありません。"
+  },
+  "enRecurring": {
+    "message": "繰り返し出ている点"
+  },
+  "enCorrected": {
+    "message": "修正版（音読用）"
+  },
+  "enNoPronunciation": {
+    "message": "※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。"
+  },
+  "enHistoryEmpty": {
+    "message": "独り言の記録はまだありません"
+  },
+  "btnCopyWithIssues": {
+    "message": "📋 コピー（指摘つき）"
+  },
+  "enLabelCorrected": {
+    "message": "修正版"
+  },
+  "enLabelSaid": {
+    "message": "話した内容（音声認識の結果）"
+  },
+  "enDoubt": {
+    "message": "聞き取りが怪しい箇所"
+  },
+  "enDoubtNote": {
+    "message": "音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。"
+  },
+  "enFolded": {
+    "message": "（古い記録：指摘のみ）"
+  },
+  "enIssueCount": {
+    "message": "指摘 $N$ 件",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "enTimes": {
+    "message": "$N$ 回",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "typePhrasing": {
+    "message": "言い回し"
+  },
+  "typeVocabulary": {
+    "message": "語彙"
+  },
+  "typeGrammar": {
+    "message": "文法"
+  },
+  "enNanoNote": {
+    "message": "端末内AI（Gemini Nano）で処理しました"
+  },
+  "optTitle": {
+    "message": "独り言 設定"
+  },
+  "optHeading": {
+    "message": "⚙️ 独り言 設定"
+  },
+  "currentMode": {
+    "message": "現在のAI:"
+  },
+  "checking": {
+    "message": "確認中..."
+  },
+  "secEngine": {
+    "message": "AIエンジン"
+  },
+  "labelEngine": {
+    "message": "添削に使うAI"
+  },
+  "engineAuto": {
+    "message": "自動（APIキーがあれば Gemini API）"
+  },
+  "engineNano": {
+    "message": "端末内AI（Gemini Nano）を優先"
+  },
+  "engineNote": {
+    "message": "端末内AIはキー不要・無料・端末内で完結します。精度は Gemini API より下がることがあります。"
+  },
+  "engineSetTo": {
+    "message": "AIエンジンを保存しました"
+  },
+  "engineNanoReady": {
+    "message": "この端末で端末内AIが利用できます"
+  },
+  "engineNanoDownload": {
+    "message": "端末内AIは利用可能です（初回にモデルのダウンロードが必要）"
+  },
+  "engineNanoNo": {
+    "message": "この端末では端末内AIを利用できません"
+  },
+  "btnEnableNano": {
+    "message": "端末内AIを有効化（モデルをダウンロード）"
+  },
+  "engineDownloading": {
+    "message": "端末内AIモデルをダウンロード中…"
+  },
+  "engineDownloadDone": {
+    "message": "ダウンロード完了。端末内AIが使えます"
+  },
+  "engineDownloadFail": {
+    "message": "ダウンロードを開始できませんでした（進まないときは Chrome を再起動してください）: "
+  },
+  "secLanguage": {
+    "message": "聞き取る英語"
+  },
+  "labelLang": {
+    "message": "英語の種類"
+  },
+  "langNote": {
+    "message": "音声認識に使う英語の種類です。ふだん学んでいる方を選んでください。"
+  },
+  "langSetTo": {
+    "message": "✓ $LABEL$ に設定しました",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "secApiKey": {
+    "message": "Gemini APIキー（任意・精度を上げたい人向け）"
+  },
+  "apiKeyIntro": {
+    "message": "キーが無くても端末内AIで使えます。より精度の高い添削にしたい場合だけ、Gemini APIキーを登録してください。"
+  },
+  "keySaved": {
+    "message": "✓ APIキー設定済み"
+  },
+  "labelApiKey": {
+    "message": "APIキー"
+  },
+  "placeholderSaved": {
+    "message": "（設定済み）"
+  },
+  "placeholderKey": {
+    "message": "APIキーを貼り付け"
+  },
+  "btnSave": {
+    "message": "保存"
+  },
+  "btnTest": {
+    "message": "接続テスト"
+  },
+  "btnDelete": {
+    "message": "削除"
+  },
+  "linkGetKey": {
+    "message": "🔗 Google Cloud Console でAPIキーを取得する"
+  },
+  "howToGet": {
+    "message": "取得手順："
+  },
+  "howToGetBody": {
+    "message": "Google Cloud Console にアクセス → プロジェクトを選択または作成 →「認証情報」→「APIキーを作成」→ コピーして上の欄に貼り付け → 保存。"
+  },
+  "jpNotice": {
+    "message": "⚠️ 日本からの利用について："
+  },
+  "jpNoticeBody1": {
+    "message": "Google AI Studio（aistudio.google.com）で発行した無料APIキーは、日本からの接続では利用制限がかかる場合があります。"
+  },
+  "jpNoticeBody2": {
+    "message": "その場合は Google Cloud Console で請求先アカウント（カード登録）を設定した上でAPIキーを発行してください。請求先アカウントを登録すると無料枠から外れ、使った分だけの従量課金になります（少量の利用なら月に数十円程度です）。"
+  },
+  "budgetNote": {
+    "message": "使いすぎが心配な場合は、Google Cloud で予算アラートを設定できます。"
+  },
+  "budgetLink": {
+    "message": "🔗 予算アラートの設定方法"
+  },
+  "security": {
+    "message": "🔒 セキュリティについて："
+  },
+  "securityBody": {
+    "message": "APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。ただし以下の点にご注意ください。"
+  },
+  "securityLi1": {
+    "message": "APIキーは他人に共有しないでください"
+  },
+  "securityLi2": {
+    "message": "キーが漏洩した場合は Google AI Studio ですぐに無効化できます"
+  },
+  "securityLi3": {
+    "message": "このデバイスを他の人と共有している場合は使用後にキーを削除することをお勧めします"
+  },
+  "secData": {
+    "message": "記録の書き出し・読み込み"
+  },
+  "btnExport": {
+    "message": "書き出す（JSON）"
+  },
+  "btnImport": {
+    "message": "読み込む"
+  },
+  "exportDone": {
+    "message": "✓ 記録を書き出しました"
+  },
+  "importDone": {
+    "message": "✓ 読み込みました（追加されたセッション: $N$ 件）",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "importError": {
+    "message": "読み込めませんでした。このツール（またはまもるくん）から書き出したJSONファイルを選んでください。"
+  },
+  "dataNote": {
+    "message": "独り言の記録をJSONファイルとして書き出し・読み込みできます。別のパソコンへの引っ越しや、まもるくんの独り言データの移行に使えます。"
+  },
+  "secTiers": {
+    "message": "AIエンジンについて"
+  },
+  "tierNanoTitle": {
+    "message": "💻 端末内AI（Gemini Nano・APIキー不要）"
+  },
+  "tierNanoBody": {
+    "message": "Chrome内蔵のAIで添削します。無料・キー不要で、話した内容が端末の外に出ません。対応環境：Chrome 138以降、メモリ16GB以上のパソコン推奨。初回に約4GBのモデルをダウンロードします。"
+  },
+  "tierGeminiTitle": {
+    "message": "✨ Gemini API（APIキーあり・精度重視）"
+  },
+  "tierGeminiBody": {
+    "message": "Googleの Gemini API で添削します。端末内AIより指摘の精度が高く、内蔵AIに対応していないパソコンでも使えます。"
+  },
+  "tierNano": {
+    "message": "端末内AIで添削（キー不要）"
+  },
+  "badgeNano": {
+    "message": "端末内AI"
+  },
+  "tierGemini": {
+    "message": "Gemini API で添削"
+  },
+  "badgeGemini": {
+    "message": "✨ Gemini"
+  },
+  "tierNone": {
+    "message": "添削に使えるAIがありません"
+  },
+  "badgeNone": {
+    "message": "未設定"
+  },
+  "enterKey": {
+    "message": "APIキーを入力してください"
+  },
+  "savedOk": {
+    "message": "✓ 保存しました"
+  },
+  "confirmDelete": {
+    "message": "本当に削除しますか？"
+  },
+  "keyDeleted": {
+    "message": "APIキーを削除しました"
+  },
+  "enterOrSaveFirst": {
+    "message": "先にAPIキーを入力または保存してください"
+  },
+  "testing": {
+    "message": "⏳ 接続テスト中..."
+  },
+  "testOk": {
+    "message": "✓ 接続成功！APIキーは有効です"
+  },
+  "unknownError": {
+    "message": "不明なエラー"
+  },
+  "errDenied": {
+    "message": "このプロジェクトはGemini APIへのアクセスが許可されていません。Google AI Studio のAPIキー一覧で「請求階層」の表示をご確認ください。「使用不可」となっている場合、そのプロジェクトには無料枠が割り当てられていません（APIキー自体の間違いではありません）。"
+  },
+  "errKeyInvalid": {
+    "message": "APIキーが正しくありません。キーをコピーし直して貼り付けてください。"
+  },
+  "errorPrefix": {
+    "message": "✗ エラー: "
+  },
+  "networkError": {
+    "message": "✗ 通信エラー: "
+  }
+}

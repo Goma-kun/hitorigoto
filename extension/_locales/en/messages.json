@@ -1,0 +1,373 @@
+{
+  "extName": {
+    "message": "Hitorigoto"
+  },
+  "extDescription": {
+    "message": "Practice English by talking to yourself. AI feedback on what you said — works with Chrome's built-in AI, no API key required."
+  },
+  "actionTitle": {
+    "message": "Hitorigoto"
+  },
+  "appTitle": {
+    "message": "💬 Hitorigoto"
+  },
+  "tabSpeak": {
+    "message": "Speak"
+  },
+  "tabHistory": {
+    "message": "History"
+  },
+  "btnStart": {
+    "message": "▶ Start"
+  },
+  "btnStop": {
+    "message": "■ Stop"
+  },
+  "settingsTip": {
+    "message": "Settings"
+  },
+  "btnExpand": {
+    "message": "Show all"
+  },
+  "btnCollapse": {
+    "message": "Show less"
+  },
+  "btnCopy": {
+    "message": "📋 Copy"
+  },
+  "btnCopied": {
+    "message": "✓ Copied"
+  },
+  "copyFailed": {
+    "message": "Failed to copy"
+  },
+  "speechUnavailable": {
+    "message": "Speech recognition is not available"
+  },
+  "speechError": {
+    "message": "Speech recognition error: "
+  },
+  "langChanged": {
+    "message": "🌐 Language changed (applies from the next recording)"
+  },
+  "lockedWhileRec": {
+    "message": "You cannot switch tabs while recording"
+  },
+  "enHint": {
+    "message": "Press \"▶ Start\" and talk to yourself in English. Feedback appears when you stop."
+  },
+  "enNoAi": {
+    "message": "No AI is available for feedback. Chrome's built-in AI is not supported on this device, so please add a Gemini API key in Settings."
+  },
+  "enSetupNano": {
+    "message": "This device can use Chrome's built-in AI — no API key needed. Enable it once in Settings (downloads the model)."
+  },
+  "btnOpenSettings": {
+    "message": "⚙️ Open Settings"
+  },
+  "enAnalyzing": {
+    "message": "🧠 Preparing feedback..."
+  },
+  "enError": {
+    "message": "Feedback error: "
+  },
+  "enParseError": {
+    "message": "Could not read the AI response. Please try again."
+  },
+  "enGood": {
+    "message": "What went well"
+  },
+  "enIssues": {
+    "message": "Suggestions"
+  },
+  "enNoIssues": {
+    "message": "Nothing to flag this time."
+  },
+  "enRecurring": {
+    "message": "Recurring patterns"
+  },
+  "enCorrected": {
+    "message": "Corrected version (for reading aloud)"
+  },
+  "enNoPronunciation": {
+    "message": "Note: your audio is never sent to the AI, so pronunciation is not assessed. Only the text is reviewed."
+  },
+  "enHistoryEmpty": {
+    "message": "No sessions yet"
+  },
+  "btnCopyWithIssues": {
+    "message": "📋 Copy (with notes)"
+  },
+  "enLabelCorrected": {
+    "message": "Corrected"
+  },
+  "enLabelSaid": {
+    "message": "What you said (speech recognition)"
+  },
+  "enDoubt": {
+    "message": "Possible misrecognitions"
+  },
+  "enDoubtNote": {
+    "message": "This is what speech recognition heard. It is not counted as your mistake."
+  },
+  "enFolded": {
+    "message": "(older entry: suggestions only)"
+  },
+  "enIssueCount": {
+    "message": "$N$ suggestion(s)",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "enTimes": {
+    "message": "$N$ times",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "typePhrasing": {
+    "message": "Phrasing"
+  },
+  "typeVocabulary": {
+    "message": "Vocabulary"
+  },
+  "typeGrammar": {
+    "message": "Grammar"
+  },
+  "enNanoNote": {
+    "message": "Processed with on-device AI (Gemini Nano)"
+  },
+  "optTitle": {
+    "message": "Hitorigoto Settings"
+  },
+  "optHeading": {
+    "message": "⚙️ Hitorigoto Settings"
+  },
+  "currentMode": {
+    "message": "Current AI:"
+  },
+  "checking": {
+    "message": "Checking..."
+  },
+  "secEngine": {
+    "message": "AI Engine"
+  },
+  "labelEngine": {
+    "message": "AI used for feedback"
+  },
+  "engineAuto": {
+    "message": "Auto (Gemini API if a key is set)"
+  },
+  "engineNano": {
+    "message": "Prefer on-device AI (Gemini Nano)"
+  },
+  "engineNote": {
+    "message": "On-device AI is free, needs no API key, and keeps everything on your device. Accuracy may be lower than the Gemini API."
+  },
+  "engineSetTo": {
+    "message": "AI engine saved"
+  },
+  "engineNanoReady": {
+    "message": "On-device AI is available on this device"
+  },
+  "engineNanoDownload": {
+    "message": "On-device AI is supported (the model will be downloaded on first use)"
+  },
+  "engineNanoNo": {
+    "message": "On-device AI is not available on this device"
+  },
+  "btnEnableNano": {
+    "message": "Enable on-device AI (download the model)"
+  },
+  "engineDownloading": {
+    "message": "Downloading the on-device AI model…"
+  },
+  "engineDownloadDone": {
+    "message": "Download complete. On-device AI is ready"
+  },
+  "engineDownloadFail": {
+    "message": "Could not start the download (restart Chrome if it stalls): "
+  },
+  "secLanguage": {
+    "message": "English variant"
+  },
+  "labelLang": {
+    "message": "Variant to recognize"
+  },
+  "langNote": {
+    "message": "The English variant used for speech recognition. Pick the one you usually study."
+  },
+  "langSetTo": {
+    "message": "✓ Set to $LABEL$",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "secApiKey": {
+    "message": "Gemini API key (optional, for higher accuracy)"
+  },
+  "apiKeyIntro": {
+    "message": "You can use this tool without any key, via on-device AI. Add a Gemini API key only if you want more accurate feedback."
+  },
+  "keySaved": {
+    "message": "✓ API key saved"
+  },
+  "labelApiKey": {
+    "message": "API key"
+  },
+  "placeholderSaved": {
+    "message": "(saved)"
+  },
+  "placeholderKey": {
+    "message": "Paste your API key"
+  },
+  "btnSave": {
+    "message": "Save"
+  },
+  "btnTest": {
+    "message": "Test connection"
+  },
+  "btnDelete": {
+    "message": "Delete"
+  },
+  "linkGetKey": {
+    "message": "🔗 Get an API key in Google Cloud Console"
+  },
+  "howToGet": {
+    "message": "How to get one:"
+  },
+  "howToGetBody": {
+    "message": "Open Google Cloud Console → select or create a project → \"Credentials\" → \"Create API key\" → copy it into the field above → Save."
+  },
+  "jpNotice": {
+    "message": "⚠️ Note for users in Japan:"
+  },
+  "jpNoticeBody1": {
+    "message": "Free API keys issued through Google AI Studio (aistudio.google.com) may be rate-limited when accessed from Japan."
+  },
+  "jpNoticeBody2": {
+    "message": "If that happens, set up a billing account in Google Cloud Console and issue the key there. Linking a billing account moves the project out of the free tier, so you are charged for what you use (typically well under a dollar a month for light use)."
+  },
+  "budgetNote": {
+    "message": "If you are worried about spending, you can set a budget alert in Google Cloud."
+  },
+  "budgetLink": {
+    "message": "🔗 How to set a budget alert"
+  },
+  "security": {
+    "message": "🔒 About security:"
+  },
+  "securityBody": {
+    "message": "Your API key is stored only inside your Chrome and is never sent to any external server. Please still keep the following in mind."
+  },
+  "securityLi1": {
+    "message": "Do not share your API key with anyone"
+  },
+  "securityLi2": {
+    "message": "If it leaks, you can revoke it immediately in Google AI Studio"
+  },
+  "securityLi3": {
+    "message": "If you share this device with others, we recommend deleting the key after use"
+  },
+  "secData": {
+    "message": "Export / import history"
+  },
+  "btnExport": {
+    "message": "Export (JSON)"
+  },
+  "btnImport": {
+    "message": "Import"
+  },
+  "exportDone": {
+    "message": "✓ History exported"
+  },
+  "importDone": {
+    "message": "✓ Imported ($N$ new session(s))",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "importError": {
+    "message": "Could not import. Choose a JSON file exported from this tool (or from Mamorukun)."
+  },
+  "dataNote": {
+    "message": "Export your practice history as a JSON file and import it elsewhere. Useful for moving to another computer, or migrating self-talk data from Mamorukun."
+  },
+  "secTiers": {
+    "message": "About the AI engines"
+  },
+  "tierNanoTitle": {
+    "message": "💻 On-device AI (Gemini Nano, no API key)"
+  },
+  "tierNanoBody": {
+    "message": "Feedback runs on Chrome's built-in AI. Free, no key, and what you said never leaves your device. Requirements: Chrome 138+, a computer with 16 GB RAM recommended. Downloads a ~4 GB model on first use."
+  },
+  "tierGeminiTitle": {
+    "message": "✨ Gemini API (with API key, higher accuracy)"
+  },
+  "tierGeminiBody": {
+    "message": "Feedback runs on Google's Gemini API. More accurate than on-device AI, and works on computers that don't support the built-in AI."
+  },
+  "tierNano": {
+    "message": "On-device AI feedback (no key needed)"
+  },
+  "badgeNano": {
+    "message": "On-device AI"
+  },
+  "tierGemini": {
+    "message": "Gemini API feedback"
+  },
+  "badgeGemini": {
+    "message": "✨ Gemini"
+  },
+  "tierNone": {
+    "message": "No AI available for feedback"
+  },
+  "badgeNone": {
+    "message": "Not set up"
+  },
+  "enterKey": {
+    "message": "Please enter an API key"
+  },
+  "savedOk": {
+    "message": "✓ Saved"
+  },
+  "confirmDelete": {
+    "message": "Delete it for sure?"
+  },
+  "keyDeleted": {
+    "message": "API key deleted"
+  },
+  "enterOrSaveFirst": {
+    "message": "Please enter or save an API key first"
+  },
+  "testing": {
+    "message": "⏳ Testing connection..."
+  },
+  "testOk": {
+    "message": "✓ Connected. Your API key works."
+  },
+  "unknownError": {
+    "message": "Unknown error"
+  },
+  "errDenied": {
+    "message": "This project is not allowed to access the Gemini API. Open the API key list in Google AI Studio and check the \"Billing tier\" column — if it says \"Unavailable\", no free tier has been assigned to the project. (Your API key itself is fine.)"
+  },
+  "errKeyInvalid": {
+    "message": "The API key is not valid. Copy the key again and paste it into the field above."
+  },
+  "errorPrefix": {
+    "message": "✗ Error: "
+  },
+  "networkError": {
+    "message": "✗ Network error: "
+  }
+}

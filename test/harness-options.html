@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!-- chrome.* をスタブして本番の options を通す検証用ページ。パッケージには含めない -->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <script>
+    const _store = { hg_gemini_key: '', hg_engine: 'auto', hg_lang: 'en-US', en_sessions: [], en_recurring: [] };
+    window.chrome = {
+      i18n: { getMessage: () => '' },
+      storage: {
+        local: {
+          get: async (keys) => {
+            const ks = Array.isArray(keys) ? keys : [keys];
+            return Object.fromEntries(ks.filter(k => k in _store).map(k => [k, _store[k]]));
+          },
+          set: async (obj) => Object.assign(_store, obj),
+          remove: async (k) => { delete _store[k]; },
+        },
+        onChanged: { addListener() {} },
+      },
+      runtime: { getManifest: () => ({ version: '1.0.0-harness' }) },
+    };
+  </script>
+</head>
+<body>
+  <script>
+    (async () => {
+      // 本物の options.html から body の中身（スクリプトを除く）を移植する
+      const html = await (await fetch('../extension/options.html')).text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('script').forEach(s => s.remove());
+      document.body.insertAdjacentHTML('afterbegin', doc.body.innerHTML);
+
+      const load = (src) => new Promise((ok, ng) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = ok; s.onerror = ng;
+        document.body.appendChild(s);
+      });
+      try {
+        await load('../extension/history-store.js');
+        await load('../extension/options.js');
+        // options.js は DOMContentLoaded 待ちなので、合図を出し直す
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        await new Promise(r => setTimeout(r, 300));
+
+        // 保存系の経路も一巡させる
+        document.getElementById('api-key-input').value = 'dummy-key-for-harness';
+        document.getElementById('save-btn').click();
+        await new Promise(r => setTimeout(r, 100));
+        document.getElementById('engine-select').value = 'nano';
+        document.getElementById('engine-select').dispatchEvent(new Event('change'));
+        document.getElementById('lang-select').value = 'en-GB';
+        document.getElementById('lang-select').dispatchEvent(new Event('change'));
+        document.getElementById('export-btn').click();
+        await new Promise(r => setTimeout(r, 200));
+
+        if (_store.hg_gemini_key !== 'dummy-key-for-harness') throw new Error('key not saved');
+        if (_store.hg_engine !== 'nano') throw new Error('engine not saved');
+        if (_store.hg_lang !== 'en-GB') throw new Error('lang not saved');
+        document.title = 'HARNESS-OPTIONS-OK';
+        console.log('[harness] options OK', JSON.stringify(_store));
+      } catch (e) {
+        document.title = 'HARNESS-FAIL';
+        console.error('[harness] FAIL', e);
+      }
+    })();
+  </script>
+</body>
+</html>

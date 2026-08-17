@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="optTitle">Hitorigoto Settings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 14px; min-height: 100vh;
+    }
+    .container { max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+
+    h1 { font-size: 18px; font-weight: 800; color: #a78bfa; margin: 0 0 24px; }
+    h2 { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;
+         letter-spacing: 0.08em; margin: 0 0 12px; }
+
+    .section {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    }
+
+    label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 6px; }
+    input[type="password"], input[type="text"] {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 13px;
+      outline: none; transition: border-color 0.15s;
+      font-family: monospace;
+    }
+    input:focus { border-color: #8b5cf6; }
+    select {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 13px;
+      outline: none; transition: border-color 0.15s; cursor: pointer;
+    }
+    select:focus { border-color: #8b5cf6; }
+    #lang-status, #engine-status, #data-status {
+      margin-top: 10px; padding: 8px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      display: none;
+    }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn {
+      padding: 9px 16px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.15s; white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; flex: 1; }
+    .btn-test    { background: #1e1b4b; border: 1px solid #8b5cf6; color: #a78bfa; }
+    .btn-danger  { background: #2d0a0a; border: 1px solid #dc2626; color: #f87171; }
+    .btn-plain   { background: #0f172a; border: 1px solid #334155; color: #94a3b8; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #key-status {
+      margin-top: 10px; padding: 8px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      display: none;
+    }
+    .status-ok    { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
+    .status-error { background: #450a0a; border: 1px solid #dc2626; color: #f87171; }
+    .status-info  { background: #0f172a; border: 1px solid #334155; color: #94a3b8; }
+    .status-testing { background: #0f172a; border: 1px solid #8b5cf6; color: #c4b5fd; }
+
+    .key-saved-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #052e16; border: 1px solid #16a34a;
+      color: #4ade80; font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 6px; margin-bottom: 8px;
+    }
+
+    .link-row { margin-top: 10px; }
+    a { color: #a78bfa; text-decoration: none; font-size: 12px; }
+    a:hover { text-decoration: underline; }
+
+    .note {
+      font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 8px;
+    }
+    .note strong { color: #94a3b8; }
+
+    .tier-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; margin-left: 8px;
+    }
+    .tier1 { background: #1e293b; border: 1px solid #334155; color: #64748b; }
+    .tier2 { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
+
+    #current-tier {
+      font-size: 13px; color: #94a3b8; margin-bottom: 16px;
+      padding: 10px 12px; background: #0f172a; border-radius: 8px;
+      border: 1px solid #1e293b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 data-i18n="optHeading"></h1>
+
+    <div id="current-tier">
+      <span data-i18n="currentMode"></span> <span id="tier-label" data-i18n="checking"></span>
+    </div>
+
+    <!-- AIエンジン（添削に使うAI） -->
+    <div class="section">
+      <h2 data-i18n="secEngine"></h2>
+
+      <label for="engine-select" data-i18n="labelEngine"></label>
+      <select id="engine-select">
+        <option value="auto" data-i18n="engineAuto"></option>
+        <option value="nano" data-i18n="engineNano"></option>
+      </select>
+
+      <div id="engine-status"></div>
+
+      <p class="note">
+        <span data-i18n="engineNote"></span><br>
+        <strong id="engine-availability"></strong>
+      </p>
+    </div>
+
+    <!-- 聞き取る英語 -->
+    <div class="section">
+      <h2 data-i18n="secLanguage"></h2>
+
+      <label for="lang-select" data-i18n="labelLang"></label>
+      <select id="lang-select">
+        <option value="en-US">English (US)</option>
+        <option value="en-GB">English (UK)</option>
+      </select>
+
+      <div id="lang-status"></div>
+
+      <p class="note"><span data-i18n="langNote"></span></p>
+    </div>
+
+    <!-- Gemini API キー（任意） -->
+    <div class="section">
+      <h2 data-i18n="secApiKey"></h2>
+
+      <p class="note" style="margin-top:0"><span data-i18n="apiKeyIntro"></span></p>
+
+      <div id="key-saved-indicator" style="display:none">
+        <span class="key-saved-badge" data-i18n="keySaved"></span>
+      </div>
+
+      <label for="api-key-input" data-i18n="labelApiKey"></label>
+      <input type="password" id="api-key-input" placeholder="" autocomplete="off" spellcheck="false">
+
+      <div id="key-status"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="save-btn" data-i18n="btnSave"></button>
+        <button class="btn btn-test" id="test-btn" data-i18n="btnTest"></button>
+        <button class="btn btn-danger" id="delete-btn" data-i18n="btnDelete"></button>
+      </div>
+
+      <div class="link-row">
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">
+          <span data-i18n="linkGetKey"></span>
+        </a>
+      </div>
+
+      <p class="note">
+        <strong data-i18n="howToGet"></strong><span data-i18n="howToGetBody"></span>
+      </p>
+      <p class="note" style="margin-top:8px; border-left: 2px solid #f59e0b; padding-left: 8px;">
+        <strong data-i18n="jpNotice"></strong><br>
+        <span data-i18n="jpNoticeBody1"></span><br>
+        <span data-i18n="jpNoticeBody2"></span> <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console</a><br>
+        <span data-i18n="budgetNote"></span> <a href="https://cloud.google.com/billing/docs/how-to/budgets" target="_blank" rel="noopener"><span data-i18n="budgetLink"></span></a>
+      </p>
+      <p class="note" style="margin-top:8px">
+        <strong data-i18n="security"></strong><span data-i18n="securityBody"></span><br>
+        ・<span data-i18n="securityLi1"></span><br>
+        ・<span data-i18n="securityLi2"></span><br>
+        ・<span data-i18n="securityLi3"></span>
+      </p>
+    </div>
+
+    <!-- 記録の書き出し・読み込み -->
+    <div class="section">
+      <h2 data-i18n="secData"></h2>
+
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn btn-plain" id="export-btn" data-i18n="btnExport"></button>
+        <button class="btn btn-plain" id="import-btn" data-i18n="btnImport"></button>
+        <input type="file" id="import-file" accept="application/json,.json" style="display:none">
+      </div>
+
+      <div id="data-status"></div>
+
+      <p class="note"><span data-i18n="dataNote"></span></p>
+    </div>
+
+    <!-- 機能レベル説明 -->
+    <div class="section">
+      <h2 data-i18n="secTiers"></h2>
+      <p class="note">
+        <strong data-i18n="tierNanoTitle"></strong><br>
+        <span data-i18n="tierNanoBody"></span>
+      </p>
+      <p class="note" style="margin-top:10px">
+        <strong data-i18n="tierGeminiTitle"></strong><br>
+        <span data-i18n="tierGeminiBody"></span>
+      </p>
+    </div>
+  </div>
+
+  <script src="history-store.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

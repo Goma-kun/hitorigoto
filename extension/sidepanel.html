@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="extName">Hitorigoto</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 14px;
+      overflow: hidden;
+    }
+
+    /* ── ヘッダー ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(15,23,42,0.9);
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .title-wrap { display: flex; align-items: center; gap: 8px; }
+    #ver-badge {
+      font-size: 11px; font-weight: 700;
+      background: #facc15; color: #0f172a;
+      border-radius: 8px; padding: 1px 7px;
+    }
+    #ver-badge:empty { display: none; }
+    #app-title {
+      font-size: 15px; font-weight: 800;
+      color: #a78bfa;
+      text-shadow: 0 0 12px rgba(167,139,250,0.35);
+      margin: 0;
+    }
+    .header-btns { display: flex; gap: 6px; }
+    .header-btn {
+      background: #1e293b; border: 1px solid #334155;
+      color: #94a3b8; border-radius: 8px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .header-btn:hover { background: #334155; color: #e2e8f0; }
+
+    /* ── タブバー（話す・履歴） ── */
+    #tab-bar {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 12px; font-weight: 700;
+      padding: 7px 4px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+    }
+    .tab-btn .icon { font-size: 13px; line-height: 1; }
+    .tab-btn .label { font-size: 10px; line-height: 1.2; }
+    .tab-btn.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+    .tab-btn:hover:not(.active) { color: #94a3b8; }
+
+    /* ── 履歴パネル ── */
+    #panel-history {
+      overflow-y: auto;
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #panel-history::-webkit-scrollbar { width: 4px; }
+    #panel-history::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    .history-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .history-meta {
+      color: #64748b; font-size: 11px; font-weight: 700;
+    }
+    .history-body {
+      color: #cbd5e1; font-size: 12px; line-height: 1.6;
+      word-break: normal; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    /* 「全文」で畳みを解除する。コピーして貼らないと読めない状態を避けるため */
+    .history-body.expanded {
+      display: block; -webkit-line-clamp: unset; overflow: visible;
+    }
+    .history-expand-btn {
+      align-self: flex-start;
+      background: none; border: none; padding: 0;
+      color: #a78bfa; font-size: 11px; font-weight: 700;
+      cursor: pointer;
+    }
+    .history-expand-btn:hover { text-decoration: underline; }
+    .history-copy-btn {
+      align-self: flex-end;
+      background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3);
+      border-radius: 6px; color: #a78bfa;
+      font-size: 11px; font-weight: 700;
+      padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+    }
+    .history-copy-btn:hover { background: rgba(167,139,250,0.2); }
+
+    /* ── メインコンテンツ ── */
+    #main {
+      display: flex; flex-direction: column;
+      flex: 1; min-height: 0;
+    }
+    .panel { display: none; flex: 1; min-height: 0; }
+    .panel.active { display: block; }
+
+    /* ── 話すパネル ── */
+    #panel-speak {
+      overflow-y: auto;
+      padding: 10px;
+    }
+    #panel-speak::-webkit-scrollbar { width: 4px; }
+    #panel-speak::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #en-live {
+      color: #cbd5e1; font-size: 13px; line-height: 1.6;
+      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+      padding: 0 0 6px;
+    }
+    #en-live:not(:empty) {
+      border-bottom: 1px solid #1e293b; margin-bottom: 10px;
+    }
+    #en-feedback { display: flex; flex-direction: column; gap: 10px; }
+    .en-note {
+      color: #64748b; font-size: 12px; line-height: 1.6;
+      text-align: center; padding: 16px 8px;
+    }
+    .en-note.en-error { color: #f87171; text-align: left; padding: 8px; }
+    .en-note.en-fineprint { font-size: 11px; color: #475569; padding: 4px 8px 8px; }
+    .en-setup-btn {
+      display: block; margin: 0 auto;
+      background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.4);
+      border-radius: 8px; color: #a78bfa;
+      font-size: 12px; font-weight: 700;
+      padding: 8px 16px; cursor: pointer; transition: all 0.15s;
+    }
+    .en-setup-btn:hover { background: rgba(167,139,250,0.22); }
+    .en-section {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .en-section-title { color: #64748b; font-size: 11px; font-weight: 700; }
+    .en-good { margin: 0; color: #4ade80; font-size: 12px; line-height: 1.6; }
+    .en-issue {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 8px 0; border-top: 1px solid #334155;
+    }
+    .en-section .en-issue:first-of-type { border-top: none; padding-top: 0; }
+    .en-badge {
+      align-self: flex-start;
+      font-size: 10px; font-weight: 700;
+      border-radius: 5px; padding: 1px 6px;
+      background: rgba(148,163,184,0.15); color: #94a3b8;
+    }
+    .en-badge-vocabulary { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .en-badge-grammar    { background: rgba(251,146,60,0.15); color: #fb923c; }
+    .en-swap {
+      font-size: 13px; line-height: 1.6;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+    .en-from  { color: #f87171; text-decoration: line-through; }
+    .en-arrow { color: #64748b; padding: 0 5px; }
+    .en-to    { color: #4ade80; font-weight: 700; }
+    .en-reason { margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.6; }
+    .en-doubt {
+      margin: 0; padding-left: 18px;
+      color: #94a3b8; font-size: 12px; line-height: 1.7;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+    .en-recurring {
+      margin: 0; padding-left: 18px;
+      color: #cbd5e1; font-size: 12px; line-height: 1.7;
+    }
+    .en-corrected {
+      margin: 0; color: #e2e8f0; font-size: 13px; line-height: 1.7;
+      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+    }
+    .en-section .history-copy-btn { align-self: flex-end; }
+
+    /* ── アクションバー ── */
+    #action-bar {
+      flex-shrink: 0;
+      padding: 8px 10px;
+      border-top: 1px solid #1e293b;
+      background: rgba(15,23,42,0.95);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    #toggle-btn {
+      width: 100%; padding: 11px;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 800; cursor: pointer;
+      transition: all 0.15s; letter-spacing: 0.02em;
+    }
+    #toggle-btn.idle {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      color: #f8fafc;
+      box-shadow: 0 4px 15px rgba(139,92,246,0.3);
+    }
+    #toggle-btn.recording {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white; animation: recpulse 1.5s ease-in-out infinite;
+      box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+    }
+    @keyframes recpulse { 0%,100%{box-shadow:0 4px 15px rgba(239,68,68,0.4)} 50%{box-shadow:0 4px 22px rgba(239,68,68,0.7)} }
+
+    /* 全体レイアウト */
+    #wrapper { height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── コンパクト表示 ── */
+    @media (max-width: 280px) {
+      html, body { font-size: 12px; }
+      #header { padding: 6px 8px; }
+      #app-title { font-size: 13px; }
+      .header-btn { padding: 3px 7px; font-size: 11px; }
+      #action-bar { padding: 6px 8px; }
+      #toggle-btn { padding: 9px; font-size: 13px; }
+      #panel-speak { padding: 8px; }
+      .en-swap, .en-corrected { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <!-- ヘッダー -->
+    <header id="header">
+      <div class="title-wrap">
+        <h1 id="app-title" data-i18n="appTitle"></h1>
+        <span id="ver-badge"></span>
+      </div>
+      <div class="header-btns">
+        <button id="settings-btn" class="header-btn" data-i18n-title="settingsTip">⚙️</button>
+      </div>
+    </header>
+
+    <!-- タブバー：話す・履歴 -->
+    <div id="tab-bar">
+      <button id="tab-speak" class="tab-btn active">
+        <span class="icon">💬</span><span class="label" data-i18n="tabSpeak"></span>
+      </button>
+      <button id="tab-history" class="tab-btn">
+        <span class="icon">🕐</span><span class="label" data-i18n="tabHistory"></span>
+      </button>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="main">
+      <!-- 話すパネル -->
+      <div id="panel-speak" class="panel active">
+        <div id="en-live"></div>
+        <div id="en-feedback"></div>
+      </div>
+
+      <!-- 履歴パネル -->
+      <div id="panel-history" class="panel"></div>
+    </div>
+
+    <!-- アクションバー -->
+    <div id="action-bar">
+      <button id="toggle-btn" class="idle" data-i18n="btnStart"></button>
+    </div>
+  </div>
+
+  <!-- 読み込み順に意味がある: 純ロジック → AI 呼び出し層 → 音声認識層 → 履歴層 → UI -->
+  <script src="english-core.js"></script>
+  <script src="ai-providers.js"></script>
+  <script src="speech.js"></script>
+  <script src="history-store.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

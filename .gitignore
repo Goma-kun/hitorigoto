@@ -1,0 +1,11 @@
+.DS_Store
+
+# Claude Code のローカル設定
+.claude/
+
+# 申請用パッケージ（ビルド成果物）
+*.zip
+
+# 申請用の内部メモ（公開しない）
+STORE_LISTING*.md
+notes/
