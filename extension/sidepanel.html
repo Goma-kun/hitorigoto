@@ -65,7 +65,9 @@
     #panel-history {
       overflow-y: auto;
       padding: 10px;
-      display: flex; flex-direction: column; gap: 8px;
+      /* display は書かない（IDセレクタが .panel の display:none に勝って、
+         初期化前の履歴パネルが空のまま高さ半分を占領するため）。表示時は JS が flex を入れる */
+      flex-direction: column; gap: 8px;
     }
     #panel-history::-webkit-scrollbar { width: 4px; }
     #panel-history::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }

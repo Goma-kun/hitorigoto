@@ -84,7 +84,7 @@ function switchPanel(id) {
     enError  = '';
     renderEnglish();
   } else if (id === 'history') {
-    panelHistory.style.display = 'block';
+    panelHistory.style.display = 'flex';   // column+gap レイアウトを効かせる（block だと gap が死ぬ）
     tabHistory.classList.add('active');
     renderHistory();
   }
