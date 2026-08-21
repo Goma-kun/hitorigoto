@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "permissions": [
@@ -21,6 +21,12 @@
   "background": {
     "service_worker": "background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["sidepanel.html"],
+      "extension_ids": ["mdheihoolmkhoebieolpoacbfcmccnha", "mcnbbionolonioghmfnamegdpjmmeldb"]
+    }
+  ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
