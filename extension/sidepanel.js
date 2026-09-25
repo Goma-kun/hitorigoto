@@ -25,7 +25,9 @@ let enSessions  = [];             // 過去のセッション（新しい順）
 let enRecurring = [];             // 繰り返し出ている指摘
 let enLatest    = null;           // 画面に出している直近のフィードバック
 let enBusy      = false;
+let enBusyAudio = false;          // 添削中の文言の出し分け（音声は少し時間がかかる）
 let enError     = '';
+let audioPref   = 'on';           // 録音した音声を Gemini に送るか（設定 hg_audio。'on' | 'off'）
 
 const DEFAULT_LANG = 'en-US';
 
@@ -33,10 +35,11 @@ const DEFAULT_LANG = 'en-US';
 // ストレージ（実体の保存・読み出しは履歴層 history-store.js に集約）
 // ============================================================
 async function loadStorage() {
-  const d = await chrome.storage.local.get(['hg_gemini_key', 'hg_lang', 'hg_engine']);
+  const d = await chrome.storage.local.get(['hg_gemini_key', 'hg_lang', 'hg_engine', 'hg_audio']);
   geminiKey  = d.hg_gemini_key || '';
   recogLang  = d.hg_lang === 'en-GB' ? 'en-GB' : DEFAULT_LANG;
   enginePref = d.hg_engine === 'nano' ? 'nano' : 'auto';
+  audioPref  = d.hg_audio === 'off' ? 'off' : 'on';
 
   const h = await HistoryStore.load();
   transcript  = h.transcript;
@@ -53,6 +56,13 @@ function saveTranscript() {
 // いま使う AI プロバイダ。null なら添削できない（設定への案内を出す）
 function currentAi() {
   return selectAiProvider({ geminiKey, engine: enginePref, nanoState });
+}
+
+// 音声モード（生音を Gemini に渡して書き起こしと添削を一度にやる）が使える状態か。
+// Gemini（キーあり）・設定オン・録音 API あり、の 3 つが揃ったときだけ
+function audioEnabled() {
+  const ai = currentAi();
+  return !!(ai && ai.supportsAudio && audioPref === 'on' && AudioCapture.supported());
 }
 
 // ============================================================
@@ -126,9 +136,16 @@ const recognizer = SpeechCapture.createRecognizer({
   onError:  (code) => showToast(T('speechError') + code, 'error'),
 });
 
+// 生音の録音（音声モードのとき Web Speech と並行して回す）。実体は audio-capture.js
+const audioRec = AudioCapture.create();
+
 function startRecording() {
   if (!SpeechCapture.supported()) { showToast(T('speechUnavailable'), 'error'); return; }
   recognizer.start(recogLang);
+  // 音声モードなら生音も録る。マイクが取れなければ従来どおりテキストだけで続ける
+  if (audioEnabled()) {
+    audioRec.start().catch(() => showToast(T('micUnavailable'), 'info'));
+  }
 }
 
 function stopRecording() {
@@ -146,7 +163,7 @@ function onRecordingStarted() {
   switchPanel('speak');
 }
 
-function onRecordingStopped() {
+async function onRecordingStopped() {
   isRecording = false;
   toggleBtn.textContent = T('btnStart');
   toggleBtn.className = 'idle';
@@ -159,7 +176,9 @@ function onRecordingStopped() {
   interimText = '';
 
   enLive.textContent = transcript;
-  if (transcript.trim()) runEnglishFeedback();
+  // 生音を締める。録っていなければ null。音声があれば Chrome の認識結果が空でも添削できる
+  const blob = await audioRec.stop();
+  if (transcript.trim() || blob) runEnglishFeedback(blob);
 }
 
 function onResult(interim, final) {
@@ -187,34 +206,61 @@ function todayStamp() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-async function runEnglishFeedback() {
+// blob は録音した生音（音声モードのときだけ）。無ければテキストだけで添削する
+async function runEnglishFeedback(blob = null) {
   const text = transcript.trim();
-  if (!text) return;
   const ai = currentAi();
   if (!ai) { renderEnglish(); return; }
+  const useAudio = !!(blob && ai.supportsAudio && audioPref === 'on');
+  if (!text && !useAudio) return;
 
-  enBusy  = true;
-  enError = '';
+  enBusy      = true;
+  enBusyAudio = useAudio;
+  enError     = '';
   renderEnglish();
 
   try {
     // 応答の取得と JSON 解釈は AI 呼び出し層が行う。JSON として読めない応答はここまで来ない
-    const fb = await ai.reviewEnglish(text, topRecurring(enRecurring));
+    let fb;
+    if (useAudio) {
+      try {
+        fb = await ai.reviewEnglishAudio(blob, text, topRecurring(enRecurring));
+        // 音声に聞き取れる発話が無かった（無音・雑音）。AI が作った結果を出さない
+        if (!fb.transcript) { const err = new Error(''); err.code = 'silent'; throw err; }
+        fb.audio = true;
+      } catch (err) {
+        // 音声で失敗しても、テキストがあればそちらで添削する（話した内容を無駄にしない）。
+        // キーの問題（denied）はテキストでも同じ結果なので退避しない
+        if (!text || err.code === 'denied') throw err;
+        showToast(T(err.code === 'silent' ? 'enAudioSilent' : 'enAudioFallback'), 'info');
+        enBusyAudio = false;
+        renderEnglish();
+        fb = await ai.reviewEnglish(text, topRecurring(enRecurring));
+      }
+    } else {
+      fb = await ai.reviewEnglish(text, topRecurring(enRecurring));
+    }
     fb.engineId = ai.id;   // 表示用（端末内 AI のときは注記を出す）
 
-    enSessions.unshift({
+    // 音声モードでは AI の書き起こし（実際に言ったこと）を本文にし、Chrome の結果は参考として別に残す
+    const said = (fb.audio && fb.transcript) ? fb.transcript : text;
+    const session = {
       id:             new Date().toISOString(),
-      transcript:     text,
+      transcript:     said,
       corrected_text: fb.corrected_text,
       issues:         fb.issues,
       good:           fb.good,
-    });
+    };
+    if (fb.audio && fb.transcript && text && text !== fb.transcript) session.asr_transcript = text;
+    if (fb.pronunciation && fb.pronunciation.length > 0) session.pronunciation = fb.pronunciation;
+    enSessions.unshift(session);
     enSessions  = foldSessions(enSessions);
     enRecurring = promoteRecurring(enRecurring, fb.issues, todayStamp());
     await HistoryStore.saveEnglish(enSessions, enRecurring);
 
     enLatest = fb;
     enBusy   = false;
+    enBusyAudio = false;
 
     // 次の録音のために書き起こしだけ空にする。フィードバックは読み終わるまで残す
     transcript = '';
@@ -224,8 +270,11 @@ async function runEnglishFeedback() {
   } catch (err) {
     // 失敗したときは書き起こしを消さない（話した内容を失わせない）
     enBusy  = false;
+    enBusyAudio = false;
     enError = err.code === 'denied' ? T('errDenied')
             : err.code === 'parse'  ? T('enParseError')
+            : err.code === 'audio'  ? T('enAudioError')
+            : err.code === 'silent' ? T('enNothingHeard')
             : (err.message || T('unknownError'));
     renderEnglish();
     showToast(T('enError') + enError, 'error');
@@ -273,7 +322,7 @@ function renderNoAi() {
 function renderEnglish() {
   enFeedback.innerHTML = '';
 
-  if (enBusy)       { enFeedback.appendChild(enNote(T('enAnalyzing'))); return; }
+  if (enBusy)       { enFeedback.appendChild(enNote(T(enBusyAudio ? 'enAnalyzingAudio' : 'enAnalyzing'))); return; }
   if (!currentAi()) { renderNoAi(); return; }
   if (enError)      { enFeedback.appendChild(enNote(enError, 'en-error')); }
 
@@ -295,7 +344,8 @@ function renderEnglish() {
       sec.appendChild(ul);
       enFeedback.appendChild(sec);
     }
-    enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
+    // 音声モードなら「停止すると音声を送る」と先に伝えておく（送ることを隠さない）
+    enFeedback.appendChild(enNote(T(audioEnabled() ? 'enAudioHint' : 'enNoPronunciation'), 'en-fineprint'));
     return;
   }
 
@@ -362,8 +412,43 @@ function renderEnglish() {
     enFeedback.appendChild(sec);
   }
 
+  // 発音が原因で別の語に聞こえた箇所（音声モードだけ入る）。
+  // 左が言おうとした語、右がそう聞こえた語。誤りの赤ではなく、伝わらなかったの琥珀色で出す
+  if ((fb.pronunciation || []).length > 0) {
+    const sec = enSection(T('enPronunciation'));
+    fb.pronunciation.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'en-issue';
+
+      const swap = document.createElement('div');
+      swap.className = 'en-swap';
+      const said = document.createElement('span');
+      said.className = 'en-said';
+      said.textContent = it.said;
+      const arrow = document.createElement('span');
+      arrow.className = 'en-arrow';
+      arrow.textContent = '→';
+      const heard = document.createElement('span');
+      heard.className = 'en-heard';
+      heard.textContent = it.heard_as;
+      swap.append(said, arrow, heard);
+      card.appendChild(swap);
+
+      if (it.note) {
+        const why = document.createElement('p');
+        why.className = 'en-reason';
+        why.textContent = it.note;
+        card.appendChild(why);
+      }
+      sec.appendChild(card);
+    });
+    sec.appendChild(enNote(T('enPronNote'), 'en-fineprint'));
+    enFeedback.appendChild(sec);
+  }
+
   // 音声認識が化けた箇所。指摘に混ざると「言っていないこと」を直されたように見えるので、
-  // 別枠で事実だけ出す。発音の話にはしない（音声は AI に届いていない）
+  // 別枠で事実だけ出す。テキストモードでは発音の話にしない（音声は AI に届いていない）。
+  // 音声モードでは「音声では言えていた」と言い切れるので、注記を出し分ける
   if (fb.recognition_doubt.length > 0) {
     const sec = enSection(T('enDoubt'));
     const ul = document.createElement('ul');
@@ -374,7 +459,7 @@ function renderEnglish() {
       ul.appendChild(li);
     });
     sec.appendChild(ul);
-    sec.appendChild(enNote(T('enDoubtNote'), 'en-fineprint'));
+    sec.appendChild(enNote(T(fb.audio ? 'enDoubtNoteAudio' : 'enDoubtNote'), 'en-fineprint'));
     enFeedback.appendChild(sec);
   }
 
@@ -398,11 +483,22 @@ function renderEnglish() {
     enFeedback.appendChild(sec);
   }
 
+  // 音声モードでは、AI が音声から書き起こした「実際に言ったこと」を見せる。
+  // 画面に流れていた Chrome の認識結果とどこが違うかを、本人が自分で確かめられるように
+  if (fb.audio && fb.transcript) {
+    const sec = enSection(T('enHeard'));
+    const p = document.createElement('p');
+    p.className = 'en-heard-text';
+    p.textContent = fb.transcript;
+    sec.appendChild(p);
+    enFeedback.appendChild(sec);
+  }
+
   // 端末内 AI で処理したときは明示する（API より精度が下がることがあるため）
   if (fb.engineId === 'nano') {
     enFeedback.appendChild(enNote(T('enNanoNote'), 'en-fineprint'));
   }
-  enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
+  enFeedback.appendChild(enNote(T(fb.audio ? 'enAudioNote' : 'enNoPronunciation'), 'en-fineprint'));
 }
 
 // ============================================================
@@ -481,6 +577,23 @@ function renderHistory() {
       card.appendChild(issues);
     }
 
+    // 音声モードで拾った「発音で伝わらなかった箇所」。無いセッションでは出さない
+    if ((s.pronunciation || []).length > 0) {
+      const title = document.createElement('div');
+      title.className = 'en-section-title';
+      title.textContent = T('enPronunciation');
+      card.appendChild(title);
+
+      const ul = document.createElement('ul');
+      ul.className = 'en-recurring';
+      s.pronunciation.forEach(it => {
+        const li = document.createElement('li');
+        li.textContent = `${it.said} → ${it.heard_as}${it.note ? ` — ${it.note}` : ''}`;
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+
     const btn = enHistoryCopyBtn(s);
     if (btn) card.appendChild(btn);
     panelHistory.appendChild(card);
@@ -494,6 +607,7 @@ function enCopyLabels() {
     corrected: T('enLabelCorrected'),
     issues:    T('enIssues'),
     good:      T('enGood'),
+    pron:      T('enPronunciation'),
     said:      T('enLabelSaid'),
     types: { phrasing: T('typePhrasing'), vocabulary: T('typeVocabulary'), grammar: T('typeGrammar') },
   };
@@ -556,6 +670,11 @@ function showToast(msg, type = 'info') {
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.hg_gemini_key) {
     geminiKey = changes.hg_gemini_key.newValue || '';
+    if (panelSpeak.style.display !== 'none' && !isRecording && !enBusy) renderEnglish();
+  }
+  // 音声を送るかの設定。次の録音から効く（録音中に切っても、今回の分は送らずに終える）
+  if (changes.hg_audio) {
+    audioPref = changes.hg_audio.newValue === 'off' ? 'off' : 'on';
     if (panelSpeak.style.display !== 'none' && !isRecording && !enBusy) renderEnglish();
   }
   // 設定画面で言語を変えたら即反映（録音中の場合は次回の録音から）

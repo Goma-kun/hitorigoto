@@ -13,6 +13,8 @@ function applyI18n() {
 
 const langSelect        = document.getElementById('lang-select');
 const langStatus        = document.getElementById('lang-status');
+const audioSelect       = document.getElementById('audio-select');
+const audioStatus       = document.getElementById('audio-status');
 const engineSelect      = document.getElementById('engine-select');
 const engineStatus      = document.getElementById('engine-status');
 const engineAvailEl     = document.getElementById('engine-availability');
@@ -62,15 +64,17 @@ async function loadKey() {
 // 上部の「現在のAI」。パネル側の selectAiProvider と同じ順で判定して、
 // 表示と実際の動きがズレないようにする
 async function renderTierLabel() {
-  const d = await chrome.storage.local.get(['hg_gemini_key', 'hg_engine']);
+  const d = await chrome.storage.local.get(['hg_gemini_key', 'hg_engine', 'hg_audio']);
   const hasKey = !!d.hg_gemini_key;
   const nanoOk = (await nanoAvailabilityOpt()) === 'available';
   const preferNano = d.hg_engine === 'nano';
+  const audioOn = d.hg_audio !== 'off';
 
   if (nanoOk && (preferNano || !hasKey)) {
     tierLabel.innerHTML = `${T('tierNano')} <span class="tier-badge tier2">${T('badgeNano')}</span>`;
   } else if (hasKey) {
-    tierLabel.innerHTML = `${T('tierGemini')} <span class="tier-badge tier2">${T('badgeGemini')}</span>`;
+    // 音声も送る設定なら、それが分かる表示にする（送っていることを隠さない）
+    tierLabel.innerHTML = `${T(audioOn ? 'tierGeminiAudio' : 'tierGemini')} <span class="tier-badge tier2">${T('badgeGemini')}</span>`;
   } else {
     tierLabel.innerHTML = `${T('tierNone')} <span class="tier-badge tier1">${T('badgeNone')}</span>`;
   }
@@ -227,6 +231,22 @@ langSelect.addEventListener('change', async () => {
   setTimeout(() => { langStatus.style.display = 'none'; }, 2000);
 });
 
+// ── 音声の送信（録音した生音を Gemini に渡して書き起こしを任せる） ──
+// 既定はオン。Gemini（キーあり）のときだけ効き、端末内AIでは音声は使わない
+async function loadAudio() {
+  const { hg_audio } = await chrome.storage.local.get('hg_audio');
+  audioSelect.value = hg_audio === 'off' ? 'off' : 'on';
+}
+
+audioSelect.addEventListener('change', async () => {
+  await chrome.storage.local.set({ hg_audio: audioSelect.value });
+  audioStatus.textContent = T('audioSetTo');
+  audioStatus.className = 'status-ok';
+  audioStatus.style.display = 'block';
+  setTimeout(() => { audioStatus.style.display = 'none'; }, 2000);
+  renderTierLabel();
+});
+
 // ── 記録の書き出し・読み込み ──
 function showDataStatus(msg, type) {
   dataStatus.textContent = msg;
@@ -264,4 +284,4 @@ importFile.addEventListener('change', async () => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); loadEngine(); });
+document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); loadAudio(); loadEngine(); });

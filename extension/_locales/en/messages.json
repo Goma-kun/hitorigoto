@@ -314,7 +314,7 @@
     "message": "✨ Gemini API (with API key, higher accuracy)"
   },
   "tierGeminiBody": {
-    "message": "Feedback runs on Google's Gemini API. More accurate than on-device AI, and works on computers that don't support the built-in AI."
+    "message": "Feedback runs on Google's Gemini API. More accurate than on-device AI, and works on computers that don't support the built-in AI. If the recording is sent too (on by default), Gemini does the transcription, so you are far less often corrected for things you never said."
   },
   "tierNano": {
     "message": "On-device AI feedback (no key needed)"
@@ -369,5 +369,62 @@
   },
   "networkError": {
     "message": "✗ Network error: "
+  },
+  "secAudio": {
+    "message": "Audio upload (with Gemini API key)"
+  },
+  "labelAudio": {
+    "message": "Send the recording to Gemini for transcription"
+  },
+  "audioOn": {
+    "message": "Send (more accurate transcription, recommended)"
+  },
+  "audioOff": {
+    "message": "Don't send (use Chrome's speech-to-text only)"
+  },
+  "audioSetTo": {
+    "message": "Audio setting saved"
+  },
+  "audioNote": {
+    "message": "Chrome's speech recognition often mishears non-native English as different words, so you get corrected for things you never said. Sending the audio itself lets Gemini transcribe and review in one pass, and also shows where pronunciation got in the way. The audio is sent only for that review and is never stored by the extension. On-device AI (Gemini Nano) does not use audio."
+  },
+  "tierGeminiAudio": {
+    "message": "Gemini API (audio is sent too)"
+  },
+  "enAnalyzingAudio": {
+    "message": "🧠 Listening to your audio and preparing feedback... (takes a bit longer)"
+  },
+  "enPronunciation": {
+    "message": "Not understood due to pronunciation"
+  },
+  "enPronNote": {
+    "message": "Left: what you meant. Right: what it sounded like. Even listening to the audio, these could be heard this way, so fixing them will get you understood."
+  },
+  "enDoubtNoteAudio": {
+    "message": "Chrome's speech recognition got these wrong. You said them clearly in the audio, so they are not counted as your mistakes."
+  },
+  "enHeard": {
+    "message": "What you actually said (transcribed from audio)"
+  },
+  "enAudioNote": {
+    "message": "Note: your audio was sent to Gemini for transcription and review. Pronunciation is only mentioned under \"Not understood due to pronunciation\"."
+  },
+  "enAudioHint": {
+    "message": "Note: when you stop, the recording is sent to Gemini for transcription and review (change this in Settings)."
+  },
+  "enAudioFallback": {
+    "message": "Audio upload failed, so feedback was based on Chrome's speech-to-text only"
+  },
+  "enAudioError": {
+    "message": "Could not send the audio (empty or too large). Please try again."
+  },
+  "micUnavailable": {
+    "message": "Could not start audio recording. Feedback will use Chrome's speech-to-text only"
+  },
+  "enAudioSilent": {
+    "message": "No speech could be heard in the audio, so feedback was based on Chrome's speech-to-text only"
+  },
+  "enNothingHeard": {
+    "message": "No English speech could be heard in the audio. Please check your microphone and try again."
   }
 }

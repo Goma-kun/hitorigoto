@@ -75,19 +75,19 @@
     "message": "AIの応答を読み取れませんでした。もう一度お試しください。"
   },
   "enGood": {
-    "message": "よかった点"
+    "message": "わしが買ってやる点"
   },
   "enIssues": {
-    "message": "指摘"
+    "message": "直すべし"
   },
   "enNoIssues": {
-    "message": "今回の指摘はありません。"
+    "message": "今日は言うことがねえ。"
   },
   "enRecurring": {
-    "message": "繰り返し出ている点"
+    "message": "また出やがった点"
   },
   "enCorrected": {
-    "message": "修正版（音読用）"
+    "message": "あしたのために（音読用）"
   },
   "enNoPronunciation": {
     "message": "※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。"
@@ -314,7 +314,7 @@
     "message": "✨ Gemini API（APIキーあり・精度重視）"
   },
   "tierGeminiBody": {
-    "message": "Googleの Gemini API で添削します。端末内AIより指摘の精度が高く、内蔵AIに対応していないパソコンでも使えます。"
+    "message": "Googleの Gemini API で添削します。端末内AIより指摘の精度が高く、内蔵AIに対応していないパソコンでも使えます。録音した音声も送ると（既定でオン）、書き起こしを Gemini が行うので、言っていないことを直される事故が減ります。"
   },
   "tierNano": {
     "message": "端末内AIで添削（キー不要）"
@@ -369,5 +369,62 @@
   },
   "networkError": {
     "message": "✗ 通信エラー: "
+  },
+  "secAudio": {
+    "message": "音声の送信（Gemini APIキーあり）"
+  },
+  "labelAudio": {
+    "message": "録音した音声を Gemini に送って書き起こす"
+  },
+  "audioOn": {
+    "message": "送る（書き起こしの精度が上がる・推奨）"
+  },
+  "audioOff": {
+    "message": "送らない（Chrome の音声認識テキストだけを使う）"
+  },
+  "audioSetTo": {
+    "message": "音声の送信を設定しました"
+  },
+  "audioNote": {
+    "message": "Chrome の音声認識は、日本語なまりの英語を別の単語に聞き取ることがあり、言っていないことを直される原因になります。音声そのものを Gemini に渡すと、書き起こしと添削を一度に行い、「発音で伝わらなかった箇所」も分かります。音声は添削のためにその場で送るだけで、拡張機能には保存されません。端末内AI（Gemini Nano）では音声は使いません。"
+  },
+  "tierGeminiAudio": {
+    "message": "Gemini API（音声も送る）"
+  },
+  "enAnalyzingAudio": {
+    "message": "🧠 音声を聞き直して添削中...（少し時間がかかります）"
+  },
+  "enPronunciation": {
+    "message": "発音で伝わらなかった箇所"
+  },
+  "enPronNote": {
+    "message": "左が言おうとした語、右がそう聞こえた語です。音声を聞いてもそう聞こえかねない箇所なので、ここを直すと伝わります。"
+  },
+  "enDoubtNoteAudio": {
+    "message": "Chrome の音声認識が外した箇所です。音声ではちゃんと言えていました。あなたの誤りとしては数えていません。"
+  },
+  "enHeard": {
+    "message": "実際に話した内容（音声から書き起こし）"
+  },
+  "enAudioNote": {
+    "message": "※ 音声を Gemini に送って書き起こし・添削しました。発音は「発音で伝わらなかった箇所」にだけ書いています。"
+  },
+  "enAudioHint": {
+    "message": "※ 停止すると、録音した音声を Gemini に送って書き起こし・添削します（設定で変更できます）。"
+  },
+  "enAudioFallback": {
+    "message": "音声の送信に失敗したため、Chrome の音声認識テキストだけで添削しました"
+  },
+  "enAudioError": {
+    "message": "音声を送れませんでした（空か大きすぎます）。もう一度お試しください。"
+  },
+  "micUnavailable": {
+    "message": "マイクの録音を開始できませんでした。Chrome の音声認識テキストだけで添削します"
+  },
+  "enAudioSilent": {
+    "message": "音声から発話を聞き取れなかったため、Chrome の音声認識テキストだけで添削しました"
+  },
+  "enNothingHeard": {
+    "message": "音声から英語を聞き取れませんでした。マイクの入力を確認して、もう一度お試しください。"
   }
 }

@@ -172,6 +172,13 @@
     .en-arrow { color: #64748b; padding: 0 5px; }
     .en-to    { color: #4ade80; font-weight: 700; }
     .en-reason { margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.6; }
+    /* 発音で伝わらなかった箇所: 左＝言おうとした語、右＝そう聞こえた語。誤りではないので赤にしない */
+    .en-said  { color: #4ade80; font-weight: 700; }
+    .en-heard { color: #fbbf24; }
+    .en-heard-text {
+      margin: 0; color: #cbd5e1; font-size: 12px; line-height: 1.7;
+      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+    }
     .en-doubt {
       margin: 0; padding-left: 18px;
       color: #94a3b8; font-size: 12px; line-height: 1.7;
@@ -270,10 +277,11 @@
     </div>
   </div>
 
-  <!-- 読み込み順に意味がある: 純ロジック → AI 呼び出し層 → 音声認識層 → 履歴層 → UI -->
+  <!-- 読み込み順に意味がある: 純ロジック → AI 呼び出し層 → 音声認識層 → 録音層 → 履歴層 → UI -->
   <script src="english-core.js"></script>
   <script src="ai-providers.js"></script>
   <script src="speech.js"></script>
+  <script src="audio-capture.js"></script>
   <script src="history-store.js"></script>
   <script src="sidepanel.js"></script>
 </body>

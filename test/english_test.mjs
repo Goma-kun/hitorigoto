@@ -24,17 +24,18 @@ const blockExt = extractBlock('extension/english-core.js');
 const mod = new Function(
   `${blockExt}
    return { extractJsonObject, parseFeedback, recurringText, promoteRecurring,
-            topRecurring, foldSessions, buildEnglishUserMessage, buildSessionText,
-            EN_KEEP_FULL, EN_RECURRING_MIN, EN_RECURRING_SEND };`
+            topRecurring, foldSessions, buildEnglishUserMessage, buildEnglishAudioUserMessage,
+            buildSessionText, EN_KEEP_FULL, EN_RECURRING_MIN, EN_RECURRING_SEND };`
 )();
 
 const {
   parseFeedback, promoteRecurring, topRecurring, foldSessions,
-  buildEnglishUserMessage, buildSessionText, EN_KEEP_FULL, EN_RECURRING_MIN,
+  buildEnglishUserMessage, buildEnglishAudioUserMessage, buildSessionText, EN_KEEP_FULL, EN_RECURRING_MIN,
 } = mod;
 
 const LABELS = {
   corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容（音声認識の結果）',
+  pron: '発音で伝わらなかった箇所',
   types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' },
 };
 
@@ -265,6 +266,68 @@ console.log('== 履歴からのコピー（指摘つき）==');
   // 指摘が無いセッションでも修正版だけは持ち出せる
   const text = buildSessionText({ corrected_text: 'Hello.', issues: [] }, LABELS);
   check('指摘ゼロなら見出しも出ない', text, '【修正版】\nHello.');
+}
+
+// ============================================================
+console.log('== 音声モードの追加フィールド（transcript / pronunciation）==');
+{
+  const fb = parseFeedback(JSON.stringify(SAMPLE));
+  check('テキストモードでは transcript が空',    fb.transcript, '');
+  check('テキストモードでは pronunciation が空', fb.pronunciation, []);
+}
+{
+  const fb = parseFeedback(JSON.stringify({
+    transcript: 'today is day fifteen',
+    corrected_text: 'Today is day fifteen.',
+    issues: [],
+    pronunciation: [
+      { said: 'fifteen', heard_as: 'five', note: 'teen を言い切るべし' },
+      { said: 'weight',  heard_as: 'wife' },                       // note 無しは通す
+      { said: 'hogging' },                                          // heard_as 無しは捨てる
+      { heard_as: 'security' },                                     // said 無しは捨てる
+      { said: 'a', heard_as: 'b' }, { said: 'c', heard_as: 'd' },   // 4 件目以降は切る
+    ],
+  }));
+  check('transcript を拾う',            fb.transcript, 'today is day fifteen');
+  check('片方だけの発音項目は捨てる',   fb.pronunciation.map(p => p.said), ['fifteen', 'weight', 'a']);
+  check('note 無しは空文字',            fb.pronunciation[1].note, '');
+  check('発音は最大 3 件',              fb.pronunciation.length, 3);
+}
+{
+  const fb = parseFeedback(JSON.stringify({ corrected_text: 'x', pronunciation: 'fifteen → five' }));
+  check('pronunciation が配列でなければ空', fb.pronunciation, []);
+}
+
+// ============================================================
+console.log('== 音声モードのユーザーメッセージ ==');
+{
+  const msg = buildEnglishAudioUserMessage('I do a completely blank', [{ text: 'a → b', count: 2 }]);
+  check('Chrome の認識結果が参考として入る', msg.includes('I do a completely blank'), true);
+  check('根拠にしない注意書きが入る',        msg.includes('書き起こしの根拠にしないこと'), true);
+  check('繰り返し指摘が入る',                msg.includes('- a → b（2 回）'), true);
+}
+{
+  const msg = buildEnglishAudioUserMessage('', []);
+  check('認識結果が空でも成り立つ', msg.includes('取れませんでした'), true);
+  check('繰り返しが無ければ なし', msg.includes('なし'), true);
+}
+
+// ============================================================
+console.log('== コピー本文に発音の欄が入る ==');
+{
+  const text = buildSessionText({
+    corrected_text: 'Today is day fifteen.',
+    issues: [],
+    pronunciation: [{ said: 'fifteen', heard_as: 'five', note: 'teen を言い切るべし' }],
+    good: 'よし',
+  }, LABELS);
+  check('発音の見出しが入る',   text.includes('【発音で伝わらなかった箇所】\n1. fifteen → five\n   teen を言い切るべし'), true);
+  const order = ['【修正版】', '【発音で伝わらなかった箇所】', '【よかった点】'].map(h => text.indexOf(h));
+  check('発音は修正版とよかった点の間', order.every((v, i) => i === 0 || v > order[i - 1]), true);
+}
+{
+  const text = buildSessionText({ corrected_text: 'x', issues: [], pronunciation: [] }, LABELS);
+  check('発音が無ければ見出しも出ない', text.includes('発音'), false);
 }
 
 // ============================================================

@@ -77,7 +77,24 @@ function parseFeedback(raw) {
     recurring:         asStringArray(data.recurring),
     recognition_doubt: asStringArray(data.recognition_doubt),
     good:              asText(data.good),
+    // 以下 2 つは音声モード（音声を Gemini に渡したとき）だけ入る。テキストモードでは空
+    transcript:        asText(data.transcript),
+    pronunciation:     asPronunciation(data.pronunciation),
   };
+}
+
+// 「発音で伝わらなかった箇所」。said（言おうとした語）と heard_as（そう聞こえた語）が
+// 揃っているものだけ残す。片方しか無いものは表示しても意味が取れないので捨てる
+function asPronunciation(v) {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(it => ({
+      said:     asText(it && it.said),
+      heard_as: asText(it && it.heard_as),
+      note:     asText(it && it.note),
+    }))
+    .filter(it => it.said && it.heard_as)
+    .slice(0, 3);
 }
 
 // 指摘を1行の文字列にする。これが繰り返し判定のキーにもなる
@@ -157,6 +174,14 @@ function buildSessionText(session, labels) {
     out.push(`【${L.issues}】\n${lines.join('\n\n')}`);
   }
 
+  // 音声モードで拾った「発音で伝わらなかった箇所」。無いセッションでは出さない
+  const pron = s.pronunciation || [];
+  if (pron.length > 0 && L.pron) {
+    const lines = pron.map((it, i) =>
+      `${i + 1}. ${it.said} → ${it.heard_as}${it.note ? `\n   ${it.note}` : ''}`);
+    out.push(`【${L.pron}】\n${lines.join('\n\n')}`);
+  }
+
   if (s.good) out.push(`【${L.good}】\n${s.good}`);
   if (s.transcript) out.push(`【${L.said}】\n${s.transcript.trim()}`);
 
@@ -168,6 +193,22 @@ function buildEnglishUserMessage(transcript, recurring) {
   const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
   return `## 今回の独り言（音声認識結果）
 ${String(transcript).trim()}
+
+## これまでに繰り返し指摘されている点
+${lines.length ? lines.join('\n') : 'なし'}`;
+}
+
+// 音声モードのユーザーメッセージ。音声そのものは別パートで渡すので、ここには
+// 「Chrome にはこう聞こえた」という比較材料と、繰り返し指摘だけを入れる。
+// 認識結果が空（Web Speech が落ちた等）でも、音声があれば添削は成り立つ
+function buildEnglishAudioUserMessage(asrTranscript, recurring) {
+  const asr   = String(asrTranscript || '').trim();
+  const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
+  return `## 今回の独り言
+音声を添付しています。まず音声を聞いて、実際に言ったことを書き起こしてください。
+
+## 参考：Chrome の音声認識結果（化けている可能性があります。書き起こしの根拠にしないこと）
+${asr || '（取れませんでした。音声だけを頼りにしてください）'}
 
 ## これまでに繰り返し指摘されている点
 ${lines.length ? lines.join('\n') : 'なし'}`;

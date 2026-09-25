@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日: 2026-08-17
+最終更新日: 2026-09-24
 
 ## 日本語
 
@@ -10,14 +10,15 @@
 本拡張機能は、開発者や第三者のサーバーへ利用者の個人情報・閲覧履歴・入力内容を**一切収集しません**。開発者が利用者のデータを受け取ることはありません。
 
 ### 音声認識について
-- 音声の文字起こしには、ブラウザ標準の音声認識機能（Web Speech API）を使用します。この処理は Chrome が提供するもので、音声が Google の音声認識サービスで処理される場合があります。
-- 本拡張機能自体が音声データを保存・送信することはありません。
+- 話している間の文字起こしには、ブラウザ標準の音声認識機能（Web Speech API）を使用します。この処理は Chrome が提供するもので、音声が Google の音声認識サービスで処理される場合があります。
+- 本拡張機能自体が音声データを保存することはありません。
+- **音声の送信（Gemini APIキーを設定した場合のみ・既定でオン）**: 利用者が自分の Gemini APIキーを設定し、設定画面の「音声の送信」がオンのとき、練習中に録音した音声（1 回分）が、停止時に Google の Gemini API（generativelanguage.googleapis.com）へ送信され、書き起こしと添削に使われます。音声は添削のためにその場で送るだけで、端末内にも開発者のサーバーにも保存されません。設定画面でいつでもオフにでき、オフのときは Chrome の音声認識結果（テキスト）だけを送ります。端末内AI（Gemini Nano）を使う場合、音声は端末の外に送信されません。
 
 ### AIによる添削について
 添削に使うAIは2通りあり、どちらを使うかは利用者が選べます。
 
 - **端末内AI（Gemini Nano）**: Chrome に内蔵されたAIを使用します。話した内容（テキスト）は端末の外に送信されません。
-- **Gemini API（任意）**: 利用者が自分の Google Gemini APIキーを設定した場合のみ、話した内容のテキストが Google の Gemini API（generativelanguage.googleapis.com）へ送信されます。送信されるのは利用者自身のキーによる、利用者と Google の間の通信であり、開発者のサーバーは介在しません。
+- **Gemini API（任意）**: 利用者が自分の Google Gemini APIキーを設定した場合のみ、話した内容のテキスト（および「音声の送信」がオンのときは録音した音声）が Google の Gemini API（generativelanguage.googleapis.com）へ送信されます。送信されるのは利用者自身のキーによる、利用者と Google の間の通信であり、開発者のサーバーは介在しません。
 
 ### 保存されるデータ
 - 練習の記録（話した内容・添削結果・繰り返し指摘）と設定（APIキーを含む）は、利用者自身の端末内の `chrome.storage.local` にのみ保存されます。
@@ -26,7 +27,8 @@
 
 ### 権限について
 - **storage**: 練習の記録と設定を利用者の端末内に保存するために使用します。
-- **generativelanguage.googleapis.com への接続**: 利用者がAPIキーを設定した場合の添削にのみ使用します。
+- **generativelanguage.googleapis.com への接続**: 利用者がAPIキーを設定した場合の添削（および音声の書き起こし）にのみ使用します。
+- **マイク**: 話している間の音声認識と、「音声の送信」がオンのときの録音に使用します。録音は停止時に添削のため送信するだけで、保存しません。
 
 閲覧中のページを読み取る権限、ページにコードを差し込む仕組み（content script）、外部から取得したコードの実行（remote code）は、いずれも使用していません。
 
@@ -46,14 +48,15 @@ Hitorigoto ("the Extension") respects your privacy.
 The Extension does **not** collect any personal information, browsing history, or input data on any server operated by the developer or a third party. The developer never receives your data.
 
 ### Speech Recognition
-- Transcription uses the browser's standard speech recognition (Web Speech API). This is provided by Chrome, and your audio may be processed by Google's speech recognition service.
-- The Extension itself never stores or transmits your audio.
+- Live transcription while you speak uses the browser's standard speech recognition (Web Speech API). This is provided by Chrome, and your audio may be processed by Google's speech recognition service.
+- The Extension itself never stores your audio.
+- **Audio upload (only with your Gemini API key, on by default)**: if you have set your own Gemini API key and "Audio upload" is on in Settings, the audio recorded during a session is sent to Google's Gemini API (generativelanguage.googleapis.com) when you stop, and is used for transcription and feedback. The audio is sent only for that review; it is not stored on your device or on any developer server. You can turn this off at any time in Settings; when off, only the text from Chrome's speech recognition is sent. With on-device AI (Gemini Nano), audio never leaves your device.
 
 ### AI Feedback
 Two AI engines are available, and you choose which one to use.
 
 - **On-device AI (Gemini Nano)**: uses the AI built into Chrome. The text of what you said never leaves your device.
-- **Gemini API (optional)**: only if you set your own Google Gemini API key, the text of what you said is sent to Google's Gemini API (generativelanguage.googleapis.com). This communication happens directly between you and Google using your own key; no developer server is involved.
+- **Gemini API (optional)**: only if you set your own Google Gemini API key, the text of what you said (and, when "Audio upload" is on, the recorded audio) is sent to Google's Gemini API (generativelanguage.googleapis.com). This communication happens directly between you and Google using your own key; no developer server is involved.
 
 ### Stored Data
 - Your practice history (what you said, feedback, recurring patterns) and settings (including your API key) are stored only in `chrome.storage.local` on your own device.
@@ -62,7 +65,8 @@ Two AI engines are available, and you choose which one to use.
 
 ### Permissions
 - **storage**: to save your practice history and settings on your own device.
-- **Access to generativelanguage.googleapis.com**: used only for feedback when you have set your own API key.
+- **Access to generativelanguage.googleapis.com**: used only for feedback (and audio transcription) when you have set your own API key.
+- **Microphone**: used for live speech recognition while you speak, and for recording when "Audio upload" is on. The recording is only sent for review when you stop; it is never stored.
 
 The Extension does not read the pages you browse, does not use content scripts, and does not execute remote code.
 

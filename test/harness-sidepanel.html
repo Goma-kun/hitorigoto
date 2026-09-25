@@ -26,6 +26,13 @@
         enDoubtNote: '音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。',
         enNoPronunciation: '※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。',
         enNanoNote: '端末内AI（Gemini Nano）で処理しました', btnCopy: '📋 コピー',
+        enPronunciation: '発音で伝わらなかった箇所',
+        enPronNote: '左が言おうとした語、右がそう聞こえた語です。音声を聞いてもそう聞こえかねない箇所なので、ここを直すと伝わります。',
+        enDoubtNoteAudio: 'Chrome の音声認識が外した箇所です。音声ではちゃんと言えていました。あなたの誤りとしては数えていません。',
+        enHeard: '実際に話した内容（音声から書き起こし）',
+        enAudioNote: '※ 音声を Gemini に送って書き起こし・添削しました。発音は「発音で伝わらなかった箇所」にだけ書いています。',
+        enAudioHint: '※ 停止すると、録音した音声を Gemini に送って書き起こし・添削します（設定で変更できます）。',
+        enAnalyzingAudio: '🧠 音声を聞き直して添削中...（少し時間がかかります）',
         btnCopyWithIssues: '📋 コピー（指摘つき）', typePhrasing: '言い回し', typeVocabulary: '語彙', typeGrammar: '文法',
         enTimes: '$1 回', enIssueCount: '指摘 $1 件', settingsTip: '設定',
         enSetupNano: 'この端末では、キー不要の内蔵AIが使えます。設定から一度だけ有効化（モデルのダウンロード）をしてください。',
@@ -68,7 +75,7 @@
         document.body.appendChild(s);
       });
       try {
-        for (const f of ['english-core.js', 'ai-providers.js', 'speech.js', 'history-store.js', 'sidepanel.js']) {
+        for (const f of ['english-core.js', 'ai-providers.js', 'speech.js', 'audio-capture.js', 'history-store.js', 'sidepanel.js']) {
           await load('../extension/' + f);
         }
         // sidepanel.js は DOMContentLoaded 待ちなので、合図を出し直す
