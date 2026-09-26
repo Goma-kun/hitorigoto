@@ -299,6 +299,24 @@ console.log('== 音声モードの追加フィールド（transcript / pronuncia
 }
 
 // ============================================================
+console.log('== 今日の狙いの表現（targets）==');
+{
+  const fb = parseFeedback(JSON.stringify({ ...SAMPLE, targets: [
+    { phrase: 'on the mend', used: true, exact: true, as_said: 'on the mend', note: '' },
+    { phrase: 'draw a blank', used: true, exact: false, as_said: 'do a blank', note: 'draw だ' },
+    { used: true },                       // phrase 無しは捨てる
+    { phrase: 'rule out', used: false },  // 使えなかった
+  ] }));
+  check('targets が読める',        fb.targets.length, 3);
+  check('used / exact は真偽値に', [fb.targets[0].used, fb.targets[0].exact, fb.targets[2].used, fb.targets[2].exact], [true, true, false, false]);
+  check('as_said・note の補完',    [fb.targets[2].as_said, fb.targets[2].note], ['', '']);
+  check('targets が無ければ空',    parseFeedback(JSON.stringify(SAMPLE)).targets, []);
+  const extra = '\n\n## 今日使うと決めていた表現\n- on the mend';
+  check('テキスト用メッセージの末尾に節が付く', buildEnglishUserMessage('Hi.', [], extra).endsWith('なし' + extra), true);
+  check('音声用メッセージの末尾にも付く',       buildEnglishAudioUserMessage('Hi.', [], extra).endsWith('なし' + extra), true);
+  check('節が無ければ従来どおり',               buildEnglishUserMessage('Hi.', []).endsWith('なし'), true);
+}
+
 console.log('== 音声モードのユーザーメッセージ ==');
 {
   const msg = buildEnglishAudioUserMessage('I do a completely blank', [{ text: 'a → b', count: 2 }]);

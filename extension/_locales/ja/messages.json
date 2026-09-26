@@ -426,5 +426,231 @@
   },
   "enNothingHeard": {
     "message": "音声から英語を聞き取れませんでした。マイクの入力を確認して、もう一度お試しください。"
+  },
+  "tabPhrases": {
+    "message": "表現"
+  },
+  "phToday": {
+    "message": "今日の表現"
+  },
+  "phTodayResult": {
+    "message": "今日の表現の結果"
+  },
+  "phTodayEmptyNoPhrases": {
+    "message": "覚えたい表現を「表現」タブに入れると、毎日ここに出ます。添削の「直すべし」からも 1 タップで入れられます。"
+  },
+  "phTodayEmptyAllDone": {
+    "message": "今日出す表現はありません。表現を足すか、明日また来てください。"
+  },
+  "phGoAdd": {
+    "message": "📚 表現を入れる"
+  },
+  "phTagNew": {
+    "message": "新"
+  },
+  "phTagRetry": {
+    "message": "再挑戦"
+  },
+  "phTagReturn": {
+    "message": "再登場"
+  },
+  "phSkip": {
+    "message": "見送り"
+  },
+  "phSkipTip": {
+    "message": "今日の話に合わないので外す（回数には数えません。2 日あけて戻ります）"
+  },
+  "phTodayHint": {
+    "message": "話す前に目を通しておき、無理のない範囲で独り言に混ぜてください（$N$ 個）。停止すると、出たかどうかを判定します。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phMarkTip": {
+    "message": "タップで ◎ → △ → ✗ → − と切り替え"
+  },
+  "phAsSaid": {
+    "message": "口から出た形:"
+  },
+  "phResultHint": {
+    "message": "◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。"
+  },
+  "phAddToList": {
+    "message": "＋ 表現集へ"
+  },
+  "phAdded": {
+    "message": "✓ 入れた"
+  },
+  "phAddedToast": {
+    "message": "表現集に入れました"
+  },
+  "phStatActive": {
+    "message": "稽古中"
+  },
+  "phStatFresh": {
+    "message": "まだ試していない"
+  },
+  "phStatGraduated": {
+    "message": "卒業"
+  },
+  "phBtnAdd": {
+    "message": "＋ 追加"
+  },
+  "phBtnFlash": {
+    "message": "🃏 カードで復習"
+  },
+  "phPlaceholderPhrase": {
+    "message": "表現（例: for a split second）"
+  },
+  "phPlaceholderMeaning": {
+    "message": "意味（例: ほんの一瞬）"
+  },
+  "phKindPhrase": {
+    "message": "表現"
+  },
+  "phKindWord": {
+    "message": "単語"
+  },
+  "phBtnSave": {
+    "message": "入れる"
+  },
+  "phDuplicate": {
+    "message": "その表現はもう入っています"
+  },
+  "phBulkToggle": {
+    "message": "まとめて入れる…"
+  },
+  "phBulkPlaceholder": {
+    "message": "1 行に 1 つ。「表現 ｜ 意味」の形\nunder the hood ｜ 裏側の仕組み\nin-house ｜ 自社内で"
+  },
+  "phBulkSave": {
+    "message": "まとめて入れる"
+  },
+  "phBulkDone": {
+    "message": "$N$ 件入れました",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phBulkHint": {
+    "message": "区切りは ｜ か — かタブ。区切りが無い行は表現だけ入ります。同じ表現は増えません。"
+  },
+  "phFilterAll": {
+    "message": "すべて"
+  },
+  "phFilterToday": {
+    "message": "今日"
+  },
+  "phFilterActive": {
+    "message": "稽古中"
+  },
+  "phFilterFresh": {
+    "message": "未挑戦"
+  },
+  "phFilterGraduated": {
+    "message": "卒業"
+  },
+  "phFilterWord": {
+    "message": "単語"
+  },
+  "phEmpty": {
+    "message": "まだ表現がありません。「＋ 追加」で入れるか、添削の「直すべし」から 1 タップで入れてください。"
+  },
+  "phEmptyFilter": {
+    "message": "この絞り込みに当てはまる表現はありません"
+  },
+  "phNotYet": {
+    "message": "まだ試していない"
+  },
+  "phGraduated": {
+    "message": "卒業"
+  },
+  "phOverdue": {
+    "message": "$N$ 日遅れ",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phDueToday": {
+    "message": "今日"
+  },
+  "phDueTomorrow": {
+    "message": "明日"
+  },
+  "phDueInDays": {
+    "message": "$N$ 日後",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phBtnGraduate": {
+    "message": "卒業にする"
+  },
+  "phBtnUngraduate": {
+    "message": "稽古に戻す"
+  },
+  "phBtnDelete": {
+    "message": "削除"
+  },
+  "phBtnDeleteConfirm": {
+    "message": "もう一度押すと削除"
+  },
+  "phRuleNote": {
+    "message": "独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。"
+  },
+  "phFlashNone": {
+    "message": "カードで復習できる表現（意味つき・稽古中）がありません"
+  },
+  "phFlashDone": {
+    "message": "おしまい。言えた $A$・言えなかった $B$。言えなかったものは明日の「今日の表現」に戻ります。",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "phFlashClose": {
+    "message": "一覧に戻る"
+  },
+  "phFlashSayIt": {
+    "message": "英語で言ってみてから、答えを見てください"
+  },
+  "phFlashReveal": {
+    "message": "答えを見る"
+  },
+  "phFlashOk": {
+    "message": "言えた"
+  },
+  "phFlashNg": {
+    "message": "言えなかった"
+  },
+  "phFlashQuit": {
+    "message": "やめる"
+  },
+  "secDaily": {
+    "message": "毎日の表現"
+  },
+  "labelDailyTotal": {
+    "message": "1 日に出す表現の数"
+  },
+  "labelDailyNew": {
+    "message": "そのうち、まだ試していない表現は最大"
+  },
+  "dailyNote": {
+    "message": "「話す」タブに毎日出す表現の数です。出せなかった表現（✗・△）と期日が来た表現を先に選び、残りの枠にまだ試していない表現を入れます。数を増やすより、無理なく混ぜられる数にしておくほうが続きます。"
+  },
+  "dailySetTo": {
+    "message": "✓ 保存しました。次に選ぶときから効きます"
   }
 }

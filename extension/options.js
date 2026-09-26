@@ -247,6 +247,45 @@ audioSelect.addEventListener('change', async () => {
   renderTierLabel();
 });
 
+// ── 毎日の表現（今日の表現の数） ──
+// 数値の入力欄でなくプルダウンにする（上下矢印の増減は分かりにくい）
+const dailyTotalSelect = document.getElementById('daily-total-select');
+const dailyNewSelect   = document.getElementById('daily-new-select');
+const dailyStatus      = document.getElementById('daily-status');
+const DAILY_TOTAL_DEFAULT = 5;
+const DAILY_NEW_DEFAULT   = 3;
+
+function fillOptions(select, from, to) {
+  for (let n = from; n <= to; n++) {
+    const o = document.createElement('option');
+    o.value = String(n); o.textContent = String(n);
+    select.appendChild(o);
+  }
+}
+
+async function loadDaily() {
+  fillOptions(dailyTotalSelect, 1, 12);
+  fillOptions(dailyNewSelect, 0, 6);
+  const d = await chrome.storage.local.get(['hg_daily_total', 'hg_daily_new']);
+  const total = parseInt(d.hg_daily_total, 10);
+  const fresh = parseInt(d.hg_daily_new, 10);
+  dailyTotalSelect.value = String(Number.isFinite(total) ? Math.min(12, Math.max(1, total)) : DAILY_TOTAL_DEFAULT);
+  dailyNewSelect.value   = String(Number.isFinite(fresh) ? Math.min(6, Math.max(0, fresh)) : DAILY_NEW_DEFAULT);
+}
+
+async function saveDaily() {
+  await chrome.storage.local.set({
+    hg_daily_total: parseInt(dailyTotalSelect.value, 10),
+    hg_daily_new:   parseInt(dailyNewSelect.value, 10),
+  });
+  dailyStatus.textContent = T('dailySetTo');
+  dailyStatus.className = 'status-ok';
+  dailyStatus.style.display = 'block';
+  setTimeout(() => { dailyStatus.style.display = 'none'; }, 2000);
+}
+dailyTotalSelect.addEventListener('change', saveDaily);
+dailyNewSelect.addEventListener('change', saveDaily);
+
 // ── 記録の書き出し・読み込み ──
 function showDataStatus(msg, type) {
   dataStatus.textContent = msg;
@@ -284,4 +323,4 @@ importFile.addEventListener('change', async () => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); loadAudio(); loadEngine(); });
+document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); loadAudio(); loadDaily(); loadEngine(); });

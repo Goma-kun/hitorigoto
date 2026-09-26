@@ -6,7 +6,9 @@
 //
 // 共通インターフェース:
 //   provider.id … 'nano'（Chrome 内蔵 AI / Prompt API）| 'gemini'（BYOK）
-//   provider.reviewEnglish(text, recurring) → Promise<feedback> parseFeedback 済みの形
+//   provider.reviewEnglish(text, recurring, extra) → Promise<feedback> parseFeedback 済みの形
+//     extra は「今日の狙いの表現」の節（文字列・任意）。Gemini はこれを見て feedback.targets を返す。
+//     Nano は小型モデルなので渡さない（判定は phrase-core.js の文字照合だけで行う）
 //   provider.supportsAudio … 音声モードが使えるか（Gemini のみ true）
 //   provider.reviewEnglishAudio(blob, asrTranscript, recurring) → Promise<feedback>
 //     音声そのものを渡して書き起こしと添削を一度にやらせる。feedback に transcript / pronunciation が加わる
@@ -147,6 +149,20 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
 - 影響の大きいものから順に並べてください。
 - 些細な誤り（冠詞の揺れ程度で意味が変わらないもの）は、他に指摘がないときだけ挙げてください。
 
+## 今日の狙いの表現（渡された場合だけ）
+
+学習者が「今日はこれを使う」と決めていた表現が、メッセージの末尾に渡されることがあります。
+渡されたら、それぞれについて今回の独り言の中で実際に使えたかを判定し、"targets" に入れてください。
+
+- "phrase": 渡された表現をそのまま写す
+- "used": 使えていれば true。形が崩れていても、その表現を言おうとしたと分かるなら true
+- "exact": 形が崩れずに使えていれば true（時制・単複・人称の自然な変化は崩れに数えない）
+- "as_said": 実際に口から出た形を原文からそのまま引く。使えていなければ空文字
+- "note": 崩れていたときだけ、どこが崩れたかを老トレーナーの口調で日本語 1 文。それ以外は空文字
+
+狙いの表現を使えていたら "good" で拾ってよい。使えなかったことは責めない
+（その日の話に合わなかっただけのこともある）。渡されていなければ "targets" は空配列にする。
+
 ## 出力
 
 以下の JSON だけを返してください。前置き、説明、コードフェンスは付けないでください。
@@ -167,7 +183,10 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
   "recognition_doubt": [
     "音声認識の誤りと思われる箇所。原文の該当部分をそのまま入れる（口調にしない）"
   ],
-  "good": "今回よかった点を、ぶっきらぼうに短く 1 文。無理に褒めず、該当がなければ空文字にする"
+  "good": "今回よかった点を、ぶっきらぼうに短く 1 文。無理に褒めず、該当がなければ空文字にする",
+  "targets": [
+    { "phrase": "渡された表現そのまま", "used": true, "exact": true, "as_said": "口から出た形", "note": "" }
+  ]
 }`;
 
 // ------------------------------------------------------------
@@ -239,7 +258,10 @@ const EN_AUDIO_OUTPUT = `## 出力
   "pronunciation": [
     { "said": "言おうとした語", "heard_as": "そう聞こえた語", "note": "どう直せば伝わるかを老トレーナーの口調で日本語 1 文" }
   ],
-  "good": "今回よかった点を、ぶっきらぼうに短く 1 文。無理に褒めず、該当がなければ空文字にする"
+  "good": "今回よかった点を、ぶっきらぼうに短く 1 文。無理に褒めず、該当がなければ空文字にする",
+  "targets": [
+    { "phrase": "渡された表現そのまま", "used": true, "exact": true, "as_said": "口から出た形（transcript から引く）", "note": "" }
+  ]
 }`;
 
 // 差し替えの目印。テキスト用の文面を書き換えたときは、ここも合わせて直すこと
@@ -316,10 +338,10 @@ function createGeminiProvider(key) {
   return {
     id: 'gemini',
 
-    async reviewEnglish(text, recurring) {
+    async reviewEnglish(text, recurring, extra = '') {
       const raw = await call({
         systemInstruction: { parts: [{ text: EN_SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: buildEnglishUserMessage(text, recurring) }] }],
+        contents: [{ role: 'user', parts: [{ text: buildEnglishUserMessage(text, recurring, extra) }] }],
         generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
         tools: []
       });
@@ -333,7 +355,7 @@ function createGeminiProvider(key) {
     // asrTranscript は Chrome の認識結果（比較材料）。空でもよい
     supportsAudio: !!EN_SYSTEM_PROMPT_AUDIO,
 
-    async reviewEnglishAudio(blob, asrTranscript, recurring) {
+    async reviewEnglishAudio(blob, asrTranscript, recurring, extra = '') {
       if (!EN_SYSTEM_PROMPT_AUDIO) { const err = new Error(''); err.code = 'audio'; throw err; }
       if (!blob || blob.size === 0 || blob.size > AUDIO_MAX_BYTES) {
         const err = new Error(''); err.code = 'audio'; throw err;
@@ -345,7 +367,7 @@ function createGeminiProvider(key) {
           role: 'user',
           parts: [
             { inlineData: { mimeType: audioMimeType(blob), data } },
-            { text: buildEnglishAudioUserMessage(asrTranscript, recurring) },
+            { text: buildEnglishAudioUserMessage(asrTranscript, recurring, extra) },
           ],
         }],
         generationConfig: {

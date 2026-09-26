@@ -7,6 +7,11 @@
   <meta charset="UTF-8">
   <script>
     // ---- chrome スタブ（このページ専用） ----
+    // 表現集の文言は本物の messages.json から読む（追加した文言の抜けをここで拾う）
+    const JA_PHRASES = {};
+    const _msgReady = fetch('../extension/_locales/ja/messages.json').then(r => r.json()).then(d => {
+      for (const [k, v] of Object.entries(d)) JA_PHRASES[k] = v.message;
+    });
     const _store = {
       hg_lang: 'en-US',
       hg_engine: 'auto',
@@ -16,9 +21,19 @@
         { text: 'concentrate to → concentrate on', count: 4, last_seen: '2026-08-10' },
         { text: 'in the weekend → on the weekend', count: 2, last_seen: '2026-08-12' },
       ],
+      // 表現集（表現プールの実例）。due を過去にして「今日の表現」に出るようにする
+      en_phrases: [
+        { id: 'p1', phrase: 'under the hood', meaning: '裏側の仕組み', kind: 'phrase', source: 'manual', added: '2026-09-12', due: '2026-09-13', hits: 0, status: 'active', history: [{ d: '2026-09-12', r: 'miss' }] },
+        { id: 'p2', phrase: 'for a split second', meaning: 'ほんの一瞬', kind: 'phrase', source: 'manual', added: '2026-09-14', due: '2026-09-28', hits: 1, status: 'active', history: [{ d: '2026-09-14', r: 'miss' }, { d: '2026-09-21', r: 'hit' }] },
+        { id: 'p3', phrase: 'he\'s on the mend', meaning: '回復に向かっている', kind: 'phrase', source: 'manual', added: '2026-09-22', due: '2026-09-26', hits: 2, status: 'active', history: [{ d: '2026-09-22', r: 'partial' }, { d: '2026-09-23', r: 'hit' }, { d: '2026-09-25', r: 'hit' }] },
+        { id: 'p4', phrase: 'tweak', meaning: '少し手を入れる', kind: 'word', source: 'manual', added: '2026-09-20', due: '2026-09-20', hits: 0, status: 'active', history: [] },
+        { id: 'p5', phrase: 'rule out anything serious', meaning: '重い病気を除外する', kind: 'phrase', source: 'manual', added: '2026-09-25', due: '2026-09-25', hits: 0, status: 'active', history: [] },
+        { id: 'p6', phrase: 'it turned out', meaning: '結局〜だった', kind: 'phrase', source: 'manual', added: '2026-09-13', due: null, hits: 3, status: 'graduated', history: [{ d: '2026-09-13', r: 'hit' }, { d: '2026-09-16', r: 'hit' }, { d: '2026-09-23', r: 'hit' }] },
+        { id: 'p7', phrase: 'improve my English', meaning: '', note: 'develop my English', kind: 'phrase', source: 'issue', added: '2026-09-26', due: '2026-09-26', hits: 0, status: 'active', history: [] },
+      ],
     };
     window.chrome = {
-      i18n: { getMessage: (k) => ({
+      i18n: { getMessage: (k, sub) => ({
         appTitle: '💬 独り言', tabSpeak: '話す', tabHistory: '履歴', btnStart: '▶ 開始', btnStop: '■ 停止',
         enHint: '「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。',
         enRecurring: '繰り返し出ている点', enGood: 'よかった点', enIssues: '指摘',
@@ -37,7 +52,8 @@
         enTimes: '$1 回', enIssueCount: '指摘 $1 件', settingsTip: '設定',
         enSetupNano: 'この端末では、キー不要の内蔵AIが使えます。設定から一度だけ有効化（モデルのダウンロード）をしてください。',
         btnOpenSettings: '⚙️ 設定を開く',
-      }[k] || '') },
+        ...JA_PHRASES,
+      }[k] || '').replace(/\$[A-Za-z]+\$/g, (m) => { const i = m === '$B$' ? 1 : 0; return (Array.isArray(sub) ? sub : [sub])[i] ?? ''; }) },
       storage: {
         local: {
           get: async (keys) => {
@@ -62,6 +78,7 @@
   <script>
     (async () => {
       // 本物の sidepanel.html から style と body（スクリプト以外）を移植する
+      await _msgReady;
       const html = await (await fetch('../extension/sidepanel.html')).text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const style = doc.querySelector('style');
@@ -75,7 +92,7 @@
         document.body.appendChild(s);
       });
       try {
-        for (const f of ['english-core.js', 'ai-providers.js', 'speech.js', 'audio-capture.js', 'history-store.js', 'sidepanel.js']) {
+        for (const f of ['english-core.js', 'phrase-core.js', 'ai-providers.js', 'speech.js', 'audio-capture.js', 'history-store.js', 'sidepanel.js']) {
           await load('../extension/' + f);
         }
         // sidepanel.js は DOMContentLoaded 待ちなので、合図を出し直す
@@ -109,6 +126,11 @@
         }, { id: '2026-08-01T00:00:00.000Z', folded: true, issues: [{ type: 'grammar', suggestion: 'I went there' }] }];
         renderHistory();
         console.log('[harness] renderHistory OK');
+
+        // 表現集パネルも通す
+        switchPanel('phrases');
+        console.log('[harness] renderPhrases OK');
+        switchPanel('speak');
         document.title = 'HARNESS-RENDER-OK';
       } catch (e) {
         document.title = 'HARNESS-FAIL';

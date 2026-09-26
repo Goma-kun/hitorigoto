@@ -426,5 +426,231 @@
   },
   "enNothingHeard": {
     "message": "No English speech could be heard in the audio. Please check your microphone and try again."
+  },
+  "tabPhrases": {
+    "message": "Phrases"
+  },
+  "phToday": {
+    "message": "Today's phrases"
+  },
+  "phTodayResult": {
+    "message": "Today's phrases: results"
+  },
+  "phTodayEmptyNoPhrases": {
+    "message": "Add phrases you want to learn in the Phrases tab and they will show up here every day. You can also add any suggestion from a review with one tap."
+  },
+  "phTodayEmptyAllDone": {
+    "message": "Nothing to practice today. Add more phrases, or come back tomorrow."
+  },
+  "phGoAdd": {
+    "message": "📚 Add phrases"
+  },
+  "phTagNew": {
+    "message": "new"
+  },
+  "phTagRetry": {
+    "message": "retry"
+  },
+  "phTagReturn": {
+    "message": "again"
+  },
+  "phSkip": {
+    "message": "Skip"
+  },
+  "phSkipTip": {
+    "message": "Doesn't fit today's topic. Not counted; it comes back in 2 days."
+  },
+  "phTodayHint": {
+    "message": "Look these over before you start and work them in where they fit naturally ($N$). When you stop, the app checks whether they came out.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phMarkTip": {
+    "message": "Tap to cycle ◎ → △ → ✗ → −"
+  },
+  "phAsSaid": {
+    "message": "As said:"
+  },
+  "phResultHint": {
+    "message": "◎ came out as is / △ came out but garbled / ✗ didn't come out / − skipped. Tap a mark to correct it."
+  },
+  "phAddToList": {
+    "message": "+ Add to phrases"
+  },
+  "phAdded": {
+    "message": "✓ Added"
+  },
+  "phAddedToast": {
+    "message": "Added to your phrases"
+  },
+  "phStatActive": {
+    "message": "In training"
+  },
+  "phStatFresh": {
+    "message": "Not tried yet"
+  },
+  "phStatGraduated": {
+    "message": "Graduated"
+  },
+  "phBtnAdd": {
+    "message": "+ Add"
+  },
+  "phBtnFlash": {
+    "message": "🃏 Review with cards"
+  },
+  "phPlaceholderPhrase": {
+    "message": "Phrase (e.g. for a split second)"
+  },
+  "phPlaceholderMeaning": {
+    "message": "Meaning (in your language)"
+  },
+  "phKindPhrase": {
+    "message": "Phrase"
+  },
+  "phKindWord": {
+    "message": "Word"
+  },
+  "phBtnSave": {
+    "message": "Add"
+  },
+  "phDuplicate": {
+    "message": "That phrase is already in the list"
+  },
+  "phBulkToggle": {
+    "message": "Add many at once…"
+  },
+  "phBulkPlaceholder": {
+    "message": "One per line, as \"phrase | meaning\"\nunder the hood | the inner workings\nin-house | within the company"
+  },
+  "phBulkSave": {
+    "message": "Add all"
+  },
+  "phBulkDone": {
+    "message": "Added $N$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phBulkHint": {
+    "message": "Separate with |, — or a tab. A line without a separator adds the phrase only. Duplicates are ignored."
+  },
+  "phFilterAll": {
+    "message": "All"
+  },
+  "phFilterToday": {
+    "message": "Today"
+  },
+  "phFilterActive": {
+    "message": "In training"
+  },
+  "phFilterFresh": {
+    "message": "Not tried"
+  },
+  "phFilterGraduated": {
+    "message": "Graduated"
+  },
+  "phFilterWord": {
+    "message": "Words"
+  },
+  "phEmpty": {
+    "message": "No phrases yet. Use \"+ Add\", or add a suggestion from a review with one tap."
+  },
+  "phEmptyFilter": {
+    "message": "No phrases match this filter"
+  },
+  "phNotYet": {
+    "message": "not tried yet"
+  },
+  "phGraduated": {
+    "message": "graduated"
+  },
+  "phOverdue": {
+    "message": "$N$ days overdue",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phDueToday": {
+    "message": "today"
+  },
+  "phDueTomorrow": {
+    "message": "tomorrow"
+  },
+  "phDueInDays": {
+    "message": "in $N$ days",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "phBtnGraduate": {
+    "message": "Graduate"
+  },
+  "phBtnUngraduate": {
+    "message": "Back to training"
+  },
+  "phBtnDelete": {
+    "message": "Delete"
+  },
+  "phBtnDeleteConfirm": {
+    "message": "Tap again to delete"
+  },
+  "phRuleNote": {
+    "message": "Using a phrase as is while talking earns a ◎. After the first ◎ it comes back in a week, after the second in three weeks, and three ◎ graduate it. △ and ✗ come back tomorrow; a skip comes back in 2 days."
+  },
+  "phFlashNone": {
+    "message": "No phrases to review with cards (needs a meaning and must be in training)"
+  },
+  "phFlashDone": {
+    "message": "Done. Recalled $A$, missed $B$. Missed ones come back in tomorrow's list.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "phFlashClose": {
+    "message": "Back to list"
+  },
+  "phFlashSayIt": {
+    "message": "Say it in English, then reveal the answer"
+  },
+  "phFlashReveal": {
+    "message": "Show answer"
+  },
+  "phFlashOk": {
+    "message": "Got it"
+  },
+  "phFlashNg": {
+    "message": "Missed it"
+  },
+  "phFlashQuit": {
+    "message": "Quit"
+  },
+  "secDaily": {
+    "message": "Daily phrases"
+  },
+  "labelDailyTotal": {
+    "message": "Phrases shown per day"
+  },
+  "labelDailyNew": {
+    "message": "Of those, phrases not tried yet: at most"
+  },
+  "dailyNote": {
+    "message": "How many phrases appear in the Speak tab each day. Phrases that didn't come out (✗, △) and phrases that are due go first; remaining slots are filled with phrases you haven't tried yet. A number you can comfortably work in beats a big one."
+  },
+  "dailySetTo": {
+    "message": "✓ Saved. Takes effect the next time phrases are picked."
   }
 }

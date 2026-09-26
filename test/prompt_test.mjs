@@ -41,6 +41,9 @@ check('見る観点もそのまま共有',             A.includes('## 見る観�
 check('出力に transcript がある',           A.includes('"transcript"'), true);
 check('出力に pronunciation がある',        A.includes('"pronunciation"'), true);
 check('出力に recognition_doubt が残る',    A.includes('"recognition_doubt"'), true);
+check('出力に targets がある',              A.includes('"targets"'), true);
+check('狙いの表現の節も共有',               A.includes('## 今日の狙いの表現'), true);
+check('テキスト用の出力にも targets',       T.includes('"targets"'), true);
 check('出力節は 1 つだけ',                  A.split('## 出力').length - 1, 1);
 check('前提節は 1 つだけ',                  A.split('## 重要な前提').length - 1, 1);
 

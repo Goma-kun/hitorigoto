@@ -18,10 +18,10 @@
 添削に使うAIは2通りあり、どちらを使うかは利用者が選べます。
 
 - **端末内AI（Gemini Nano）**: Chrome に内蔵されたAIを使用します。話した内容（テキスト）は端末の外に送信されません。
-- **Gemini API（任意）**: 利用者が自分の Google Gemini APIキーを設定した場合のみ、話した内容のテキスト（および「音声の送信」がオンのときは録音した音声）が Google の Gemini API（generativelanguage.googleapis.com）へ送信されます。送信されるのは利用者自身のキーによる、利用者と Google の間の通信であり、開発者のサーバーは介在しません。
+- **Gemini API（任意）**: 利用者が自分の Google Gemini APIキーを設定した場合のみ、話した内容のテキスト（および「音声の送信」がオンのときは録音した音声、その日の「今日の表現」として選ばれている表現とその意味）が Google の Gemini API（generativelanguage.googleapis.com）へ送信されます。送信されるのは利用者自身のキーによる、利用者と Google の間の通信であり、開発者のサーバーは介在しません。
 
 ### 保存されるデータ
-- 練習の記録（話した内容・添削結果・繰り返し指摘）と設定（APIキーを含む）は、利用者自身の端末内の `chrome.storage.local` にのみ保存されます。
+- 練習の記録（話した内容・添削結果・繰り返し指摘）、表現集（利用者が入れた表現・意味とその練習結果）、設定（APIキーを含む）は、利用者自身の端末内の `chrome.storage.local` にのみ保存されます。
 - 同期は行いません。他の端末や他の利用者と共有されることはありません。
 - 記録の書き出し（エクスポート）は、利用者がその操作を行ったときに端末内のファイルとして保存されるだけです。
 
@@ -56,10 +56,10 @@ The Extension does **not** collect any personal information, browsing history, o
 Two AI engines are available, and you choose which one to use.
 
 - **On-device AI (Gemini Nano)**: uses the AI built into Chrome. The text of what you said never leaves your device.
-- **Gemini API (optional)**: only if you set your own Google Gemini API key, the text of what you said (and, when "Audio upload" is on, the recorded audio) is sent to Google's Gemini API (generativelanguage.googleapis.com). This communication happens directly between you and Google using your own key; no developer server is involved.
+- **Gemini API (optional)**: only if you set your own Google Gemini API key, the text of what you said (and, when "Audio upload" is on, the recorded audio, plus the phrases and meanings selected as "Today's phrases") is sent to Google's Gemini API (generativelanguage.googleapis.com). This communication happens directly between you and Google using your own key; no developer server is involved.
 
 ### Stored Data
-- Your practice history (what you said, feedback, recurring patterns) and settings (including your API key) are stored only in `chrome.storage.local` on your own device.
+- Your practice history (what you said, feedback, recurring patterns), your phrase list (phrases and meanings you added and their practice results) and settings (including your API key) are stored only in `chrome.storage.local` on your own device.
 - No synchronization is performed. Nothing is shared with other devices or other users.
 - Exporting your history simply saves a file on your device, and only when you perform that action.
 

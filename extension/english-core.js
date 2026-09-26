@@ -80,7 +80,23 @@ function parseFeedback(raw) {
     // 以下 2 つは音声モード（音声を Gemini に渡したとき）だけ入る。テキストモードでは空
     transcript:        asText(data.transcript),
     pronunciation:     asPronunciation(data.pronunciation),
+    // 「今日の狙いの表現」を渡したときだけ入る。渡していなければ空
+    targets:           asTargets(data.targets),
   };
+}
+
+// 「今日使うと決めていた表現」の判定。phrase が無いものは何の判定か分からないので捨てる
+function asTargets(v) {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(it => ({
+      phrase:  asText(it && it.phrase),
+      used:    !!(it && it.used),
+      exact:   !!(it && it.exact),
+      as_said: asText(it && it.as_said),
+      note:    asText(it && it.note),
+    }))
+    .filter(it => it.phrase);
 }
 
 // 「発音で伝わらなかった箇所」。said（言おうとした語）と heard_as（そう聞こえた語）が
@@ -188,20 +204,21 @@ function buildSessionText(session, labels) {
   return out.join('\n\n');
 }
 
-// Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない
-function buildEnglishUserMessage(transcript, recurring) {
+// Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない。
+// extra は「今日の狙いの表現」の節（phrase-core.js の buildTargetsSection）。無ければ空文字
+function buildEnglishUserMessage(transcript, recurring, extra = '') {
   const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
   return `## 今回の独り言（音声認識結果）
 ${String(transcript).trim()}
 
 ## これまでに繰り返し指摘されている点
-${lines.length ? lines.join('\n') : 'なし'}`;
+${lines.length ? lines.join('\n') : 'なし'}${extra || ''}`;
 }
 
 // 音声モードのユーザーメッセージ。音声そのものは別パートで渡すので、ここには
 // 「Chrome にはこう聞こえた」という比較材料と、繰り返し指摘だけを入れる。
 // 認識結果が空（Web Speech が落ちた等）でも、音声があれば添削は成り立つ
-function buildEnglishAudioUserMessage(asrTranscript, recurring) {
+function buildEnglishAudioUserMessage(asrTranscript, recurring, extra = '') {
   const asr   = String(asrTranscript || '').trim();
   const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
   return `## 今回の独り言
@@ -211,6 +228,6 @@ function buildEnglishAudioUserMessage(asrTranscript, recurring) {
 ${asr || '（取れませんでした。音声だけを頼りにしてください）'}
 
 ## これまでに繰り返し指摘されている点
-${lines.length ? lines.join('\n') : 'なし'}`;
+${lines.length ? lines.join('\n') : 'なし'}${extra || ''}`;
 }
 // ===== 英語学習モードのロジック（ここまで）=====

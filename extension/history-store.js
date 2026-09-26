@@ -9,6 +9,8 @@ const HistoryStore = (() => {
     transcript:  'hg_transcript',   // 録音中の書き起こし（クラッシュ対策の一時保存）
     enSessions:  'en_sessions',     // セッション履歴
     enRecurring: 'en_recurring',    // 繰り返し指摘
+    enPhrases:   'en_phrases',      // 表現集（覚えたい表現・単語）
+    enToday:     'en_today',        // 今日の表現（{ date, ids, results }）。日をまたいだら選び直す
   };
 
   const EXPORT_FORMAT = 'hitorigoto-english-v1';
@@ -21,7 +23,15 @@ const HistoryStore = (() => {
       transcript:  d[KEYS.transcript] || '',
       enSessions:  Array.isArray(d[KEYS.enSessions])  ? d[KEYS.enSessions]  : [],
       enRecurring: Array.isArray(d[KEYS.enRecurring]) ? d[KEYS.enRecurring] : [],
+      enPhrases:   Array.isArray(d[KEYS.enPhrases])   ? d[KEYS.enPhrases]   : [],
+      enToday:     (d[KEYS.enToday] && typeof d[KEYS.enToday] === 'object') ? d[KEYS.enToday] : null,
     };
+  }
+
+  function savePhrases(phrases, today) {
+    const obj = { [KEYS.enPhrases]: phrases };
+    if (today !== undefined) obj[KEYS.enToday] = today;
+    return chrome.storage.local.set(obj);
   }
 
   function saveTranscript(text) {
@@ -42,6 +52,7 @@ const HistoryStore = (() => {
       exported_at: new Date().toISOString(),
       sessions:    d.enSessions,
       recurring:   d.enRecurring,
+      phrases:     d.enPhrases,
     }, null, 2);
   }
 
@@ -71,7 +82,19 @@ const HistoryStore = (() => {
     return [...map.values()];
   }
 
-  // 成功したら { sessions: 追加された件数, recurring: 取り込み後の件数 } を返す。
+  // 表現集は同じ表現なら履歴の長い方を残す（同じファイルを 2 回読んでも増えない）
+  function mergePhrases(current, incoming) {
+    const map = new Map(current.map(p => [normKey(p.phrase), p]));
+    for (const p of (incoming || [])) {
+      if (!p || !p.phrase) continue;
+      const key = normKey(p.phrase);
+      const cur = map.get(key);
+      if (!cur || (p.history || []).length > (cur.history || []).length) map.set(key, { ...p });
+    }
+    return [...map.values()];
+  }
+
+  // 成功したら { sessions: 追加された件数, recurring: 取り込み後の件数, phrases: 取り込み後の件数 } を返す。
   // 読めない・形式違いは Error を投げる（呼び出し側が文言を出す）
   async function importEnglishJson(jsonText) {
     let data;
@@ -84,9 +107,11 @@ const HistoryStore = (() => {
     const before = d.enSessions.length;
     const sessions  = mergeSessions(d.enSessions, data.sessions);
     const recurring = mergeRecurring(d.enRecurring, data.recurring);
+    const phrases   = mergePhrases(d.enPhrases, data.phrases);
     await saveEnglish(sessions, recurring);
-    return { sessions: sessions.length - before, recurring: recurring.length };
+    await chrome.storage.local.set({ [KEYS.enPhrases]: phrases });
+    return { sessions: sessions.length - before, recurring: recurring.length, phrases: phrases.length };
   }
 
-  return { KEYS, load, saveTranscript, saveEnglish, exportEnglishJson, importEnglishJson };
+  return { KEYS, load, saveTranscript, saveEnglish, savePhrases, exportEnglishJson, importEnglishJson };
 })();
