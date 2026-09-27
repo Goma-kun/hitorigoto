@@ -182,7 +182,7 @@ struct AddPhraseSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } } }
         }
         #if os(macOS)
-        .frame(minWidth: 420, minHeight: 520)
+        .frame(minWidth: 400, idealWidth: 420, minHeight: 520)
         #endif
     }
 }

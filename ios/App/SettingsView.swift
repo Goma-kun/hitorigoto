@@ -135,7 +135,8 @@ struct KeySheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
         }
         #if os(macOS)
-        .frame(minWidth: 460, minHeight: 300)
+        // 本体の窓（幅 440）からはみ出さない幅にする
+        .frame(minWidth: 400, idealWidth: 420, minHeight: 280)
         #endif
     }
 }
