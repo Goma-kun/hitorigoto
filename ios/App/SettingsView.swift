@@ -3,9 +3,8 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
-    @State private var keyInput = ""
+    @State private var editingKey = false
     @State private var keyStatus = ""
-    @State private var testing = false
     @State private var exporting = false
     @State private var importing = false
     @State private var dataStatus = ""
@@ -15,25 +14,18 @@ struct SettingsView: View {
             Section {
                 if model.hasKey {
                     Label("キーは登録済みです", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.good)
+                } else {
+                    Label("まだ登録されていません", systemImage: "exclamationmark.circle").foregroundStyle(Theme.warn)
                 }
-                SecureField(model.hasKey ? "（登録済み。変えるときはここに入力）" : "AIza… または AQ… で始まるキー", text: $keyInput)
-                    .autocorrectionDisabled()
+                // 入力欄はシートに出す。**Mac の設定画面（Form）に直に置いた入力欄はクリックしてもフォーカスが入らなかった**
+                // （2026-09-27 実測。同じ TextField でもシートの中なら入る）
                 HStack {
-                    Button("保存") { model.setKey(keyInput); keyInput = ""; keyStatus = "保存しました" }
-                        .disabled(keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                    Button(testing ? "確認中…" : "接続テスト") {
-                        let k = keyInput.trimmingCharacters(in: .whitespaces).isEmpty ? (KeychainStore.apiKey ?? "") : keyInput
-                        guard !k.isEmpty else { keyStatus = "キーを入力するか保存してください"; return }
-                        testing = true
-                        Task { keyStatus = (await model.testKey(k)).map { "✗ \($0)" } ?? "✓ つながりました"; testing = false }
-                    }
-                    .disabled(testing)
+                    Button(model.hasKey ? "キーを変更…" : "キーを登録…") { editingKey = true }
                     if model.hasKey {
                         Button("削除", role: .destructive) { model.setKey(nil); keyStatus = "削除しました" }
                     }
                 }
                 if !keyStatus.isEmpty { Text(keyStatus).font(.caption).foregroundStyle(keyStatus.hasPrefix("✗") ? Theme.bad : Theme.good) }
-                Link("Google AI Studio でキーを取得する", destination: URL(string: "https://aistudio.google.com/apikey")!)
                 Text("キーは端末の Keychain にだけ保存します。録音した音声と話した内容は、あなたのキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。日本からの利用は無料枠が使えず従量課金になることがあります（1 回の添削で数円程度）。")
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("Google Gemini API キー（必須）") }
@@ -72,6 +64,7 @@ struct SettingsView: View {
         #if os(macOS)
         .formStyle(.grouped)
         #endif
+        .sheet(isPresented: $editingKey) { KeySheet(status: $keyStatus).environmentObject(model) }
         .fileExporter(isPresented: $exporting, document: JSONDocument(data: model.exportData()), contentType: .json,
                       defaultFilename: "hitorigoto-history-\(Logic.todayStamp().replacingOccurrences(of: "-", with: ""))") { r in
             dataStatus = (try? r.get()) != nil ? "✓ 書き出しました" : "✗ 書き出せませんでした"
@@ -96,4 +89,53 @@ struct JSONDocument: FileDocument {
     init(data: Data) { self.data = data }
     init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+
+/// キーの登録シート。入力→接続テスト→保存
+struct KeySheet: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @Binding var status: String
+    @State private var keyInput = ""
+    @State private var result = ""
+    @State private var testing = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("キー", text: $keyInput, prompt: Text("AIza… または AQ… で始まるキー"))
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                    HStack {
+                        Button(testing ? "確認中…" : "接続テスト") {
+                            testing = true
+                            Task { result = (await model.testKey(keyInput.trimmingCharacters(in: .whitespaces))).map { "✗ \($0)" } ?? "✓ つながりました"; testing = false }
+                        }
+                        .disabled(testing || keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Button("保存") {
+                            model.setKey(keyInput)
+                            status = "✓ 保存しました"
+                            dismiss()
+                        }
+                        .buttonStyle(.borderedProminent).tint(Theme.accent)
+                        .disabled(keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    if !result.isEmpty { Text(result).font(.caption).foregroundStyle(result.hasPrefix("✗") ? Theme.bad : Theme.good) }
+                } header: { Text("Google Gemini API キー") } footer: {
+                    Text("Google AI Studio で作ったキーを貼り付けてください。キーはこの端末の Keychain にだけ保存します。")
+                }
+                Section {
+                    Link("Google AI Studio でキーを取得する", destination: URL(string: "https://aistudio.google.com/apikey")!)
+                }
+            }
+            .navigationTitle("キーを登録").compactNavigationTitle()
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
+        }
+        #if os(macOS)
+        .frame(minWidth: 460, minHeight: 300)
+        #endif
+    }
 }

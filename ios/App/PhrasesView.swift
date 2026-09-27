@@ -151,12 +151,14 @@ struct AddPhraseSheet: View {
         NavigationStack {
             Form {
                 Section("1 件ずつ") {
-                    TextField("表現（例: for a split second）", text: $phrase)
+                    TextField("表現", text: $phrase, prompt: Text("例: for a split second"))
                         .autocorrectionDisabled()
+                        .frame(maxWidth: .infinity)
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
                         #endif
-                    TextField("意味（例: ほんの一瞬）", text: $meaning)
+                    TextField("意味", text: $meaning, prompt: Text("例: ほんの一瞬"))
+                        .frame(maxWidth: .infinity)
                     Picker("種類", selection: $kind) { Text("表現").tag("phrase"); Text("単語").tag("word") }
                     Button("入れる") {
                         if model.addPhrase(phrase, meaning: meaning, kind: kind) { status = "入れました"; phrase = ""; meaning = "" }
