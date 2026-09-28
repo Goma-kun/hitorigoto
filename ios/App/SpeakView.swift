@@ -31,8 +31,29 @@ struct SpeakView: View {
 
     // MARK: - 話す前
 
+    @State private var confirmDiscard = false
+
     private var idleBody: some View {
         Group {
+            if let p = model.pending {
+                Card(title: "送っていない録音があります") {
+                    Text(p.label).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                    if !p.transcript.isEmpty {
+                        Text(p.transcript).font(.caption).foregroundStyle(Theme.muted).lineLimit(3)
+                    }
+                    HStack(spacing: 8) {
+                        Button("もう一度送る") { Task { await model.review() } }
+                            .buttonStyle(.borderedProminent).tint(Theme.accent)
+                        Button("捨てる") { confirmDiscard = true }
+                            .buttonStyle(.bordered).tint(Theme.muted)
+                    }
+                    Note(text: "添削が終わるまで録音は手元に残ります。送れたら自動で消えます。")
+                }
+                .confirmationDialog("この録音を捨てますか？ 添削されていない話した内容が消えます。", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                    Button("捨てる", role: .destructive) { model.discardPending() }
+                    Button("やめる", role: .cancel) {}
+                }
+            }
             if !model.hasKey {
                 Card {
                     Text("添削には Google Gemini の API キーが必要です。「設定」で登録してください（自分のキーで、自分と Google の間の通信だけです）。")
@@ -135,7 +156,9 @@ struct SpeakView: View {
                     switch model.phase {
                     case .recording: await model.stopAndReview()
                     case .reviewing: break
-                    default: await model.startRecording()
+                    default:
+                        if model.pending != nil { model.errorMessage = "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。" }
+                        else { await model.startRecording() }
                     }
                 }
             } label: {

@@ -20,6 +20,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var latest: Feedback?
     @Published private(set) var latestJudged: [Judged] = []
     @Published var errorMessage: String?
+    /// 送れていない録音。**結果が出るまで消さない**（通信に失敗しても話した内容を失わせない）。
+    /// ディスクにも置くので、アプリを閉じても残る
+    @Published private(set) var pending: PendingRecording?
 
     // 設定（UserDefaults）
     @Published var dailyTotal: Int { didSet { UserDefaults.standard.set(dailyTotal, forKey: "dailyTotal") } }
@@ -33,6 +36,7 @@ final class AppModel: ObservableObject {
     init(store: SnapshotStore? = try? SnapshotStore(url: SnapshotStore.defaultURL())) {
         self.store = store
         self.snapshot = (try? store?.load()).flatMap { $0 } ?? Snapshot()
+        self.pending = PendingRecording.load()
         let d = UserDefaults.standard
         dailyTotal = d.object(forKey: "dailyTotal") as? Int ?? PhraseLogic.defaultTotal
         dailyNew = d.object(forKey: "dailyNew") as? Int ?? PhraseLogic.defaultNew
@@ -132,21 +136,32 @@ final class AppModel: ObservableObject {
         let result = await recorder.stop()
         guard let result else { phase = .idle; errorMessage = "録音が取れませんでした"; return }
         guard result.seconds >= 2 else { phase = .idle; errorMessage = "短すぎました。もう少し話してから止めてください"; return }
+        // まず手元に残す。ここから先で何が起きても、話した内容は消えない
+        let p = PendingRecording(audio: result.audio, transcript: result.transcript, seconds: result.seconds, date: Date())
+        p.save()
+        pending = p
+        await review()
+    }
+
+    /// 手元に残っている録音を Gemini に送る。「もう一度送る」もここを通る
+    func review() async {
+        guard let p = pending else { return }
         guard let key = KeychainStore.apiKey else {
             phase = .idle
-            errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。"
+            errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。"
             return
         }
         phase = .reviewing
+        errorMessage = nil
         let targetCards = todayCards()
         let extra = PhraseLogic.targetsSection(targetCards)
         let client = GeminiClient(key: key)
         do {
-            let fb = try await client.reviewEnglishAudio(result.audio, mimeType: Recorder.mimeType, asrTranscript: result.transcript,
+            let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
                                                          recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
-            var session = Session(id: ISO8601DateFormatter.withMillis.string(from: Date()), transcript: fb.transcript,
+            var session = Session(id: ISO8601DateFormatter.withMillis.string(from: p.date), transcript: fb.transcript,
                                   correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: "gemini")
-            if !result.transcript.isEmpty, result.transcript != fb.transcript { session.asrTranscript = result.transcript }
+            if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
             if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
 
             var judged: [Judged] = []
@@ -161,16 +176,26 @@ final class AppModel: ObservableObject {
             snapshot.sessions = Logic.foldSessions(snapshot.sessions)
             snapshot.recurring = Logic.promoteRecurring(snapshot.recurring, issues: fb.issues, today: today)
             save()
+            // ここで初めて録音を手放す
+            p.discard()
+            pending = nil
             latest = fb
             latestJudged = judged
             phase = .result
         } catch let f as GeminiClient.Failure {
             phase = .idle
-            errorMessage = Self.message(for: f)
+            errorMessage = Self.message(for: f) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         } catch {
             phase = .idle
-            errorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         }
+    }
+
+    /// 残っている録音を捨てる（本人が押したときだけ）
+    func discardPending() {
+        pending?.discard()
+        pending = nil
+        errorMessage = nil
     }
 
     static func message(for f: GeminiClient.Failure) -> String {
@@ -273,4 +298,41 @@ extension ISO8601DateFormatter {
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
     }()
+}
+
+/// 送れていない録音。音声とメモを Application Support に置き、送れたら消す
+struct PendingRecording: Equatable {
+    let audio: Data
+    let transcript: String
+    let seconds: Int
+    let date: Date
+
+    private static var dir: URL? { try? SnapshotStore.defaultURL().deletingLastPathComponent() }
+    private static var audioURL: URL? { dir?.appendingPathComponent("pending.m4a") }
+    private static var metaURL: URL? { dir?.appendingPathComponent("pending.json") }
+
+    struct Meta: Codable { var transcript: String; var seconds: Int; var date: Date }
+
+    func save() {
+        guard let a = Self.audioURL, let m = Self.metaURL else { return }
+        try? audio.write(to: a, options: .atomic)
+        try? JSONEncoder().encode(Meta(transcript: transcript, seconds: seconds, date: date)).write(to: m, options: .atomic)
+    }
+
+    func discard() {
+        if let a = Self.audioURL { try? FileManager.default.removeItem(at: a) }
+        if let m = Self.metaURL { try? FileManager.default.removeItem(at: m) }
+    }
+
+    static func load() -> PendingRecording? {
+        guard let a = audioURL, let m = metaURL,
+              let audio = try? Data(contentsOf: a), !audio.isEmpty,
+              let meta = try? JSONDecoder().decode(Meta.self, from: Data(contentsOf: m)) else { return nil }
+        return PendingRecording(audio: audio, transcript: meta.transcript, seconds: meta.seconds, date: meta.date)
+    }
+
+    var label: String {
+        let f = DateFormatter(); f.locale = Locale(identifier: "ja_JP"); f.dateFormat = "M/d HH:mm"
+        return "\(f.string(from: date)) に録音（\(seconds / 60):\(String(format: "%02d", seconds % 60))）"
+    }
 }
