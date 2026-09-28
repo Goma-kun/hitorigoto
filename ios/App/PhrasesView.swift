@@ -51,6 +51,7 @@ struct PhrasesView: View {
                 Note(text: "独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。")
             }
             .padding(12)
+            .textSelection(.enabled)
         }
         .background(Theme.bg)
         .sheet(isPresented: $adding) { AddPhraseSheet().environmentObject(model) }

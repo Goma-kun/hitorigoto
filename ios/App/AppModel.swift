@@ -19,6 +19,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var latest: Feedback?
     @Published private(set) var latestJudged: [Judged] = []
+    /// 直近の結果を履歴と同じ形で持つ（まとめてコピー用）
+    @Published private(set) var latestSession: Session?
     @Published var errorMessage: String?
     /// 送れていない録音。**結果が出るまで消さない**（通信に失敗しても話した内容を失わせない）。
     /// ディスクにも置くので、アプリを閉じても残る
@@ -181,6 +183,7 @@ final class AppModel: ObservableObject {
             pending = nil
             latest = fb
             latestJudged = judged
+            latestSession = session
             phase = .result
         } catch let f as GeminiClient.Failure {
             phase = .idle
@@ -213,7 +216,7 @@ final class AppModel: ObservableObject {
     }
 
     func clearResult() {
-        latest = nil; latestJudged = []; errorMessage = nil
+        latest = nil; latestJudged = []; latestSession = nil; errorMessage = nil
         if phase == .result { phase = .idle }
     }
 

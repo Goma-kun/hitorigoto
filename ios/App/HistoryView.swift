@@ -23,6 +23,7 @@ struct HistoryView: View {
                 }
             }
             .padding(12)
+            .textSelection(.enabled)
         }
         .background(Theme.bg)
     }

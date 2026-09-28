@@ -21,6 +21,8 @@ struct SpeakView: View {
                     }
                 }
                 .padding(12)
+                // 画面の文字はどこでも選んでコピーできるようにする（指摘・理由・褒め言葉も。2026-09-28 本人要望）
+                .textSelection(.enabled)
             }
             .background(Theme.bg)
             actionBar
@@ -93,6 +95,9 @@ struct SpeakView: View {
             if !fb.good.isEmpty {
                 Card(title: "わしが買ってやる点") { Text(fb.good).font(.callout).foregroundStyle(Theme.good) }
             }
+            // 結果を丸ごと持ち出す（チャットに貼って台本にする型）。履歴の「コピー（指摘つき）」と同じ本文
+            CopyButton(text: Logic.buildSessionText(model.latestSession ?? Session(id: ""), labels: SessionCard.labels),
+                       label: "📋 結果をまとめてコピー（指摘つき）")
             if !model.latestJudged.isEmpty { TodayResultCard(judged: model.latestJudged) }
             Card(title: "直すべし") {
                 if fb.issues.isEmpty {
