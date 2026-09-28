@@ -9,10 +9,12 @@ struct HistoryView: View {
             VStack(spacing: 8) {
                 let recurring = Logic.topRecurring(model.snapshot.recurring)
                 if !recurring.isEmpty {
-                    Card(title: "また出やがった点") {
+                    // 何の一覧かと、いつのことかが分かるようにする（唐突に見える・2026-09-28 本人指摘）
+                    Card(title: "また出やがった点（2 回以上出た指摘）") {
                         ForEach(recurring, id: \.text) { r in
-                            Text("• \(r.text)（\(r.count) 回）").font(.callout).foregroundStyle(Theme.text)
+                            RecurringRow(item: r)
                         }
+                        Note(text: "同じ直しが 2 回以上出たものです。話す前にも出しています。")
                     }
                 }
                 if model.snapshot.sessions.isEmpty {
@@ -94,5 +96,22 @@ struct AddIssueButton: View {
         Button(exists ? "✓" : "＋") { if model.addFromIssue(issue) { added = true } }
             .buttonStyle(.bordered).controlSize(.mini).tint(exists ? Theme.good : Theme.accent).disabled(exists)
             .help(exists ? "表現集に入っています" : "表現集へ入れる")
+    }
+}
+
+/// 繰り返し指摘の 1 行。回数と、最後に出た日を添える
+struct RecurringRow: View {
+    let item: Recurring
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("• \(item.text)").font(.callout).foregroundStyle(Theme.text)
+            Text("\(item.count) 回・最後は \(Self.short(item.lastSeen))").font(.caption).foregroundStyle(Theme.faint).padding(.leading, 12)
+        }
+    }
+    /// "2026-09-28" → "9/28"
+    static func short(_ ymd: String) -> String {
+        let p = ymd.split(separator: "-")
+        guard p.count == 3, let m = Int(p[1]), let d = Int(p[2]) else { return ymd }
+        return "\(m)/\(d)"
     }
 }

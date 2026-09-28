@@ -66,10 +66,8 @@ struct SpeakView: View {
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
             if !recurring.isEmpty {
-                Card(title: "また出やがった点") {
-                    ForEach(recurring, id: \.text) { r in
-                        Text("• \(r.text)（\(r.count) 回）").font(.callout).foregroundStyle(Theme.text)
-                    }
+                Card(title: "また出やがった点（今日はここに気をつける）") {
+                    ForEach(recurring, id: \.text) { r in RecurringRow(item: r) }
                 }
             }
         }
