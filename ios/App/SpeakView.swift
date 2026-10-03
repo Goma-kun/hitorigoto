@@ -62,7 +62,8 @@ struct SpeakView: View {
                         .font(.callout).foregroundStyle(Theme.text)
                 }
             }
-            Note(text: "「▶ 開始」を押して、英語で独り言を話してください。停止すると、録音した音声を Gemini に送って書き起こしと添削をします。")
+            // 押し方は下の丸ボタンとその一行で分かるので、ここは「止めたあと何が起きるか」だけにする
+            Note(text: "停止すると、録音した音声を Gemini に送って、書き起こしと添削をします。")
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
             if !recurring.isEmpty {
@@ -151,29 +152,77 @@ struct SpeakView: View {
 
     // MARK: - 下のボタン
 
+    /// 画面の下の「開始／停止」。**録音アプリの定石どおり、大きな丸ひとつにしてある**
+    /// （本人の要望・2026-10-03「ここで独り言を始めるのだと、ぱっと見て分かるようにしたい」）。
+    /// 横いっぱいのバーだと下のタブと一体に見えて、押す場所が沈んでいた。
+    /// 丸の周りは空けておく。**ここだけが押す場所**だと目で分かるのが大事なので、隣に何も置かない
     private var actionBar: some View {
         VStack(spacing: 0) {
             Divider().overlay(Theme.line)
-            Button {
-                Task {
-                    switch model.phase {
-                    case .recording: await model.stopAndReview()
-                    case .reviewing: break
-                    default:
-                        if model.pending != nil { model.errorMessage = "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。" }
-                        else { await model.startRecording() }
+            VStack(spacing: 7) {
+                Button {
+                    Task {
+                        switch model.phase {
+                        case .recording: await model.stopAndReview()
+                        case .reviewing: break
+                        default:
+                            if model.pending != nil { model.errorMessage = "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。" }
+                            else {
+                                Speaker.shared.stop()   // 読み上げ中なら止める。録音に混ざらないように
+                                await model.startRecording()
+                            }
+                        }
                     }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(micColor)
+                            .frame(width: 96, height: 96)
+                            // 録音中は赤がうっすら広がる。押したあと「始まっている」が目でも分かる
+                            .shadow(color: micColor.opacity(model.phase == .recording ? 0.5 : 0.3), radius: 12, y: 3)
+                        VStack(spacing: 1) {
+                            Image(systemName: model.phase == .recording ? "stop.fill" : "mic.fill")
+                                .font(.system(size: 31, weight: .semibold))
+                            Text(micLabel).font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                    }
+                    .contentShape(Circle())
                 }
-            } label: {
-                Text(model.phase == .recording ? "■ 停止" : "▶ 開始")
-                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
+                .buttonStyle(.plain)
+                .disabled(model.phase == .reviewing)
+                .animation(.easeInOut(duration: 0.2), value: model.phase)
+
+                Text(micHint).font(.caption).foregroundStyle(Theme.muted)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(model.phase == .recording ? Theme.rec : Theme.accent)
-            .disabled(model.phase == .reviewing)
-            .padding(10)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 14).padding(.bottom, 10)
         }
         .background(Theme.bg)
+    }
+
+    private var micColor: Color {
+        switch model.phase {
+        case .recording: return Theme.rec
+        case .reviewing: return Theme.faint
+        default: return Theme.accent
+        }
+    }
+
+    private var micLabel: String {
+        switch model.phase {
+        case .recording: return "停止"
+        case .reviewing: return "添削中"
+        default: return "開始"
+        }
+    }
+
+    private var micHint: String {
+        switch model.phase {
+        case .recording: return "話し終えたら、もう一度押してください"
+        case .reviewing: return "音声を Gemini に送っています"
+        default: return "押すと録音が始まります。英語で独り言をどうぞ"
+        }
     }
 }
 
@@ -218,6 +267,8 @@ struct TodayCard: View {
                             if !marks.isEmpty { Text(marks).font(.caption).foregroundStyle(Theme.muted).kerning(2) }
                         }
                         Spacer(minLength: 4)
+                        // 真似して口に出すための読み上げ（端末の声。通信もお金もかからない）
+                        SpeakButton(text: c.phrase)
                         todayTag(c)
                         Button("見送り") { model.skipToday(c.id) }
                             .buttonStyle(.bordered).controlSize(.small).tint(Theme.muted)
@@ -284,10 +335,15 @@ struct IssueRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Tag(text: typeLabel, fg: typeColor, bg: typeColor.opacity(0.15))
-            (Text(issue.original ?? "").strikethrough().foregroundStyle(Theme.bad)
-             + Text("  →  ").foregroundStyle(Theme.faint)
-             + Text(issue.suggestion).bold().foregroundStyle(Theme.good))
-                .font(.callout)
+            HStack(alignment: .top, spacing: 4) {
+                (Text(issue.original ?? "").strikethrough().foregroundStyle(Theme.bad)
+                 + Text("  →  ").foregroundStyle(Theme.faint)
+                 + Text(issue.suggestion).bold().foregroundStyle(Theme.good))
+                    .font(.callout)
+                Spacer(minLength: 0)
+                // 読み上げるのは**直されたあとの形**だけ。間違えた形を耳に入れても仕方がない
+                SpeakButton(text: issue.suggestion)
+            }
             if let r = issue.reason, !r.isEmpty { Text(r).font(.caption).foregroundStyle(Theme.muted) }
             let exists = added || model.hasPhrase(issue.suggestion)
             Button(exists ? "✓ 入れた" : "＋ 表現集へ") {
