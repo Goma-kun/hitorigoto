@@ -62,8 +62,8 @@ struct SpeakView: View {
                         .font(.callout).foregroundStyle(Theme.text)
                 }
             }
-            // 押し方は下の丸ボタンとその一行で分かるので、ここは「止めたあと何が起きるか」だけにする
-            Note(text: "停止すると、録音した音声を Gemini に送って、書き起こしと添削をします。")
+            // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
+            Welcome()
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
             if !recurring.isEmpty {
@@ -221,8 +221,59 @@ struct SpeakView: View {
         switch model.phase {
         case .recording: return "話し終えたら、もう一度押してください"
         case .reviewing: return "音声を Gemini に送っています"
-        default: return "押すと録音が始まります。英語で独り言をどうぞ"
+        default: return "押して、英語で話すだけ"
         }
+    }
+}
+
+/// 話す前のいちばん上。挨拶と「話す → AI が聞く → 直しが届く」の絵。
+/// 何が起きるアプリなのかを、読まなくても分かるようにする
+struct Welcome: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
+                Text(greeting).font(.title2.weight(.bold)).fontDesign(.rounded).foregroundStyle(Theme.text)
+                Text(sub).font(.subheadline).foregroundStyle(Theme.muted)
+            }
+            HStack(alignment: .top, spacing: 4) {
+                step("mic.fill", "話す", Theme.accent, Theme.accentBg)
+                arrow
+                step("sparkles", "AI が聞く", Theme.warn, Theme.warnBg)
+                arrow
+                step("checkmark.bubble.fill", "直しが届く", Theme.good, Theme.goodBg)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+    }
+
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<11: return "おはようございます ☀️"
+        case 11..<18: return "こんにちは 👋"
+        default: return "こんばんは 🌙"
+        }
+    }
+
+    private var sub: String {
+        let n = model.snapshot.sessions.count
+        return n == 0 ? "英語でひとりごと、はじめましょう" : "これまで \(n) 回話しました。今日もどうぞ"
+    }
+
+    private func step(_ icon: String, _ label: String, _ fg: Color, _ bg: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 22, weight: .semibold)).foregroundStyle(fg)
+                .frame(width: 56, height: 56).background(bg, in: Circle())
+            Text(label).font(.caption.weight(.bold)).foregroundStyle(Theme.text)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var arrow: some View {
+        Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+            .frame(height: 56)
     }
 }
 
@@ -250,10 +301,16 @@ struct TodayCard: View {
         let cards = model.todayCards()
         Card(title: "今日の表現") {
             if cards.isEmpty {
-                Note(text: model.snapshot.phrases.isEmpty
-                     ? "覚えたい表現を「表現」タブに入れると、毎日ここに出ます。添削の「直すべし」からも 1 タップで入れられます。"
-                     : "今日出す表現はありません。表現を足すか、明日また来てください。")
-                Button("📚 表現を入れる", action: goPhrases).buttonStyle(.bordered)
+                // 空のときは絵と一言だけ。細かい入れ方は「表現」タブ側で分かる
+                HStack(spacing: 12) {
+                    Image(systemName: "books.vertical.fill").font(.title2).foregroundStyle(Theme.accent)
+                        .frame(width: 44, height: 44).background(Theme.accentBg, in: Circle())
+                    Text(model.snapshot.phrases.isEmpty ? "覚えたい表現を入れると、毎日ここに出ます"
+                                                        : "今日出す表現はありません")
+                        .font(.callout).foregroundStyle(Theme.text)
+                    Spacer(minLength: 4)
+                    Button("入れる", action: goPhrases).buttonStyle(.borderedProminent).tint(Theme.accent)
+                }
             } else {
                 ForEach(Array(cards.enumerated()), id: \.element.id) { i, c in
                     if i > 0 { Divider().overlay(Theme.line) }
