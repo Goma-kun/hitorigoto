@@ -211,7 +211,10 @@ final class AppModel: ObservableObject {
         case .network(let m): return "通信に失敗しました: \(m)"
         case .parse: return "AI の応答を読めませんでした。もう一度お試しください。"
         case .audio: return "音声が空か大きすぎます。"
-        case .silent: return "聞き取れる英語がありませんでした。マイクに近づいて、もう一度どうぞ。"
+        case .silent:
+            let name = Platform.inputDeviceName
+            return "聞き取れる英語がありませんでした。マイクから音が入っていなかったかもしれません。"
+                + (name.isEmpty ? "" : "今のマイクは「\(name)」です。") + "マイクを確かめて、もう一度どうぞ。"
         }
     }
 

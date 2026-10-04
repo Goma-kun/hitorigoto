@@ -373,6 +373,27 @@ struct CopyButton: View {
     }
 }
 
+/// マイクから音が来ていないときの知らせ。無音のまま最後まで話してしまうのを防ぐ
+struct MicSilentWarning: View {
+    let inputName: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("マイクから音が入っていません").font(.headline).foregroundStyle(Theme.warn)
+            Text(inputName.isEmpty ? "このままだと無音の録音になります。マイクを確かめてください。"
+                                   : "今のマイクは「\(inputName)」です。このままだと無音の録音になります。")
+                .font(.subheadline).foregroundStyle(Theme.text)
+            if Platform.canChooseInput {
+                Button("マイクを選ぶ（サウンド設定を開く）") { Platform.openSoundInputSettings() }
+                    .font(.subheadline.weight(.semibold))
+                Text("入力を切り替えたら、いったん止めて録り直してください。").font(.caption).foregroundStyle(Theme.muted)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warnBg, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
 /// 録音中の表示。Recorder の変化で描き直すために、観測する側を分けておく
 struct RecordingBody: View {
     @ObservedObject var recorder: Recorder
@@ -384,6 +405,11 @@ struct RecordingBody: View {
                 Text(String(format: "%d:%02d", recorder.seconds / 60, recorder.seconds % 60))
                     .font(.title3.monospacedDigit().weight(.bold)).foregroundStyle(Theme.text)
                 LevelBar(level: recorder.level)
+            }
+            if recorder.micSilent {
+                MicSilentWarning(inputName: recorder.inputName)
+            } else if !recorder.inputName.isEmpty {
+                Note(text: "マイク: \(recorder.inputName)")
             }
             let live = recorder.transcript + recorder.interim
             if live.isEmpty {

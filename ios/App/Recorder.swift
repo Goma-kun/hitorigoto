@@ -67,6 +67,14 @@ final class Recorder: ObservableObject {
     @Published private(set) var transcript = ""             // 字幕の確定分
     @Published private(set) var interim = ""                // 字幕の未確定分
     @Published private(set) var captionsAvailable = false
+    @Published private(set) var inputName = ""              // 今使っているマイクの名前
+    @Published private(set) var micSilent = false           // しばらく音が入っていない（別のマイクを掴んでいる疑い）
+
+    /// これ以上のピークが来たら「音が入っている」とみなす（level は 3 倍済み。素の値で −46dB ほど）
+    private static let soundThreshold: Float = 0.015
+    /// 音が無いまま、この秒数たったら知らせる
+    private static let silentAfter: TimeInterval = 6
+    private var lastSound: Date?
 
     /// 録音した音声（AAC / m4a）。Gemini の inlineData には audio/mp4 で渡す（実測で通ることを確認済み）
     static let mimeType = "audio/mp4"
@@ -98,6 +106,8 @@ final class Recorder: ObservableObject {
         try Platform.activateAudioSession()
 
         transcript = ""; interim = ""; seconds = 0; level = 0
+        micSilent = false; lastSound = nil
+        inputName = Platform.inputDeviceName
         wantCaptions = captions
 
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("hitorigoto-\(Int(Date().timeIntervalSince1970)).m4a")
@@ -121,7 +131,14 @@ final class Recorder: ObservableObject {
         let sink = self.sink
         input.installTap(onBus: 0, bufferSize: 4096, format: inFormat) { [weak self] buffer, _ in
             let lv = sink.handle(buffer)
-            Task { @MainActor in self?.level = lv }
+            Task { @MainActor in
+                guard let self else { return }
+                self.level = lv
+                if lv >= Self.soundThreshold {
+                    self.lastSound = Date()
+                    if self.micSilent { self.micSilent = false }
+                }
+            }
         }
         engine.prepare()
         do { try engine.start() } catch {
@@ -136,6 +153,7 @@ final class Recorder: ObservableObject {
             Task { @MainActor in
                 guard let self, let s = self.started else { return }
                 self.seconds = Int(Date().timeIntervalSince(s))
+                self.micSilent = Date().timeIntervalSince(self.lastSound ?? s) >= Self.silentAfter
             }
         }
     }
@@ -149,7 +167,7 @@ final class Recorder: ObservableObject {
         let tail = await finishCaptions()
         sink.close()
         Platform.deactivateAudioSession()
-        level = 0
+        level = 0; micSilent = false
         guard let url = fileURL, let data = try? Data(contentsOf: url) else { return nil }
         try? FileManager.default.removeItem(at: url)
         fileURL = nil

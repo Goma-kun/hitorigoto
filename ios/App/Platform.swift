@@ -4,6 +4,7 @@ import AVFoundation
 import UIKit
 #else
 import AppKit
+import CoreAudio
 #endif
 
 /// OS ごとに違うところを、ここ 1 か所にまとめる。**画面の側に `#if` を散らさない**
@@ -39,6 +40,40 @@ enum Platform {
     static func deactivateAudioSession() {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
+    }
+
+    /// 今の入力（マイク）の名前。Mac は「サウンド」設定の既定の入力がそのまま使われる
+    static var inputDeviceName: String {
+        #if os(iOS)
+        return AVAudioSession.sharedInstance().currentRoute.inputs.first?.portName ?? ""
+        #else
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                                              mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id) == noErr else { return "" }
+        var name: Unmanaged<CFString>?
+        size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        addr.mSelector = kAudioObjectPropertyName
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &name) == noErr, let name else { return "" }
+        return name.takeRetainedValue() as String
+        #endif
+    }
+
+    /// マイクを選ぶ設定画面を開く（Mac は「サウンド」の入力。iPhone は選ぶ画面が無いので何もしない）
+    static func openSoundInputSettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension?input") { NSWorkspace.shared.open(url) }
+        #endif
+    }
+
+    static var canChooseInput: Bool {
+        #if os(macOS)
+        return true
+        #else
+        return false
         #endif
     }
 
