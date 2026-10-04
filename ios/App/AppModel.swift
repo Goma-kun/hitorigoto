@@ -190,7 +190,7 @@ final class AppModel: ObservableObject {
             phase = .result
         } catch let f as GeminiClient.Failure {
             phase = .idle
-            errorMessage = Self.message(for: f) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+            errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         } catch {
             phase = .idle
             errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
@@ -204,7 +204,7 @@ final class AppModel: ObservableObject {
         errorMessage = nil
     }
 
-    static func message(for f: GeminiClient.Failure) -> String {
+    static func message(for f: GeminiClient.Failure, mic: String = "") -> String {
         switch f {
         case .noKey: return "添削には Google Gemini の API キーが必要です。設定から登録してください。"
         case .keyInvalid: return "API キーが正しくないようです。設定で確かめてください。"
@@ -215,7 +215,8 @@ final class AppModel: ObservableObject {
         case .parse: return "AI の応答を読めませんでした。もう一度お試しください。"
         case .audio: return "音声が空か大きすぎます。"
         case .silent:
-            let name = Platform.inputDeviceName
+            // 実際に録ったマイクの名前を出す（Mac の既定とは限らない）
+            let name = mic.isEmpty ? Platform.inputDeviceName : mic
             return "聞き取れる英語がありませんでした。マイクから音が入っていなかったかもしれません。"
                 + (name.isEmpty ? "" : "今のマイクは「\(name)」です。") + "マイクを確かめて、もう一度どうぞ。"
         }

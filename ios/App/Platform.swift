@@ -77,34 +77,14 @@ enum Platform {
         #endif
     }
 
-    /// 録音に使うマイクをこのアプリの中だけで切り替える。**Mac の既定の入力は変えない**
-    /// （既定を Bluetooth イヤホンにすると、ほかのアプリがマイクを使うたびに通話モードに落ちて音楽の音が細くなるため）。
-    /// uid が空・見つからないときは Mac の既定に合わせる。返り値は実際に使うマイクの名前
-    static func useInput(uid: String, on engine: AVAudioEngine) -> String {
-        #if os(macOS)
-        let chosen = uid.isEmpty ? nil : macInputDevices().first { $0.uid == uid }
-        var id = chosen?.id ?? macDefaultInputID()
-        if id != 0, let unit = engine.inputNode.audioUnit {
-            AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                 &id, UInt32(MemoryLayout<AudioDeviceID>.size))
-        }
-        return chosen?.name ?? inputDeviceName
-        #else
-        return inputDeviceName
-        #endif
+    /// 設定で選んだマイクの名前。選んでいない・今つながっていないときは nil（そのときは Mac の既定で録る）。
+    /// 選んだマイクは Recorder が名指しで掴む。**Mac の既定の入力は変えない**
+    /// （既定を Bluetooth イヤホンにすると、ほかのアプリがマイクを使うたびに通話モードに落ちて音楽の音が細くなるため）
+    static func inputName(uid: String) -> String? {
+        uid.isEmpty ? nil : inputDevices().first { $0.uid == uid }?.name
     }
 
     #if os(macOS)
-    private static func macDefaultInputID() -> AudioDeviceID {
-        var id = AudioDeviceID(0)
-        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
-                                              mScope: kAudioObjectPropertyScopeGlobal,
-                                              mElement: kAudioObjectPropertyElementMain)
-        AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
-        return id
-    }
-
     private static func macString(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector) -> String {
         var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
                                               mElement: kAudioObjectPropertyElementMain)

@@ -194,11 +194,28 @@ struct SpeakView: View {
                 .animation(.easeInOut(duration: 0.2), value: model.phase)
 
                 Text(micHint).font(.caption).foregroundStyle(Theme.muted)
+                if Platform.canChooseInput, model.phase != .recording, model.phase != .reviewing {
+                    // 話す前に、どのマイクで録るかを見せる。無音のまま話してしまうのを先に防ぐ。
+                    // イヤホンは後からつながるので、数秒おきに見直す
+                    TimelineView(.periodic(from: .now, by: 2)) { _ in micLine }
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 14).padding(.bottom, 10)
         }
         .background(Theme.bg)
+    }
+
+    @ViewBuilder
+    private var micLine: some View {
+        if model.micUID.isEmpty {
+            Label(Platform.inputDeviceName, systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
+        } else if let name = Platform.inputName(uid: model.micUID) {
+            Label(name, systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
+        } else {
+            Label("選んだマイクがつながっていません（\(Platform.inputDeviceName) で録ります）", systemImage: "exclamationmark.triangle.fill")
+                .font(.caption2.weight(.bold)).foregroundStyle(Theme.warn)
+        }
     }
 
     private var micColor: Color {
