@@ -62,6 +62,86 @@ enum Platform {
         #endif
     }
 
+    /// 録音に使えるマイク。Mac だけ（iPhone は OS が選ぶので空）
+    struct InputDevice: Identifiable, Hashable {
+        let uid: String
+        let name: String
+        var id: String { uid }
+    }
+
+    static func inputDevices() -> [InputDevice] {
+        #if os(macOS)
+        return macInputDevices().map { InputDevice(uid: $0.uid, name: $0.name) }
+        #else
+        return []
+        #endif
+    }
+
+    /// 録音に使うマイクをこのアプリの中だけで切り替える。**Mac の既定の入力は変えない**
+    /// （既定を Bluetooth イヤホンにすると、ほかのアプリがマイクを使うたびに通話モードに落ちて音楽の音が細くなるため）。
+    /// uid が空・見つからないときは Mac の既定に合わせる。返り値は実際に使うマイクの名前
+    static func useInput(uid: String, on engine: AVAudioEngine) -> String {
+        #if os(macOS)
+        let chosen = uid.isEmpty ? nil : macInputDevices().first { $0.uid == uid }
+        var id = chosen?.id ?? macDefaultInputID()
+        if id != 0, let unit = engine.inputNode.audioUnit {
+            AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                 &id, UInt32(MemoryLayout<AudioDeviceID>.size))
+        }
+        return chosen?.name ?? inputDeviceName
+        #else
+        return inputDeviceName
+        #endif
+    }
+
+    #if os(macOS)
+    private static func macDefaultInputID() -> AudioDeviceID {
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                                              mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
+        return id
+    }
+
+    private static func macString(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector) -> String {
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value) == noErr, let value else { return "" }
+        return value.takeRetainedValue() as String
+    }
+
+    private static func macInputDevices() -> [(id: AudioDeviceID, uid: String, name: String)] {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
+                                              mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        let sys = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(sys, &addr, 0, nil, &size) == noErr else { return [] }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(sys, &addr, 0, nil, &size, &ids) == noErr else { return [] }
+        return ids.compactMap { id in
+            // 入力チャンネルを持つものだけ
+            var cfg = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreamConfiguration,
+                                                 mScope: kAudioDevicePropertyScopeInput,
+                                                 mElement: kAudioObjectPropertyElementMain)
+            var cfgSize: UInt32 = 0
+            guard AudioObjectGetPropertyDataSize(id, &cfg, 0, nil, &cfgSize) == noErr, cfgSize > 0 else { return nil }
+            let buf = UnsafeMutableRawPointer.allocate(byteCount: Int(cfgSize), alignment: MemoryLayout<AudioBufferList>.alignment)
+            defer { buf.deallocate() }
+            guard AudioObjectGetPropertyData(id, &cfg, 0, nil, &cfgSize, buf) == noErr else { return nil }
+            let list = UnsafeMutableAudioBufferListPointer(buf.assumingMemoryBound(to: AudioBufferList.self))
+            guard list.reduce(0, { $0 + Int($1.mNumberChannels) }) > 0 else { return nil }
+            let uid = macString(id, kAudioDevicePropertyDeviceUID)
+            let name = macString(id, kAudioObjectPropertyName)
+            return uid.isEmpty || name.isEmpty ? nil : (id, uid, name)
+        }
+    }
+    #endif
+
     /// マイクを選ぶ設定画面を開く（Mac は「サウンド」の入力。iPhone は選ぶ画面が無いので何もしない）
     static func openSoundInputSettings() {
         #if os(macOS)

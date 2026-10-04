@@ -383,9 +383,7 @@ struct MicSilentWarning: View {
                                    : "今のマイクは「\(inputName)」です。このままだと無音の録音になります。")
                 .font(.subheadline).foregroundStyle(Theme.text)
             if Platform.canChooseInput {
-                Button("マイクを選ぶ（サウンド設定を開く）") { Platform.openSoundInputSettings() }
-                    .font(.subheadline.weight(.semibold))
-                Text("入力を切り替えたら、いったん止めて録り直してください。").font(.caption).foregroundStyle(Theme.muted)
+                Text("いったん止めて、「設定」タブの「録音に使うマイク」で選び直してから録り直してください。").font(.caption).foregroundStyle(Theme.muted)
             }
         }
         .padding(12)

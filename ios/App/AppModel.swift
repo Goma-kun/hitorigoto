@@ -31,6 +31,8 @@ final class AppModel: ObservableObject {
     @Published var dailyNew: Int { didSet { UserDefaults.standard.set(dailyNew, forKey: "dailyNew") } }
     @Published var captionsOn: Bool { didSet { UserDefaults.standard.set(captionsOn, forKey: "captionsOn") } }
     @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language") } }
+    /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
+    @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -44,6 +46,7 @@ final class AppModel: ObservableObject {
         dailyNew = d.object(forKey: "dailyNew") as? Int ?? PhraseLogic.defaultNew
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
         language = d.string(forKey: "language") ?? "en-US"
+        micUID = d.string(forKey: "micUID") ?? ""
     }
 
     private func save() { try? store?.save(snapshot) }
@@ -124,7 +127,7 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         latest = nil; latestJudged = []
         do {
-            try await recorder.start(captions: captionsOn, language: language)
+            try await recorder.start(captions: captionsOn, language: language, micUID: micUID)
             phase = .recording
         } catch Recorder.Failure.micDenied {
             errorMessage = "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。"

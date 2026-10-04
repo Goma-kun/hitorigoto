@@ -30,6 +30,17 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("Google Gemini API キー（必須）") }
 
+            if Platform.canChooseInput {
+                Section {
+                    Picker("録音に使うマイク", selection: $model.micUID) {
+                        Text("Mac の既定に合わせる").tag("")
+                        ForEach(Platform.inputDevices()) { d in Text(d.name).tag(d.uid) }
+                    }
+                    Text("ここで選んだマイクは、このアプリの録音中だけ使います。Mac の「サウンド」設定は変わりません。選んだマイクがつながっていないときは、Mac の既定のマイクで録ります。")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                } header: { Text("マイク") }
+            }
+
             Section {
                 Toggle("話している最中に字幕を出す（端末の音声認識）", isOn: $model.captionsOn)
                 Picker("聞き取る英語", selection: $model.language) {

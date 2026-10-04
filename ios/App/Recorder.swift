@@ -100,14 +100,15 @@ final class Recorder: ObservableObject {
 
     // MARK: - 開始・停止
 
-    func start(captions: Bool, language: String) async throws {
+    func start(captions: Bool, language: String, micUID: String = "") async throws {
         guard !isRecording else { return }
         guard await Platform.requestMicrophone() else { throw Failure.micDenied }
         try Platform.activateAudioSession()
 
         transcript = ""; interim = ""; seconds = 0; level = 0
         micSilent = false; lastSound = nil
-        inputName = Platform.inputDeviceName
+        // 形式を読む前に、使うマイクを決める
+        inputName = Platform.useInput(uid: micUID, on: engine)
         wantCaptions = captions
 
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("hitorigoto-\(Int(Date().timeIntervalSince1970)).m4a")
