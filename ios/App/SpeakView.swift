@@ -233,9 +233,15 @@ struct Welcome: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            VStack(spacing: 4) {
-                Text(greeting).font(.title2.weight(.bold)).fontDesign(.rounded).foregroundStyle(Theme.text)
-                Text(sub).font(.subheadline).foregroundStyle(Theme.muted)
+            // 誰が添削してくれるのかを顔で見せる（手を挙げた丹下。2026-10-04 本人承認）
+            HStack(spacing: 14) {
+                Image("Tange").resizable().scaledToFill()
+                    .frame(width: 76, height: 76).clipShape(Circle())
+                    .overlay(Circle().stroke(Theme.accent.opacity(0.6), lineWidth: 2))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(greeting).font(.title2.weight(.bold)).fontDesign(.rounded).foregroundStyle(Theme.text)
+                    Text(sub).font(.subheadline).foregroundStyle(Theme.muted)
+                }
             }
             HStack(alignment: .top, spacing: 4) {
                 step("mic.fill", "話す", Theme.accent, Theme.accentBg)
@@ -251,15 +257,15 @@ struct Welcome: View {
 
     private var greeting: String {
         switch Calendar.current.component(.hour, from: Date()) {
-        case 5..<11: return "おはようございます ☀️"
-        case 11..<18: return "こんにちは 👋"
-        default: return "こんばんは 🌙"
+        case 5..<11: return "おはようございます"
+        case 11..<18: return "こんにちは"
+        default: return "こんばんは"
         }
     }
 
     private var sub: String {
         let n = model.snapshot.sessions.count
-        return n == 0 ? "英語でひとりごと、はじめましょう" : "これまで \(n) 回話しました。今日もどうぞ"
+        return n == 0 ? "英語でひとりごと、はじめましょう" : "これまで \(n) 回。今日も聞かせてくれ"
     }
 
     private func step(_ icon: String, _ label: String, _ fg: Color, _ bg: Color) -> some View {
