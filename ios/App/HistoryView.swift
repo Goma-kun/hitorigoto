@@ -38,7 +38,11 @@ struct SessionCard: View {
 
     var body: some View {
         Card {
-            Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+            HStack(spacing: 6) {
+                Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                // どのエンジンで添削したかを残す（端末内 AI と Gemini を見比べるため）
+                if session.engine == "apple" { Tag(text: "端末内AI") }
+            }
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
                 Text(lines.isEmpty ? "古い記録（指摘だけ残しています）" : lines.joined(separator: " / "))

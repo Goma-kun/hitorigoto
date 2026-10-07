@@ -12,6 +12,19 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                Picker("添削に使う AI", selection: $model.engine) {
+                    Text("自動（キーがあれば Gemini）").tag("auto")
+                    Text("端末内 AI（Apple Intelligence）を優先").tag("apple")
+                    Text("Gemini API だけ").tag("gemini")
+                }
+                Label(AppModel.unavailableMessage(model.appleState),
+                      systemImage: model.appleState == .available ? "checkmark.circle.fill" : "xmark.circle")
+                    .font(.caption).foregroundStyle(model.appleState == .available ? Theme.good : Theme.muted)
+                Text("端末内 AI はキー不要・無料で、話した内容が端末の外に出ません。添削は端末の音声認識の字幕をもとに行うので、字幕は自動でオンになります。音声そのものは渡せないため、発音の評価はしません。指摘の精度は Gemini より下がることがあります。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("AI エンジン") }
+
+            Section {
                 if model.hasKey {
                     Label("キーは登録済みです", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.good)
                 } else {
@@ -28,7 +41,7 @@ struct SettingsView: View {
                 if !keyStatus.isEmpty { Text(keyStatus).font(.caption).foregroundStyle(keyStatus.hasPrefix("✗") ? Theme.bad : Theme.good) }
                 Text("キーは端末の Keychain にだけ保存します。録音した音声と話した内容は、あなたのキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。日本からの利用は無料枠が使えず従量課金になることがあります（1 回の添削で数円程度）。")
                     .font(.caption).foregroundStyle(Theme.muted)
-            } header: { Text("Google Gemini API キー（必須）") }
+            } header: { Text(model.appleState == .available ? "Google Gemini API キー（任意・精度を上げたい人向け）" : "Google Gemini API キー（必須）") }
 
             if Platform.canChooseInput {
                 Section {
@@ -46,7 +59,7 @@ struct SettingsView: View {
                 Picker("聞き取る英語", selection: $model.language) {
                     Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB")
                 }
-                Text("字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。字幕を切ると、音声認識の許可は求めません。")
+                Text("Gemini のときの字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。字幕を切ると、音声認識の許可は求めません。端末内 AI で添削するときは字幕が一次資料になるので、この設定に関わらず字幕を出します。")
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("字幕") }
 
@@ -75,6 +88,8 @@ struct SettingsView: View {
         #if os(macOS)
         .formStyle(.grouped)
         #endif
+        // Apple Intelligence の設定を変えて戻ってきたときに、案内文を取り直す
+        .onAppear { model.refreshAppleState() }
         .sheet(isPresented: $editingKey) { KeySheet(status: $keyStatus).environmentObject(model) }
         .fileExporter(isPresented: $exporting, document: JSONDocument(data: model.exportData()), contentType: .json,
                       defaultFilename: "hitorigoto-history-\(Logic.todayStamp().replacingOccurrences(of: "-", with: ""))") { r in

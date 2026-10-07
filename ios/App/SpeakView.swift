@@ -15,7 +15,7 @@ struct SpeakView: View {
                     }
                     switch model.phase {
                     case .idle: idleBody
-                    case .recording: RecordingBody(recorder: model.recorder)
+                    case .recording: RecordingBody(recorder: model.recorder, captionsPrimary: model.activeEngine == "apple")
                     case .reviewing: reviewingBody
                     case .result: resultBody
                     }
@@ -34,6 +34,9 @@ struct SpeakView: View {
     // MARK: - 話す前
 
     @State private var confirmDiscard = false
+
+    /// 直近の結果が端末内 AI（Apple Intelligence）によるものか。注記と見出しを変える
+    private var latestIsApple: Bool { model.latestSession?.engine == "apple" }
 
     private var idleBody: some View {
         Group {
@@ -56,11 +59,14 @@ struct SpeakView: View {
                     Button("やめる", role: .cancel) {}
                 }
             }
-            if !model.hasKey {
+            if model.activeEngine == nil {
                 Card {
-                    Text("添削には Google Gemini の API キーが必要です。「設定」で登録してください（自分のキーで、自分と Google の間の通信だけです）。")
+                    Text(AppModel.noEngineMessage(model.appleState))
                         .font(.callout).foregroundStyle(Theme.text)
                 }
+            } else if model.activeEngine == "apple" {
+                // 端末内 AI で動くことを先に見せる（拡張の enNanoNote と同じ。精度が API より下がりうるため）
+                Note(text: "端末内 AI（Apple Intelligence）で添削します。話した内容は端末の外に出ません。字幕（端末の音声認識）をもとに添削するので、はっきり話してください。")
             }
             // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
             Welcome()
@@ -81,7 +87,8 @@ struct SpeakView: View {
         Card {
             HStack(spacing: 10) {
                 ProgressView()
-                Text("🧠 音声を聞き直して添削中…（少し時間がかかります）").font(.callout).foregroundStyle(Theme.muted)
+                Text(model.reviewingWith == "apple" ? "🧠 端末内 AI が字幕を読んで添削中…" : "🧠 音声を聞き直して添削中…（少し時間がかかります）")
+                    .font(.callout).foregroundStyle(Theme.muted)
             }
         }
     }
@@ -132,7 +139,8 @@ struct SpeakView: View {
             if !fb.recognitionDoubt.isEmpty {
                 Card(title: "端末の聞き取りが外した箇所") {
                     ForEach(fb.recognitionDoubt, id: \.self) { Text("• \($0)").font(.callout).foregroundStyle(Theme.muted) }
-                    Note(text: "端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。")
+                    Note(text: latestIsApple ? "端末の音声認識が化けたと思われる箇所です。誤りとしては数えていません。"
+                                             : "端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。")
                 }
             }
             if !fb.correctedText.isEmpty {
@@ -142,11 +150,12 @@ struct SpeakView: View {
                 }
             }
             if !fb.transcript.isEmpty {
-                Card(title: "実際に話した内容（音声から書き起こし）") {
+                Card(title: latestIsApple ? "話した内容（端末の聞き取り）" : "実際に話した内容（音声から書き起こし）") {
                     Text(fb.transcript).font(.callout).foregroundStyle(Theme.muted).textSelection(.enabled)
                 }
             }
-            Note(text: "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。")
+            Note(text: latestIsApple ? "※ 端末内 AI（Apple Intelligence）で添削しました。話した内容は端末の外に出ていません。字幕が化けていた箇所は、言っていないことを直されることがあります。"
+                                     : "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。")
         }
     }
 
@@ -237,7 +246,7 @@ struct SpeakView: View {
     private var micHint: String {
         switch model.phase {
         case .recording: return "話し終えたら、もう一度押してください"
-        case .reviewing: return "音声を Gemini に送っています"
+        case .reviewing: return model.reviewingWith == "apple" ? "端末の中で添削しています" : "音声を Gemini に送っています"
         default: return "押して、英語で話すだけ"
         }
     }
@@ -475,6 +484,8 @@ struct MicSilentWarning: View {
 /// 録音中の表示。Recorder の変化で描き直すために、観測する側を分けておく
 struct RecordingBody: View {
     @ObservedObject var recorder: Recorder
+    /// 端末内 AI のときは字幕が一次資料（参考ではない）。注記を変える
+    var captionsPrimary = false
 
     var body: some View {
         Group {
@@ -491,7 +502,11 @@ struct RecordingBody: View {
             }
             let live = recorder.transcript + recorder.interim
             if live.isEmpty {
-                Note(text: recorder.captionsAvailable ? "聞き取り中…（字幕は参考です。添削は音声そのものから行います）" : "録音中。字幕は出ませんが、音声はそのまま添削に使います")
+                Note(text: captionsPrimary
+                     ? (recorder.captionsAvailable ? "聞き取り中…（端末内 AI はこの字幕をもとに添削します）"
+                                                   : "字幕が使えません。端末内 AI は字幕が無いと添削できないので、音声認識の許可を確かめるか、設定で Gemini に切り替えてください")
+                     : (recorder.captionsAvailable ? "聞き取り中…（字幕は参考です。添削は音声そのものから行います）"
+                                                   : "録音中。字幕は出ませんが、音声はそのまま添削に使います"))
             } else {
                 Text(live).font(.body).foregroundStyle(Theme.text).frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)

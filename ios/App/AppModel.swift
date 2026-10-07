@@ -33,6 +33,13 @@ final class AppModel: ObservableObject {
     @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language") } }
     /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
     @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
+    /// 添削に使う AI。auto: キーがあれば Gemini、無ければ端末内 AI ／ apple: 端末内 AI を優先 ／ gemini: Gemini だけ
+    /// （拡張機能の hg_engine 'auto' | 'nano' と同じ考え方）
+    @Published var engine: String { didSet { UserDefaults.standard.set(engine, forKey: "engine") } }
+    /// 端末内 AI（Apple Intelligence）が使えるか。設定画面を開いたときに取り直す
+    @Published private(set) var appleState: AppleEngine.Availability = .unsupportedOS
+    /// いま添削に使っているエンジン（添削中の表示用。"apple" | "gemini"）
+    @Published private(set) var reviewingWith: String?
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -47,9 +54,24 @@ final class AppModel: ObservableObject {
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
         language = d.string(forKey: "language") ?? "en-US"
         micUID = d.string(forKey: "micUID") ?? ""
+        engine = d.string(forKey: "engine") ?? "auto"
+        appleState = AppleEngine.availability
     }
 
     private func save() { try? store?.save(snapshot) }
+
+    func refreshAppleState() { appleState = AppleEngine.availability }
+
+    /// いま実際に添削に使うエンジン。使えるものが無ければ nil。
+    /// 拡張機能の selectAiProvider と同じ順: 端末内 AI を優先する設定なら端末内 AI → キーがあれば Gemini → 端末内 AI が使えればそれ
+    var activeEngine: String? {
+        let apple = appleState == .available
+        switch engine {
+        case "apple": return apple ? "apple" : (hasKey ? "gemini" : nil)
+        case "gemini": return hasKey ? "gemini" : nil
+        default: return hasKey ? "gemini" : (apple ? "apple" : nil)
+        }
+    }
 
     var today: String { Logic.todayStamp() }
 
@@ -127,7 +149,11 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         latest = nil; latestJudged = []
         do {
-            try await recorder.start(captions: captionsOn, language: language, micUID: micUID)
+            // 端末内 AI は字幕（端末の音声認識）が一次資料なので、字幕の設定に関わらず必ず出す。
+            // 録音している間にモデルを読み込んでおき、停止したあとに待たせない
+            let useApple = activeEngine == "apple"
+            if useApple { AppleEngine.prewarm() }
+            try await recorder.start(captions: captionsOn || useApple, language: language, micUID: micUID)
             phase = .recording
         } catch Recorder.Failure.micDenied {
             errorMessage = "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。"
@@ -148,30 +174,47 @@ final class AppModel: ObservableObject {
         await review()
     }
 
-    /// 手元に残っている録音を Gemini に送る。「もう一度送る」もここを通る
+    /// 手元に残っている録音を添削に回す。「もう一度送る」もここを通る。
+    /// Gemini は音声そのものを送る。端末内 AI（Apple Intelligence）は字幕（端末の音声認識）をもとに添削する
     func review() async {
         guard let p = pending else { return }
-        guard let key = KeychainStore.apiKey else {
+        guard let which = activeEngine else {
             phase = .idle
-            errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。"
+            errorMessage = Self.noEngineMessage(appleState) + " 録音は残してあります。"
             return
         }
         phase = .reviewing
+        reviewingWith = which
         errorMessage = nil
         let targetCards = todayCards()
-        let extra = PhraseLogic.targetsSection(targetCards)
-        let client = GeminiClient(key: key)
+        let id = ISO8601DateFormatter.withMillis.string(from: p.date)
         do {
-            let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
-                                                         recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
-            var session = Session(id: ISO8601DateFormatter.withMillis.string(from: p.date), transcript: fb.transcript,
-                                  correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: "gemini")
-            if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
-            if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
-
+            var fb: Feedback
+            var session: Session
             var judged: [Judged] = []
-            if !targetCards.isEmpty {
-                judged = PhraseLogic.mergeAiTargets(PhraseLogic.judge(targetCards, text: fb.transcript), cards: targetCards, aiTargets: fb.targets)
+            if which == "apple" {
+                // 端末内 AI。音声は渡せないので字幕が一次資料。字幕が無ければ何もできない
+                guard !p.transcript.isEmpty else { throw AppleEngine.Failure.emptyTranscript }
+                fb = try await AppleEngine.reviewEnglish(p.transcript, recurring: Logic.topRecurring(snapshot.recurring))
+                fb.transcript = p.transcript   // 画面の「話した内容」に出す（音声からの書き起こしではなく字幕）
+                session = Session(id: id, transcript: p.transcript, correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: "apple")
+                if !targetCards.isEmpty {
+                    // 今日の表現の判定は AI に頼まず文字照合だけ（小型モデルなので。拡張の Nano と同じ）
+                    judged = PhraseLogic.judge(targetCards, text: p.transcript)
+                }
+            } else {
+                let extra = PhraseLogic.targetsSection(targetCards)
+                let client = GeminiClient(key: KeychainStore.apiKey ?? "")
+                fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
+                                                         recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
+                session = Session(id: id, transcript: fb.transcript, correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: "gemini")
+                if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
+                if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
+                if !targetCards.isEmpty {
+                    judged = PhraseLogic.mergeAiTargets(PhraseLogic.judge(targetCards, text: fb.transcript), cards: targetCards, aiTargets: fb.targets)
+                }
+            }
+            if !judged.isEmpty {
                 recordTodayResults(judged)
                 session.targets = judged.map { j in
                     SessionTarget(phrase: targetCards.first { $0.id == j.id }?.phrase ?? "", r: j.result, as: j.asSaid)
@@ -191,10 +234,14 @@ final class AppModel: ObservableObject {
         } catch let f as GeminiClient.Failure {
             phase = .idle
             errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+        } catch let f as AppleEngine.Failure {
+            phase = .idle
+            errorMessage = Self.message(for: f) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         } catch {
             phase = .idle
             errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         }
+        reviewingWith = nil
     }
 
     /// 残っている録音を捨てる（本人が押したときだけ）
@@ -219,6 +266,35 @@ final class AppModel: ObservableObject {
             let name = mic.isEmpty ? Platform.inputDeviceName : mic
             return "聞き取れる英語がありませんでした。マイクから音が入っていなかったかもしれません。"
                 + (name.isEmpty ? "" : "今のマイクは「\(name)」です。") + "マイクを確かめて、もう一度どうぞ。"
+        }
+    }
+
+    /// 端末内 AI（Apple Intelligence）が使えない理由。設定画面と、添削できないときの案内に使う
+    static func unavailableMessage(_ a: AppleEngine.Availability) -> String {
+        switch a {
+        case .available: return "この端末で端末内 AI（Apple Intelligence）が使えます"
+        case .unsupportedOS: return "端末内 AI は iOS 26 / macOS 26 以降で使えます"
+        case .deviceNotEligible: return "この端末は Apple Intelligence に対応していません"
+        case .notEnabled: return "Apple Intelligence がオフになっています。「設定」→「Apple Intelligence と Siri」でオンにしてください"
+        case .modelNotReady: return "Apple Intelligence のモデルを準備中です（ダウンロード中）。しばらくしてからお試しください"
+        case .unknown(let r): return "端末内 AI が使えません（\(r)）"
+        }
+    }
+
+    /// 添削に使える AI が何も無いときの案内（拡張の enNoAi / enSetupNano に相当）
+    static func noEngineMessage(_ a: AppleEngine.Availability) -> String {
+        "添削に使う AI がありません。" + unavailableMessage(a) + "。Google Gemini の API キーを「設定」で登録すると使えます（自分のキーで、自分と Google の間の通信だけです）。"
+    }
+
+    static func message(for f: AppleEngine.Failure) -> String {
+        switch f {
+        case .unavailable(let a): return unavailableMessage(a)
+        case .emptyTranscript: return "字幕（端末の音声認識）が取れなかったので、端末内 AI では添削できません。もう一度話すか、設定で Gemini に切り替えてください。"
+        case .tooLong: return "話が長くて端末内 AI に入りきりませんでした。短めに区切って話すか、設定で Gemini に切り替えてください。"
+        case .guardrail: return "端末内 AI の安全フィルタにかかり、添削が返りませんでした。内容を変えて話すか、設定で Gemini に切り替えてください。"
+        case .unsupportedLanguage: return "端末内 AI がこの言語に対応していません。端末の言語設定を確かめてください。"
+        case .parse: return "端末内 AI の応答を読めませんでした。もう一度お試しください。"
+        case .generation(let m): return "端末内 AI でエラーが起きました: \(m)"
         }
     }
 

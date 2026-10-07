@@ -70,4 +70,40 @@ final class CoreTests: XCTestCase {
         let d = PhraseLogic.detect("connect the dots", in: "and then it connected it's a dot")
         XCTAssertEqual([d.used, d.exact], [true, false])
     }
+
+    // MARK: - 端末内 AI（Apple Intelligence）
+
+    /// 端末内 AI は 1 セッション 4096 トークン。指示が膨らんで話した内容が入らなくならないように、長さに上限を置く
+    func testApplePromptsStayCompact() {
+        XCTAssertLessThan(ApplePrompts.instructions.count, 3600, "英語 3〜4 文字で 1 トークンとして 1,000 トークン程度まで")
+        XCTAssertTrue(ApplePrompts.instructions.contains("MUST be natural, correct English"), "英語で返す規則が最優先")
+        XCTAssertTrue(ApplePrompts.instructions.contains("Never comment on pronunciation"))
+        XCTAssertTrue(ApplePrompts.instructions.contains("recognitionDoubt"))
+        // ユーザーメッセージは Gemini／拡張機能と同じ組み立て
+        let msg = ApplePrompts.userMessage("I go to park.", recurring: [Recurring(text: "a → b", count: 2, lastSeen: "2026-10-01")])
+        XCTAssertTrue(msg.contains("## 今回の独り言") && msg.contains("- a → b（2 回）"))
+    }
+
+    /// 端末内 AI の応答も、拡張機能の parseFeedback と同じ揃え方になる（type の正規化・空の指摘の除去・前後の空白）
+    func testAppleFeedbackNormalizedLikeExtension() throws {
+        let fb = try AppleEngine.feedback(
+            correctedText: " I went to the park. ",
+            issues: [AppleEngine.DraftIssue(type: "Grammar", original: "I go to park", suggestion: "I went to the park", reason: "r"),
+                     AppleEngine.DraftIssue(type: "grammar", original: "", suggestion: "x", reason: "original が空なら落ちる"),
+                     AppleEngine.DraftIssue(type: "weird", original: "a", suggestion: "b", reason: "")],
+            recurring: ["また出やがった"], recognitionDoubt: ["french fries"], good: "g")
+        XCTAssertEqual(fb.correctedText, "I went to the park.")
+        XCTAssertEqual(fb.issues.count, 2)
+        XCTAssertEqual(fb.issues[0].type, "grammar", "大文字は小文字に揃う")
+        XCTAssertEqual(fb.issues[1].type, "phrasing", "知らない type は phrasing になる")
+        XCTAssertEqual(fb.recurring, ["また出やがった"])
+        XCTAssertEqual(fb.recognitionDoubt, ["french fries"])
+        XCTAssertEqual(fb.good, "g")
+        XCTAssertTrue(fb.transcript.isEmpty && fb.pronunciation.isEmpty && fb.targets.isEmpty, "テキストだけのモードなので音声由来の欄は空")
+    }
+
+    /// どの環境でも落ちずに「使えるかどうか」を返す（Linux や iOS 26 より前は unsupportedOS）
+    func testAppleAvailabilityNeverTraps() {
+        _ = AppleEngine.availability
+    }
 }

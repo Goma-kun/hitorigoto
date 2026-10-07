@@ -6,6 +6,7 @@ import HitorigotoCore
 //
 // `hg-probe review --text "..."` / `hg-probe review --audio file.m4a [--asr "..."]` で
 // 本物の Gemini に投げる（キーは ~/.config/nishira/gemini_api_key）。実 API の確認用
+// `hg-probe review --engine apple --text "..."` で端末内 AI（Apple Intelligence）に投げる（macOS 26 以降・キー不要）
 
 func decode<T: Decodable>(_ t: T.Type, _ v: Any?) -> T? {
     guard let v, let d = try? JSONSerialization.data(withJSONObject: v) else { return nil }
@@ -109,6 +110,30 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     }
     let text = opt("--text"), audio = opt("--audio"), asr = opt("--asr") ?? ""
     let targets = (opt("--targets") ?? "").split(separator: "|").map(String.init)
+    let engine = opt("--engine") ?? "gemini"
+    if engine == "apple" {
+        // 端末内 AI。テキストだけ（音声は渡せない）。使えない環境では availability の理由を出す
+        guard let text, !text.isEmpty else {
+            FileHandle.standardError.write("NG: --engine apple は --text だけ受け付けます\n".data(using: .utf8)!); exit(1)
+        }
+        let sem = DispatchSemaphore(value: 0)
+        var exitCode: Int32 = 0
+        Task {
+            do {
+                let t0 = Date()
+                let fb = try await AppleEngine.reviewEnglish(text, recurring: [])
+                let secs = String(format: "%.1f", Date().timeIntervalSince(t0))
+                let out = try JSONSerialization.data(withJSONObject: ["seconds": secs, "engine": "apple", "feedback": encode(fb)],
+                                                     options: [.prettyPrinted, .withoutEscapingSlashes])
+                print(String(data: out, encoding: .utf8)!)
+            } catch {
+                print("NG: \(error)（availability: \(AppleEngine.availability)）"); exitCode = 1
+            }
+            sem.signal()
+        }
+        sem.wait()
+        exit(exitCode)
+    }
     let keyPath = NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath
     guard let key = try? String(contentsOfFile: keyPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) else {
         FileHandle.standardError.write("NG: キーが読めません\n".data(using: .utf8)!); exit(1)
