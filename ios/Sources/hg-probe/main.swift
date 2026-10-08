@@ -115,7 +115,14 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     }
     let cards = targets.compactMap { PhraseLogic.makePhrase(phrase: $0, today: Logic.todayStamp()) }
     let extra = PhraseLogic.targetsSection(cards)
-    let client = GeminiClient(key: key)
+    // HG_RELAY=1 なら開発者の中継サーバー経由（キー不要）。HG_RELAY_APPKEY と HG_RELAY_URL を環境変数で
+    let env = ProcessInfo.processInfo.environment
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1", let u = URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev") {
+        client = GeminiClient(transport: .relay(url: u, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        client = GeminiClient(key: key)
+    }
     let sem = DispatchSemaphore(value: 0)
     var exitCode: Int32 = 0
     Task {

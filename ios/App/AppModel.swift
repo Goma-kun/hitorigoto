@@ -33,9 +33,11 @@ final class AppModel: ObservableObject {
     @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language") } }
     /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
     @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
-    /// 添削のエンジン。"apple"＝端末内 AI（キー不要）／"gemini"＝Gemini API（キー）。
-    /// 既定は、端末内 AI が使えてキーが無ければ apple、それ以外は gemini
+    /// 添削のエンジン。"cloud"＝開発者の中継サーバー経由で Gemini（キー不要・1 日の回数制限あり・既定）
+    /// ／"gemini"＝自分の API キーで Gemini に直接／"apple"＝端末内 AI（試験的）
     @Published var engine: String { didSet { UserDefaults.standard.set(engine, forKey: "engine") } }
+    /// 中継サーバーの今日の回数（設定画面と話す画面に出す）
+    @Published var quota: GeminiClient.Quota?
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -50,17 +52,28 @@ final class AppModel: ObservableObject {
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
         language = d.string(forKey: "language") ?? "en-US"
         micUID = d.string(forKey: "micUID") ?? ""
-        engine = d.string(forKey: "engine") ?? ((AppleReviewer.isAvailable && !KeychainStore.hasKey) ? "apple" : "gemini")
+        engine = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
     }
 
     var usesOnDevice: Bool { engine == "apple" }
+    var usesRelay: Bool { engine != "apple" && engine != "gemini" }
     /// 今の設定で添削できるか。できないときは理由
     var reviewBlocker: String? {
         if usesOnDevice {
             if case .unavailable(let why) = AppleReviewer.status { return why }
             return nil
         }
-        return hasKey ? nil : "添削には Google Gemini の API キーが必要です。「設定」で登録するか、端末内の AI に切り替えてください。"
+        if usesRelay {
+            if let q = quota, q.remaining == 0 { return "今日の無料の添削（\(q.limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。" }
+            return nil
+        }
+        return hasKey ? nil : "添削には Google Gemini の API キーが必要です。「設定」で登録するか、「おまかせ（キー不要）」に切り替えてください。"
+    }
+
+    /// 中継サーバーの残り回数を取り直す
+    func refreshQuota() async {
+        guard usesRelay else { quota = nil; return }
+        quota = await GeminiClient(transport: Relay.transport).quota()
     }
 
     private func save() { try? store?.save(snapshot) }
@@ -169,7 +182,12 @@ final class AppModel: ObservableObject {
         if usesOnDevice {
             await reviewOnDevice(p); return
         }
-        guard let key = KeychainStore.apiKey else {
+        let client: GeminiClient
+        if usesRelay {
+            client = GeminiClient(transport: Relay.transport)
+        } else if let key = KeychainStore.apiKey {
+            client = GeminiClient(key: key)
+        } else {
             phase = .idle
             errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。"
             return
@@ -178,14 +196,15 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         let targetCards = todayCards()
         let extra = PhraseLogic.targetsSection(targetCards)
-        let client = GeminiClient(key: key)
         do {
             let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
                                                          recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
-            finish(p, fb: fb, engine: "gemini", targetCards: targetCards)
+            finish(p, fb: fb, engine: usesRelay ? "cloud" : "gemini", targetCards: targetCards)
+            if usesRelay { await refreshQuota() }
         } catch let f as GeminiClient.Failure {
             phase = .idle
             errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+            if usesRelay { await refreshQuota() }
         } catch {
             phase = .idle
             errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
@@ -267,6 +286,8 @@ final class AppModel: ObservableObject {
         case .network(let m): return "通信に失敗しました: \(m)"
         case .parse: return "AI の応答を読めませんでした。もう一度お試しください。"
         case .audio: return "音声が空か大きすぎます。"
+        case .quota(_, let limit): return "今日の無料の添削（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。"
+        case .relayBusy: return "今日はアクセスが集中しています。明日またどうぞ。"
         case .silent:
             // 実際に録ったマイクの名前を出す（Mac の既定とは限らない）
             let name = mic.isEmpty ? Platform.inputDeviceName : mic

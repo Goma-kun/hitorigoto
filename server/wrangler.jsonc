@@ -1,0 +1,17 @@
+{
+  "name": "hitorigoto-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-20",
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    { "binding": "QUOTA", "id": "beabc16484dc49a8bd573fe8c4b8143c" }
+  ],
+  "vars": {
+    // 端末 1 つあたりの 1 日の無料回数（日本時間で日付が変わると戻る）
+    "FREE_PER_DAY": "3",
+    // 全体の 1 日の上限（原価の天井。1 回 5〜10 円なので 60 回 ≒ 最大 600 円／日。増やすときはここ）
+    "GLOBAL_PER_DAY": "60",
+    // 受け付ける本文の上限（音声 32kbps・10 分でも 3MB 程度）
+    "MAX_BODY_BYTES": "8000000"
+  }
+}

@@ -9,10 +9,21 @@ public struct GeminiClient: Sendable {
     /// inlineData で送れる全体上限（20MB）に対する安全側の目安
     public static let audioMaxBytes = 18 * 1024 * 1024
 
-    public let key: String
+    /// 送り先。direct＝自分のキーで Gemini へ直接／relay＝開発者の中継サーバー（キー不要・回数制限あり）
+    public enum Transport: Sendable, Equatable {
+        case direct(key: String)
+        case relay(url: URL, deviceId: String, appKey: String)
+    }
+    public let transport: Transport
     public var session: URLSession = .shared
 
-    public init(key: String) { self.key = key }
+    public init(key: String) { self.transport = .direct(key: key) }
+    public init(transport: Transport) { self.transport = transport }
+
+    public var key: String { if case .direct(let k) = transport { return k }; return "" }
+
+    /// 直近の中継サーバーの返事に付いていた回数（used, limit）。直接のときは nil
+    public struct Quota: Equatable, Sendable { public var used: Int; public var limit: Int; public var remaining: Int { max(0, limit - used) } }
 
     public enum Failure: Error, Equatable {
         case noKey
@@ -24,19 +35,30 @@ public struct GeminiClient: Sendable {
         case parse             // JSON として読めない応答
         case audio             // 音声が空・大きすぎる
         case silent            // 音声に聞き取れる発話が無かった
+        case quota(used: Int, limit: Int)   // 中継サーバーの無料回数を使い切った
+        case relayBusy         // 中継サーバーの全体の上限
     }
 
     private var endpoint: URL {
-        URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent")!
+        switch transport {
+        case .direct: return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent")!
+        case .relay(let url, _, _): return url.appendingPathComponent("v1/review")
+        }
     }
 
     func call(_ body: [String: Any]) async throws -> String {
-        guard !key.isEmpty else { throw Failure.noKey }
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        // キーは URL ではなくヘッダーで渡す（ログや Referer に残さないため）
-        req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        switch transport {
+        case .direct(let key):
+            guard !key.isEmpty else { throw Failure.noKey }
+            // キーは URL ではなくヘッダーで渡す（ログや Referer に残さないため）
+            req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        case .relay(_, let deviceId, let appKey):
+            req.setValue(deviceId, forHTTPHeaderField: "x-device-id")
+            req.setValue(appKey, forHTTPHeaderField: "x-app-key")
+        }
         req.timeoutInterval = 120
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -47,7 +69,17 @@ public struct GeminiClient: Sendable {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard (200..<300).contains(status), json?["error"] == nil else {
-            let msg = ((json?["error"] as? [String: Any])?["message"] as? String) ?? ""
+            let err = json?["error"] as? [String: Any]
+            let msg = (err?["message"] as? String) ?? ""
+            // 中継サーバーの返事は code で見分ける
+            if case .relay = transport {
+                switch err?["code"] as? String {
+                case "quota": throw Failure.quota(used: err?["used"] as? Int ?? 0, limit: err?["limit"] as? Int ?? 0)
+                case "busy": throw Failure.relayBusy
+                case "forbidden", "device": throw Failure.server(msg)
+                default: break
+                }
+            }
             throw classify(status: status, message: msg)
         }
         guard let cands = json?["candidates"] as? [[String: Any]],
@@ -99,6 +131,19 @@ public struct GeminiClient: Sendable {
         // 音声に聞き取れる発話が無かった（無音・雑音）。AI が作った結果を出さない
         if fb.transcript.isEmpty { throw Failure.silent }
         return fb
+    }
+
+    /// 中継サーバーの今日の残り回数を聞く（direct のときは nil）
+    public func quota() async -> Quota? {
+        guard case .relay(let url, let deviceId, let appKey) = transport else { return nil }
+        var req = URLRequest(url: url.appendingPathComponent("v1/quota"))
+        req.setValue(deviceId, forHTTPHeaderField: "x-device-id")
+        req.setValue(appKey, forHTTPHeaderField: "x-app-key")
+        req.timeoutInterval = 15
+        guard let (data, _) = try? await session.data(for: req),
+              let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let used = j["used"] as? Int, let limit = j["limit"] as? Int else { return nil }
+        return Quota(used: used, limit: limit)
     }
 
     /// 設定画面の接続テスト。**本番と同じ指定**（thinkingLevel low ＋ tools）で投げる

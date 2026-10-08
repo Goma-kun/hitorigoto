@@ -16,7 +16,9 @@ enum KeychainStore {
 
     static var hasKey: Bool { read() != nil }
 
-    private static func read() -> String? {
+    private static func read() -> String? { read(account: account) }
+
+    static func read(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -30,7 +32,9 @@ enum KeychainStore {
         return key
     }
 
-    private static func write(_ value: String) {
+    private static func write(_ value: String) { write(value, account: account) }
+
+    static func write(_ value: String, account: String) {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
