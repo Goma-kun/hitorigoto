@@ -136,6 +136,7 @@ final class Recorder: ObservableObject {
     #endif
     private var fileURL: URL?
     private var timer: Timer?
+    private var configObserver: NSObjectProtocol?
     private var started: Date?
 
     private var recognizer: SFSpeechRecognizer?
@@ -201,19 +202,18 @@ final class Recorder: ObservableObject {
         #endif
         if !named {
             inputName = Platform.inputDeviceName
-            let input = engine.inputNode
-            let inFormat = input.outputFormat(forBus: 0)
-            guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else {
+            do { try startEngine(onBuffer) } catch {
                 stopCaptions(); sink.close()
-                throw Failure.engine("マイクの形式が取れませんでした")
+                throw error
             }
-            input.installTap(onBus: 0, bufferSize: 4096, format: inFormat) { buffer, _ in onBuffer(buffer) }
-            engine.prepare()
-            do { try engine.start() } catch {
-                input.removeTap(onBus: 0)
-                stopCaptions()
-                sink.close()
-                throw Failure.engine(error.localizedDescription)
+            // **Bluetooth イヤホン（HFP）に切り替わると、エンジンの入力形式が変わってエンジンが止まる**
+            // （iPhone 18 Pro＋WF-1000XM4 で実測: 音量ゼロのまま「音が入っていません」）。
+            // 形式が変わったら、新しい形式でタップを張り直して動かし直す
+            configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+                guard let self, self.isRecording else { return }
+                self.engine.inputNode.removeTap(onBus: 0)
+                self.inputName = Platform.inputDeviceName
+                try? self.startEngine(onBuffer)
             }
         }
         isRecording = true
@@ -227,9 +227,23 @@ final class Recorder: ObservableObject {
         }
     }
 
+    /// 今の入力形式でタップを張ってエンジンを動かす（開始時と、入力が切り替わったときの両方で使う）
+    private func startEngine(_ onBuffer: @escaping (AVAudioPCMBuffer) -> Void) throws {
+        let input = engine.inputNode
+        let inFormat = input.outputFormat(forBus: 0)
+        guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else { throw Failure.engine("マイクの形式が取れませんでした") }
+        input.installTap(onBus: 0, bufferSize: 4096, format: inFormat) { buffer, _ in onBuffer(buffer) }
+        engine.prepare()
+        do { try engine.start() } catch {
+            input.removeTap(onBus: 0)
+            throw Failure.engine(error.localizedDescription)
+        }
+    }
+
     func stop() async -> Result? {
         guard isRecording else { return nil }
         isRecording = false
+        if let o = configObserver { NotificationCenter.default.removeObserver(o); configObserver = nil }
         timer?.invalidate(); timer = nil
         var named = false
         #if os(macOS)
