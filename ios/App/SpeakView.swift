@@ -270,7 +270,11 @@ struct Welcome: View {
     }
 
     private var greeting: String {
-        switch Calendar.current.component(.hour, from: Date()) {
+        var hour = Calendar.current.component(.hour, from: Date())
+        #if DEBUG
+        if UserDefaults.standard.object(forKey: "HGHour") != nil { hour = UserDefaults.standard.integer(forKey: "HGHour") }   // スクショ用
+        #endif
+        switch hour {
         case 5..<11: return "おはようございます"
         case 11..<18: return "こんにちは"
         default: return "こんばんは"

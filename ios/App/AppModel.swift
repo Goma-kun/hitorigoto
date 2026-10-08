@@ -148,6 +148,21 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    #if DEBUG
+    /// スクショ用: 記録の先頭を「いま添削が終わった」ように見せる（-HGShot result）
+    func showLatestSessionAsResult() {
+        guard let s = snapshot.sessions.first else { return }
+        latest = Feedback(correctedText: s.correctedText ?? "", issues: s.issues, recurring: [], recognitionDoubt: [],
+                          good: s.good ?? "", transcript: s.transcript ?? "", pronunciation: s.pronunciation ?? [], targets: [])
+        latestSession = s
+        latestJudged = (s.targets ?? []).compactMap { t in
+            guard let c = snapshot.phrases.first(where: { $0.phrase == t.phrase }) else { return nil }
+            return Judged(id: c.id, result: t.r, asSaid: t.as, note: "", judge: "ai")
+        }
+        phase = .result
+    }
+    #endif
+
     // MARK: - 録音と添削
 
     func startRecording() async {

@@ -13,6 +13,14 @@ struct HitorigotoApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabs(tab: $tab)
+                #if DEBUG
+                // スクショ用: -HGShotTab <0-3> で開くタブ、-HGShot result で結果画面
+                .onAppear {
+                    let d = UserDefaults.standard
+                    if d.object(forKey: "HGShotTab") != nil { tab = d.integer(forKey: "HGShotTab") }
+                    if d.string(forKey: "HGShot") == "result" { model.showLatestSessionAsResult() }
+                }
+                #endif
             .environmentObject(model)
             .tint(Theme.tint)
             #if os(macOS)

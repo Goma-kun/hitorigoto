@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日: 2026-09-24
+最終更新日: 2026-10-08
 
 ## 日本語
 
@@ -37,6 +37,22 @@ Chromeから本拡張機能をアンインストールすると、保存され�
 
 ### お問い合わせ
 本ポリシーに関するご質問は、GitHubリポジトリ（https://github.com/Goma-kun/hitorigoto）のIssueよりご連絡ください。
+
+## iPhone / Mac アプリ版について（2026-10-08 追記）
+
+App Store で配布するアプリ版「独り言」は、上の拡張機能と同じ考え方で作られています。違いは次の 3 点です。
+
+### 添削のエンジン（設定で選べます）
+- **おまかせ（既定・API キー不要）**: 停止したときに、録音した音声（1 回分）と、その日の「今日の表現」、繰り返し指摘されている点が、開発者の中継サーバー（Cloudflare Workers 上）へ送られます。中継サーバーは Google の Gemini API に転送して添削を受け取り、そのまま返します。**中継サーバーは音声や話した内容を保存しません。**利用者の身元に結びつく情報は送られません。回数制限のために、アプリが端末ごとに作るランダムな識別子（UUID）を送ります。この識別子は端末にだけ保存され、利用者を特定するものではありません。無料で使えるのは端末ごとに 1 日 3 回です。
+- **自分の Gemini キー**: 拡張機能と同じく、利用者自身のキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。
+- **この端末の AI（試験的）**: Apple Intelligence（Apple Foundation Models）を使い、録音中の字幕の文字を端末の中で添削します。話した内容は端末の外に出ません。
+
+### マイクと音声認識
+- マイクは録音に使います。録音は添削のためにその場で送るだけで、端末にも保存しません（添削が終わるまでの間だけ、失敗時のやり直し用に端末内に残します）。
+- 話している間の字幕には、端末の音声認識（iOS / macOS の Speech フレームワーク）を使います。設定で切れます。
+
+### 保存されるデータ
+- 練習の記録・表現集・設定は端末の中にだけ保存されます。Gemini キーは端末の Keychain に保存されます。開発者が受け取ることはありません。アプリを削除すると消えます。
 
 ---
 
@@ -75,3 +91,19 @@ Uninstalling the Extension from Chrome removes the stored data. You can delete y
 
 ### Contact
 For questions about this policy, please open an issue on the GitHub repository: https://github.com/Goma-kun/hitorigoto
+
+## About the iPhone / Mac app (added 2026-10-08)
+
+The app version of Hitorigoto distributed on the App Store follows the same principles as the extension above, with three differences.
+
+### Feedback engine (selectable in Settings)
+- **Default (no API key needed)**: when you stop, the recorded audio of that session, your "Today's phrases" and your recurring issues are sent to the developer's relay server (hosted on Cloudflare Workers). The relay forwards them to Google's Gemini API, receives the feedback and returns it unchanged. **The relay does not store your audio or what you said.** Nothing that identifies you is sent. For rate limiting, the app sends a random per-device identifier (UUID) that it generates and keeps only on the device; it does not identify you. Free use is limited to 3 reviews per device per day.
+- **Your own Gemini key**: as with the extension, requests go directly to Google's Gemini API with your own key. No developer server is involved.
+- **On-device AI (experimental)**: uses Apple Intelligence (Apple Foundation Models) to review the live caption text on the device. What you said never leaves the device.
+
+### Microphone and speech recognition
+- The microphone is used for recording. The recording is sent only for that review and is not stored on the device (it is kept on the device only until the review succeeds, so that a failed request can be retried).
+- Live captions while you speak use the device's speech recognition (the Speech framework on iOS / macOS). You can turn captions off in Settings.
+
+### Stored data
+- Your practice history, phrase list and settings are stored only on your device. Your Gemini key is stored in the device Keychain. The developer never receives them. Deleting the app removes them.
