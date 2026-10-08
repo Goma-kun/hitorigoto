@@ -52,7 +52,8 @@ final class AppModel: ObservableObject {
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
         language = d.string(forKey: "language") ?? "en-US"
         micUID = d.string(forKey: "micUID") ?? ""
-        engine = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
+        let saved = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
+        engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
     }
 
     var usesOnDevice: Bool { engine == "apple" }

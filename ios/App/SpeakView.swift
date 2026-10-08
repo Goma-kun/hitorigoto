@@ -143,7 +143,9 @@ struct SpeakView: View {
                     Text(fb.transcript).font(.callout).foregroundStyle(Theme.muted).textSelection(.enabled)
                 }
             }
-            Note(text: "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。")
+            Note(text: model.latestSession?.engine == "apple"
+                 ? "※ この端末の AI が、録音中の字幕の文字を添削しました。音声は端末の外に出ていません。"
+                 : "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。")
         }
     }
 

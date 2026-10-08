@@ -15,7 +15,8 @@ struct SettingsView: View {
                 Picker("添削のエンジン", selection: $model.engine) {
                     Text("おまかせ（キー不要・1 日の回数制限あり）").tag("cloud")
                     Text("自分の Gemini キー（回数の制限なし）").tag("gemini")
-                    Text("この端末の AI（試験的）").tag("apple")
+                    // 端末内 AI（Apple Intelligence）は 2026-10-09 の実機で「使い物にならない」（Hand it to him を 4 回直した）ので選択肢から外した。
+                    // コードは AppleReviewer に残してある。精度が上がったらここに戻す
                 }
                 if model.usesRelay {
                     if let q = model.quota {
