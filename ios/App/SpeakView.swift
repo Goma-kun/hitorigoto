@@ -247,7 +247,7 @@ struct SpeakView: View {
         switch model.phase {
         case .recording: return "話し終えたら、もう一度押してください"
         case .reviewing: return "音声を Gemini に送っています"
-        default: return "押して、英語で話すだけ"
+        default: return "押して、\(model.targetLanguage.name)で話すだけ"
         }
     }
 }
@@ -295,7 +295,7 @@ struct Welcome: View {
 
     private var sub: String {
         let n = model.snapshot.sessions.count
-        return n == 0 ? "英語でひとりごと、はじめましょう" : "これまで \(n) 回。今日も聞かせてくれ"
+        return n == 0 ? "\(model.targetLanguage.name)でひとりごと、はじめましょう" : "これまで \(n) 回。今日も聞かせてくれ"
     }
 
     private func step(_ icon: String, _ label: String, _ fg: Color, _ bg: Color) -> some View {

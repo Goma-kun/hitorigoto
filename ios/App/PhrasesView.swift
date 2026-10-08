@@ -217,7 +217,7 @@ struct FlashSheet: View {
                         if open {
                             Text(c.phrase).font(.title2.weight(.heavy)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
                         } else {
-                            Text("英語で言ってみてから、答えを見てください").font(.caption).foregroundStyle(Theme.faint)
+                            Text("\(model.targetLanguage.name)で言ってみてから、答えを見てください").font(.caption).foregroundStyle(Theme.faint)
                         }
                     }
                     if open {

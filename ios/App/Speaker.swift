@@ -31,7 +31,7 @@ final class Speaker: NSObject, ObservableObject {
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
         let u = AVSpeechUtterance(string: t)
-        u.voice = Self.englishVoice
+        u.voice = Self.voice(for: language)
         u.rate = rate
         u.postUtteranceDelay = 0.1
         speaking = t
@@ -43,14 +43,19 @@ final class Speaker: NSObject, ObservableObject {
         speaking = nil
     }
 
-    /// いちばん良い英語の声を選ぶ。**端末に入っている声は機種と設定で違う**ので、
-    /// 上等なものから順に探して、無ければ既定の en-US に落とす
-    private static let englishVoice: AVSpeechSynthesisVoice? = {
-        let en = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en-US") }
-        if let premium = en.first(where: { $0.quality == .premium }) { return premium }
-        if let enhanced = en.first(where: { $0.quality == .enhanced }) { return enhanced }
-        return AVSpeechSynthesisVoice(language: "en-US")
-    }()
+    /// 読み上げる言語（設定「話す言語」に合わせて AppModel が入れる）
+    var language = TargetLanguage.default.locale
+    private static var cache: [String: AVSpeechSynthesisVoice?] = [:]
+
+    /// その言語でいちばん良い声を選ぶ。**端末に入っている声は機種と設定で違う**ので、
+    /// 上等なものから順に探して、無ければ既定の声に落とす
+    private static func voice(for lang: String) -> AVSpeechSynthesisVoice? {
+        if let v = cache[lang] { return v }
+        let vs = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(lang) }
+        let v = vs.first(where: { $0.quality == .premium }) ?? vs.first(where: { $0.quality == .enhanced }) ?? AVSpeechSynthesisVoice(language: lang)
+        cache[lang] = v
+        return v
+    }
 }
 
 extension Speaker: AVSpeechSynthesizerDelegate {
@@ -80,6 +85,6 @@ struct SpeakButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("この英語を読み上げます")
+        .help("読み上げます")
     }
 }

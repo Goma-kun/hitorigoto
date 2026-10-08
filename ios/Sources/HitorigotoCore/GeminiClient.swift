@@ -102,9 +102,9 @@ public struct GeminiClient: Sendable {
     }
 
     /// テキストだけで添削する
-    public func reviewEnglish(_ text: String, recurring: [Recurring], extra: String = "") async throws -> Feedback {
+    public func reviewEnglish(_ text: String, recurring: [Recurring], extra: String = "", system: String = Prompts.system) async throws -> Feedback {
         let raw = try await call([
-            "systemInstruction": ["parts": [["text": Prompts.system]]],
+            "systemInstruction": ["parts": [["text": system]]],
             "contents": [["role": "user", "parts": [["text": Logic.buildEnglishUserMessage(text, recurring: recurring, extra: extra)]]]],
             "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"]],
             "tools": [],
@@ -116,10 +116,10 @@ public struct GeminiClient: Sendable {
     /// 音声そのものを渡して、書き起こしと添削を一度にやらせる。
     /// asrTranscript は端末の音声認識結果（比較材料）。空でもよい
     public func reviewEnglishAudio(_ audio: Data, mimeType: String, asrTranscript: String,
-                                   recurring: [Recurring], extra: String = "") async throws -> Feedback {
+                                   recurring: [Recurring], extra: String = "", system: String = Prompts.audio) async throws -> Feedback {
         guard !audio.isEmpty, audio.count <= Self.audioMaxBytes else { throw Failure.audio }
         let raw = try await call([
-            "systemInstruction": ["parts": [["text": Prompts.audio]]],
+            "systemInstruction": ["parts": [["text": system]]],
             "contents": [["role": "user", "parts": [
                 ["inlineData": ["mimeType": mimeType, "data": audio.base64EncodedString()]],
                 ["text": Logic.buildEnglishAudioUserMessage(asrTranscript, recurring: recurring, extra: extra)],

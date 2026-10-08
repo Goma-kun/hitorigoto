@@ -84,10 +84,15 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("話している最中に字幕を出す（端末の音声認識）", isOn: $model.captionsOn)
-                Picker("聞き取る英語", selection: $model.language) {
-                    Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB")
+                Picker("話す言語", selection: $model.language) {
+                    ForEach(TargetLanguage.allCases) { l in Text(l.label).tag(l.rawValue) }
                 }
+                Text("コーチの添削・字幕の聞き取り・読み上げの声が、この言語に合わせて変わります。アメリカとイギリス、スペインと中南米では綴りや言い回しをそれぞれに揃えます。説明は日本語のままです。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("話す言語") }
+
+            Section {
+                Toggle("話している最中に字幕を出す（端末の音声認識）", isOn: $model.captionsOn)
                 Text("字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。字幕を切ると、音声認識の許可は求めません。")
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("字幕") }

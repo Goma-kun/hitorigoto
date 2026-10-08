@@ -30,7 +30,7 @@ final class AppModel: ObservableObject {
     @Published var dailyTotal: Int { didSet { UserDefaults.standard.set(dailyTotal, forKey: "dailyTotal") } }
     @Published var dailyNew: Int { didSet { UserDefaults.standard.set(dailyNew, forKey: "dailyNew") } }
     @Published var captionsOn: Bool { didSet { UserDefaults.standard.set(captionsOn, forKey: "captionsOn") } }
-    @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language") } }
+    @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language"); Speaker.shared.language = language } }
     /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
     @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
     /// 添削のエンジン。"cloud"＝開発者の中継サーバー経由で Gemini（キー不要・1 日の回数制限あり・既定）
@@ -50,11 +50,15 @@ final class AppModel: ObservableObject {
         dailyTotal = d.object(forKey: "dailyTotal") as? Int ?? PhraseLogic.defaultTotal
         dailyNew = d.object(forKey: "dailyNew") as? Int ?? PhraseLogic.defaultNew
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
-        language = d.string(forKey: "language") ?? "en-US"
+        language = d.string(forKey: "language") ?? TargetLanguage.default.rawValue
         micUID = d.string(forKey: "micUID") ?? ""
         let saved = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
         engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
+        Speaker.shared.language = language
     }
+
+    /// 話す言語（設定）。知らない値が入っていたら既定に
+    var targetLanguage: TargetLanguage { TargetLanguage(rawValue: language) ?? .default }
 
     var usesOnDevice: Bool { engine == "apple" }
     var usesRelay: Bool { engine != "apple" && engine != "gemini" }
@@ -214,7 +218,8 @@ final class AppModel: ObservableObject {
         let extra = PhraseLogic.targetsSection(targetCards)
         do {
             let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
-                                                         recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
+                                                         recurring: Logic.topRecurring(snapshot.recurring), extra: extra,
+                                                         system: targetLanguage.audioPrompt)
             finish(p, fb: fb, engine: usesRelay ? "cloud" : "gemini", targetCards: targetCards)
             if usesRelay { await refreshQuota() }
         } catch let f as GeminiClient.Failure {
@@ -236,7 +241,7 @@ final class AppModel: ObservableObject {
         }
         guard !p.transcript.trimmingCharacters(in: .whitespaces).isEmpty else {
             phase = .idle
-            errorMessage = "聞き取れる英語がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。" + (recorder.inputName.isEmpty ? "" : "今のマイクは「\(recorder.inputName)」です。") + "録音は残してあります。"
+            errorMessage = "聞き取れる発話がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。" + (recorder.inputName.isEmpty ? "" : "今のマイクは「\(recorder.inputName)」です。") + "録音は残してあります。"
             return
         }
         phase = .reviewing
@@ -307,7 +312,7 @@ final class AppModel: ObservableObject {
         case .silent:
             // 実際に録ったマイクの名前を出す（Mac の既定とは限らない）
             let name = mic.isEmpty ? Platform.inputDeviceName : mic
-            return "聞き取れる英語がありませんでした。マイクから音が入っていなかったかもしれません。"
+            return "聞き取れる発話がありませんでした。マイクから音が入っていなかったかもしれません。"
                 + (name.isEmpty ? "" : "今のマイクは「\(name)」です。") + "マイクを確かめて、もう一度どうぞ。"
         }
     }
