@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var editingKey = false
+    @State private var confirmDeleteKey = false
     @State private var keyStatus = ""
     @State private var exporting = false
     @State private var importing = false
@@ -53,8 +54,16 @@ struct SettingsView: View {
                 // （2026-09-27 実測。同じ TextField でもシートの中なら入る）
                 HStack {
                     Button(model.hasKey ? "キーを変更…" : "キーを登録…") { editingKey = true }
+                    Spacer()
                     if model.hasKey {
-                        Button("削除", role: .destructive) { model.setKey(nil); keyStatus = "削除しました" }
+                        // 一押しで消えないように、確認を挟む（2026-10-09 本人要望。キーの再発行は手間なので）
+                        Button("削除…", role: .destructive) { confirmDeleteKey = true }
+                            .confirmationDialog("Gemini の API キーを削除しますか？", isPresented: $confirmDeleteKey, titleVisibility: .visible) {
+                                Button("削除する", role: .destructive) { model.setKey(nil); keyStatus = "削除しました" }
+                                Button("やめる", role: .cancel) {}
+                            } message: {
+                                Text("削除すると、もう一度キーを入力するまで「自分の Gemini キー」での添削はできません。「おまかせ」は引き続き使えます。")
+                            }
                     }
                 }
                 if !keyStatus.isEmpty { Text(keyStatus).font(.caption).foregroundStyle(keyStatus.hasPrefix("✗") ? Theme.bad : Theme.good) }
