@@ -299,6 +299,13 @@ final class Recorder: ObservableObject {
                         self.interim = ""
                         if self.wantCaptions { self.newCaptionTask() }
                     } else {
+                        // iOS の認識は、文の切れ目で isFinal を出さずに本文を頭から作り直すことがある
+                        // （前の文が画面から消えて次の文だけになる・2026-10-09 本人指摘）。
+                        // 作り直しに気づいたら、それまでの文を確定分へ積んでから続ける
+                        let prev = self.interim
+                        if !prev.isEmpty, Self.looksRestarted(prev: prev, now: text) {
+                            self.transcript += prev + "\n"
+                        }
                         self.interim = text
                     }
                 }
@@ -313,6 +320,14 @@ final class Recorder: ObservableObject {
                 }
             }
         }
+    }
+
+    /// 新しい途中結果が「前の続き」ではなく「頭から作り直し」に見えるか。
+    /// 前の文の先頭 12 文字を引き継いでいなければ作り直しとみなす（短い言い直しは引き継ぐので誤判定しにくい）
+    static func looksRestarted(prev: String, now: String) -> Bool {
+        let head = String(prev.prefix(12))
+        if head.count < 6 { return false }
+        return !now.hasPrefix(head)
     }
 
     private func stopCaptions() {
