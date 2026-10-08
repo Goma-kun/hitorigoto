@@ -105,6 +105,16 @@ struct SpeakView: View {
                     }
                 }
             }
+            let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues)
+            if !silent.isEmpty {
+                Card(title: "ほかに、添削文で直っていたところ") {
+                    ForEach(silent) { f in
+                        (Text(f.from).strikethrough().foregroundStyle(Theme.bad) + Text("  →  ").foregroundStyle(Theme.faint) + Text(f.to).bold().foregroundStyle(Theme.good))
+                            .font(.caption)
+                    }
+                    Note(text: "コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。")
+                }
+            }
             if !fb.recurring.isEmpty {
                 Card(title: "また出やがった点") {
                     ForEach(fb.recurring, id: \.self) { Text("• \($0)").font(.callout).foregroundStyle(Theme.text) }

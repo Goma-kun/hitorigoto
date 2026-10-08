@@ -47,7 +47,9 @@ struct SessionCard: View {
                 let body = session.correctedText ?? session.transcript ?? ""
                 Text(body).font(.callout).foregroundStyle(Theme.text).lineLimit(expanded ? nil : 4).textSelection(.enabled)
                 if body.count > 120 {
-                    Button(expanded ? "たたむ" : "全文") { expanded.toggle() }.buttonStyle(.plain).font(.caption.weight(.bold)).foregroundStyle(Theme.accent)
+                    // ScrollView 全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
+                    Button(expanded ? "たたむ" : "全文") { expanded.toggle() }
+                        .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent)
                 }
                 if !session.issues.isEmpty {
                     Text("直すべし").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
@@ -58,6 +60,13 @@ struct SessionCard: View {
                             Spacer(minLength: 0)
                             AddIssueButton(issue: it)
                         }
+                    }
+                }
+                let silent = SilentFixes.find(transcript: session.transcript ?? "", corrected: session.correctedText ?? "", issues: session.issues)
+                if !silent.isEmpty {
+                    Text("ほかに、添削文で直っていたところ").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                    ForEach(silent) { f in
+                        Text("• \(f.from) → \(f.to)").font(.caption).foregroundStyle(Theme.text)
                     }
                 }
                 if let pron = session.pronunciation, !pron.isEmpty {
