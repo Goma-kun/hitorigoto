@@ -12,6 +12,21 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                Picker("添削のエンジン", selection: $model.engine) {
+                    Text("この端末の AI（キー不要）").tag("apple")
+                    Text("Gemini（API キー）").tag("gemini")
+                }
+                switch AppleReviewer.status {
+                case .available:
+                    Label("この端末の AI が使えます", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.good)
+                case .unavailable(let why):
+                    Label(why, systemImage: "exclamationmark.circle").foregroundStyle(Theme.warn)
+                }
+                Text("端末の AI（Apple Intelligence）は通信もキーも要らず、話した内容が端末の外に出ません。ただし音声は聞かせられないので、録音中の字幕（音声認識の文字）を添削します。字幕が化けた箇所はそのまま直しの対象になります。Gemini は音声そのものを聞いて書き起こしと添削をするので精度は高く、API キーが要ります。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("添削") }
+
+            Section {
                 if model.hasKey {
                     Label("キーは登録済みです", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.good)
                 } else {
@@ -28,7 +43,7 @@ struct SettingsView: View {
                 if !keyStatus.isEmpty { Text(keyStatus).font(.caption).foregroundStyle(keyStatus.hasPrefix("✗") ? Theme.bad : Theme.good) }
                 Text("キーは端末の Keychain にだけ保存します。録音した音声と話した内容は、あなたのキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。日本からの利用は無料枠が使えず従量課金になることがあります（1 回の添削で数円程度）。")
                     .font(.caption).foregroundStyle(Theme.muted)
-            } header: { Text("Google Gemini API キー（必須）") }
+            } header: { Text("Google Gemini API キー（Gemini を使うとき）") }
 
             if Platform.canChooseInput {
                 Section {

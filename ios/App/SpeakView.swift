@@ -56,11 +56,8 @@ struct SpeakView: View {
                     Button("やめる", role: .cancel) {}
                 }
             }
-            if !model.hasKey {
-                Card {
-                    Text("添削には Google Gemini の API キーが必要です。「設定」で登録してください（自分のキーで、自分と Google の間の通信だけです）。")
-                        .font(.callout).foregroundStyle(Theme.text)
-                }
+            if let why = model.reviewBlocker {
+                Card { Text(why).font(.callout).foregroundStyle(Theme.text) }
             }
             // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
             Welcome()

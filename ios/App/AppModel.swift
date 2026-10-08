@@ -33,6 +33,9 @@ final class AppModel: ObservableObject {
     @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language") } }
     /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
     @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
+    /// 添削のエンジン。"apple"＝端末内 AI（キー不要）／"gemini"＝Gemini API（キー）。
+    /// 既定は、端末内 AI が使えてキーが無ければ apple、それ以外は gemini
+    @Published var engine: String { didSet { UserDefaults.standard.set(engine, forKey: "engine") } }
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -47,6 +50,17 @@ final class AppModel: ObservableObject {
         captionsOn = d.object(forKey: "captionsOn") as? Bool ?? true
         language = d.string(forKey: "language") ?? "en-US"
         micUID = d.string(forKey: "micUID") ?? ""
+        engine = d.string(forKey: "engine") ?? ((AppleReviewer.isAvailable && !KeychainStore.hasKey) ? "apple" : "gemini")
+    }
+
+    var usesOnDevice: Bool { engine == "apple" }
+    /// 今の設定で添削できるか。できないときは理由
+    var reviewBlocker: String? {
+        if usesOnDevice {
+            if case .unavailable(let why) = AppleReviewer.status { return why }
+            return nil
+        }
+        return hasKey ? nil : "添削には Google Gemini の API キーが必要です。「設定」で登録するか、端末内の AI に切り替えてください。"
     }
 
     private func save() { try? store?.save(snapshot) }
@@ -127,7 +141,8 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         latest = nil; latestJudged = []
         do {
-            try await recorder.start(captions: captionsOn, language: language, micUID: micUID)
+            // 端末内 AI は字幕の文字を添削するので、字幕は必ず取る
+            try await recorder.start(captions: captionsOn || usesOnDevice, language: language, micUID: micUID)
             phase = .recording
         } catch Recorder.Failure.micDenied {
             errorMessage = "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。"
@@ -148,9 +163,12 @@ final class AppModel: ObservableObject {
         await review()
     }
 
-    /// 手元に残っている録音を Gemini に送る。「もう一度送る」もここを通る
+    /// 手元に残っている録音を添削に出す（Gemini か端末内 AI）。「もう一度送る」もここを通る
     func review() async {
         guard let p = pending else { return }
+        if usesOnDevice {
+            await reviewOnDevice(p); return
+        }
         guard let key = KeychainStore.apiKey else {
             phase = .idle
             errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。"
@@ -164,8 +182,49 @@ final class AppModel: ObservableObject {
         do {
             let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
                                                          recurring: Logic.topRecurring(snapshot.recurring), extra: extra)
+            finish(p, fb: fb, engine: "gemini", targetCards: targetCards)
+        } catch let f as GeminiClient.Failure {
+            phase = .idle
+            errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+        } catch {
+            phase = .idle
+            errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+        }
+    }
+
+    /// 端末内 AI で添削する。音声は送れないので、録音中に取った字幕の文字を使う
+    private func reviewOnDevice(_ p: PendingRecording) async {
+        if case .unavailable(let why) = AppleReviewer.status {
+            phase = .idle
+            errorMessage = "端末内の AI が使えません: \(why)。録音は残してあります。"
+            return
+        }
+        guard !p.transcript.trimmingCharacters(in: .whitespaces).isEmpty else {
+            phase = .idle
+            errorMessage = "聞き取れる英語がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。" + (recorder.inputName.isEmpty ? "" : "今のマイクは「\(recorder.inputName)」です。") + "録音は残してあります。"
+            return
+        }
+        phase = .reviewing
+        errorMessage = nil
+        let targetCards = todayCards()
+        do {
+            let fb = try await AppleReviewer.review(transcript: p.transcript, targets: targetCards.map(\.phrase),
+                                                    recurring: Logic.topRecurring(snapshot.recurring).map(\.text))
+            finish(p, fb: fb, engine: "apple", targetCards: targetCards)
+        } catch AppleReviewer.Failure.model(let m) {
+            phase = .idle
+            errorMessage = "端末内の AI が添削を返せませんでした: \(m)\n録音は残してあります。「もう一度送る」でやり直せます。"
+        } catch {
+            phase = .idle
+            errorMessage = error.localizedDescription + "\n録音は残してあります。"
+        }
+    }
+
+    /// 添削の結果を記録に入れて画面に出す（エンジン共通）
+    private func finish(_ p: PendingRecording, fb: Feedback, engine: String, targetCards: [PhraseCard]) {
+        do {
             var session = Session(id: ISO8601DateFormatter.withMillis.string(from: p.date), transcript: fb.transcript,
-                                  correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: "gemini")
+                                  correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: engine)
             if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
             if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
 
@@ -188,12 +247,6 @@ final class AppModel: ObservableObject {
             latestJudged = judged
             latestSession = session
             phase = .result
-        } catch let f as GeminiClient.Failure {
-            phase = .idle
-            errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
-        } catch {
-            phase = .idle
-            errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
         }
     }
 
