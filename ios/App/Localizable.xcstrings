@@ -1,0 +1,2286 @@
+{
+  "sourceLanguage": "ja",
+  "version": "1.0",
+  "strings": {
+    "\n録音は残してあります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\nYour recording is kept."
+          }
+        }
+      }
+    },
+    "\n録音は残してあります。「もう一度送る」でやり直せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\nYour recording is kept. Tap “Send again” to retry."
+          }
+        }
+      }
+    },
+    "  →  ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "  →  "
+          }
+        }
+      }
+    },
+    "%@ に録音（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded %@ (%@)"
+          }
+        }
+      }
+    },
+    "%@　指摘 %lld 件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld corrections"
+          }
+        }
+      }
+    },
+    "%@でひとりごと、はじめましょう": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let’s start talking to yourself in %@"
+          }
+        }
+      }
+    },
+    "%@で言ってみてから、答えを見てください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it in %@ first, then reveal the answer"
+          }
+        }
+      }
+    },
+    "%lld / %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld"
+          }
+        }
+      }
+    },
+    "%lld 件入れました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added %lld"
+          }
+        }
+      }
+    },
+    "%lld 回・最後は %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld times · last %@"
+          }
+        }
+      }
+    },
+    "%lld 日後": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %lld days"
+          }
+        }
+      }
+    },
+    "%lld 日遅れ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days overdue"
+          }
+        }
+      }
+    },
+    "1 件ずつ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One at a time"
+          }
+        }
+      }
+    },
+    "1 日に出す表現の数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phrases per day"
+          }
+        }
+      }
+    },
+    "1 行に 1 つ。「表現 ｜ 意味」の形。区切りは ｜ か — かタブ。区切りが無い行は表現だけ入ります。同じ表現は増えません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One per line, as “phrase | meaning”. Separator can be |, — or a tab. Lines without a separator add the phrase only. Duplicates are skipped."
+          }
+        }
+      }
+    },
+    "AI が聞く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI listens"
+          }
+        }
+      }
+    },
+    "AI の応答でエラーが起きました: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI returned an error: %@"
+          }
+        }
+      }
+    },
+    "AI の応答を読めませんでした。もう一度お試しください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read the AI’s reply. Please try again."
+          }
+        }
+      }
+    },
+    "AI モデルを準備中です。しばらくしてからもう一度どうぞ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI model is getting ready. Try again in a moment"
+          }
+        }
+      }
+    },
+    "AIza… または AQ… で始まるキー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A key starting with AIza… or AQ…"
+          }
+        }
+      }
+    },
+    "API キーが正しくないようです。設定で確かめてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The API key looks wrong. Check it in Settings."
+          }
+        }
+      }
+    },
+    "Gemini の API キーを削除しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete your Gemini API key?"
+          }
+        }
+      }
+    },
+    "Google AI Studio でキーを取得する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get a key at Google AI Studio"
+          }
+        }
+      }
+    },
+    "Google AI Studio で作ったキーを貼り付けてください。キーはこの端末の Keychain にだけ保存します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste a key created at Google AI Studio. It is stored only in this device’s Keychain."
+          }
+        }
+      }
+    },
+    "Google Gemini API キー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Gemini API key"
+          }
+        }
+      }
+    },
+    "Mac の既定に合わせる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use the Mac’s default"
+          }
+        }
+      }
+    },
+    "iOS 26 / macOS 26 以上で使えます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires iOS 26 / macOS 26 or later"
+          }
+        }
+      }
+    },
+    "• %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• %@"
+          }
+        }
+      }
+    },
+    "• %@ → %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• %@ → %@"
+          }
+        }
+      }
+    },
+    "※ この端末の AI が、録音中の字幕の文字を添削しました。音声は端末の外に出ていません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* Reviewed by this device’s AI from the live captions. Your audio never left the device."
+          }
+        }
+      }
+    },
+    "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* Your audio was sent to Gemini for transcription and feedback. It is sent only for this review and is not stored."
+          }
+        }
+      }
+    },
+    "→": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "→"
+          }
+        }
+      }
+    },
+    "◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "◎ used as is / △ used in a changed form / ✗ not used / − skipped. Tap a mark to change it if the judgment is off."
+          }
+        }
+      }
+    },
+    "✓": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓"
+          }
+        }
+      }
+    },
+    "✓ つながりました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Connected"
+          }
+        }
+      }
+    },
+    "✓ コピーしました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Copied"
+          }
+        }
+      }
+    },
+    "✓ 保存しました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Saved"
+          }
+        }
+      }
+    },
+    "✓ 入れた": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Added"
+          }
+        }
+      }
+    },
+    "✓ 書き出しました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Exported"
+          }
+        }
+      }
+    },
+    "✓ 読み込みました（追加されたセッション: %lld 件）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Imported (%lld sessions added)"
+          }
+        }
+      }
+    },
+    "✗ 書き出せませんでした": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✗ Export failed"
+          }
+        }
+      }
+    },
+    "✗ 読み込めませんでした（独り言の書き出しファイルではないようです）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✗ Import failed (this doesn’t look like a Hitorigoto export file)"
+          }
+        }
+      }
+    },
+    "「%@」を削除しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@”?"
+          }
+        }
+      }
+    },
+    "「話す」タブに毎日出す表現の数です。出せなかった表現（✗・△）と期日が来た表現を先に選び、残りの枠にまだ試していない表現を入れます。数を増やすより、無理なく混ぜられる数にしておくほうが続きます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many phrases appear on the Speak tab each day. Phrases you missed (✗, △) and phrases that are due come first; untried phrases fill the remaining slots. A number you can comfortably work in keeps you going longer than a bigger one."
+          }
+        }
+      }
+    },
+    "あしたのために（音読用）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For tomorrow (read aloud)"
+          }
+        }
+      }
+    },
+    "いったん止めて、「設定」タブの「録音に使うマイク」で選び直してから録り直してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop, choose a different mic under “Microphone” in Settings, and record again."
+          }
+        }
+      }
+    },
+    "おしまい。言えた %lld・言えなかった %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done. Said %lld · missed %lld"
+          }
+        }
+      }
+    },
+    "おはようございます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good morning"
+          }
+        }
+      }
+    },
+    "おまかせ（キー不要・1 日の回数制限あり）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default (no key needed, daily limit)"
+          }
+        }
+      }
+    },
+    "ここで選んだマイクは、このアプリの録音中だけ使います。Mac の「サウンド」設定は変わりません。選んだマイクがつながっていないときは、Mac の既定のマイクで録ります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The mic chosen here is used only while this app records. Your Mac’s Sound settings are not changed. If the chosen mic isn’t connected, the Mac’s default mic is used."
+          }
+        }
+      }
+    },
+    "この API キーのプロジェクトは Google 側で利用が許可されていません。Google AI Studio で「請求階層」を確認してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This API key’s project isn’t allowed to use the API. Check the billing tier in Google AI Studio."
+          }
+        }
+      }
+    },
+    "このままだと無音の録音になります。マイクを確かめてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This recording will be silent. Check your microphone."
+          }
+        }
+      }
+    },
+    "このアプリについて": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About this app"
+          }
+        }
+      }
+    },
+    "この端末では今は使えません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available on this device right now"
+          }
+        }
+      }
+    },
+    "この端末の AI が使えます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device’s AI is available"
+          }
+        }
+      }
+    },
+    "この端末は Apple Intelligence に対応していません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device doesn’t support Apple Intelligence"
+          }
+        }
+      }
+    },
+    "この絞り込みに当てはまる表現はありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No phrases match this filter"
+          }
+        }
+      }
+    },
+    "この録音を捨てますか？ 添削されていない話した内容が消えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard this recording? What you said hasn’t been reviewed and will be lost."
+          }
+        }
+      }
+    },
+    "これまで %lld 回。今日も聞かせてくれ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld rounds so far. Let me hear today’s."
+          }
+        }
+      }
+    },
+    "こんにちは": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    },
+    "こんばんは": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good evening"
+          }
+        }
+      }
+    },
+    "すべて": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "そのうち、まだ試していない表現は最大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Of those, untried phrases at most"
+          }
+        }
+      }
+    },
+    "その表現はもう入っています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That phrase is already in your list"
+          }
+        }
+      }
+    },
+    "たたむ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse"
+          }
+        }
+      }
+    },
+    "ほかに、添削文で直っていたところ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other fixes in the corrected text"
+          }
+        }
+      }
+    },
+    "また出やがった点": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Here it is again"
+          }
+        }
+      }
+    },
+    "また出やがった点（2 回以上出た指摘）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Here it is again (corrections that came up twice or more)"
+          }
+        }
+      }
+    },
+    "また出やがった点（今日はここに気をつける）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Here it is again (watch these today)"
+          }
+        }
+      }
+    },
+    "まだ登録されていません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set yet"
+          }
+        }
+      }
+    },
+    "まだ表現がありません。「＋ 追加」で入れるか、添削の「直すべし」から 1 タップで入れてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No phrases yet. Add one with “+ Add”, or tap + on a correction in “Fix these”."
+          }
+        }
+      }
+    },
+    "まだ試していない": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untried"
+          }
+        }
+      }
+    },
+    "まとめて入れる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add several"
+          }
+        }
+      }
+    },
+    "もう一度送る": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send again"
+          }
+        }
+      }
+    },
+    "やめる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "わしが買ってやる点": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What I’ll give you credit for"
+          }
+        }
+      }
+    },
+    "アクセスが集中しています。少し待ってからもう一度どうぞ。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service is busy. Please wait a moment and try again."
+          }
+        }
+      }
+    },
+    "カードで復習": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review with cards"
+          }
+        }
+      }
+    },
+    "カードで復習できる表現（意味つき・稽古中）がありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No phrases to review with cards (needs a meaning and “in training”)"
+          }
+        }
+      }
+    },
+    "キー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key"
+          }
+        }
+      }
+    },
+    "キーは登録済みです": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key is set"
+          }
+        }
+      }
+    },
+    "キーは端末の Keychain にだけ保存します。録音した音声と話した内容は、あなたのキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。日本からの利用は無料枠が使えず従量課金になることがあります（1 回の添削で数円程度）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The key is stored only in this device’s Keychain. Your audio and what you said go directly to Google’s Gemini API with your key; no developer server is involved. Depending on your region the free tier may not apply and usage may be billed (a few cents per review)."
+          }
+        }
+      }
+    },
+    "キーを変更…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change key…"
+          }
+        }
+      }
+    },
+    "キーを登録": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set key"
+          }
+        }
+      }
+    },
+    "キーを登録…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set key…"
+          }
+        }
+      }
+    },
+    "コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The coach only lists the important corrections. These are the rest, found by comparing the corrected text with what you said."
+          }
+        }
+      }
+    },
+    "コーチの添削・字幕の聞き取り・読み上げの声が、この言語に合わせて変わります。アメリカとイギリス、スペインと中南米では綴りや言い回しをそれぞれに揃えます。説明は日本語のままです。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The coach’s feedback, live captions and read-aloud voice follow this language. US and UK English, and Spain and Latin American Spanish, each get their own spelling and phrasing. Explanations follow the app’s language."
+          }
+        }
+      }
+    },
+    "スペイン語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spanish"
+          }
+        }
+      }
+    },
+    "スペイン語（スペイン）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spanish (Spain)"
+          }
+        }
+      }
+    },
+    "スペイン語（中南米）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spanish (Latin America)"
+          }
+        }
+      }
+    },
+    "タップで ◎ → △ → ✗ → − と切り替え": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to cycle ◎ → △ → ✗ → −"
+          }
+        }
+      }
+    },
+    "プライバシーポリシー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy policy"
+          }
+        }
+      }
+    },
+    "マイク": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone"
+          }
+        }
+      }
+    },
+    "マイク: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mic: %@"
+          }
+        }
+      }
+    },
+    "マイクから音が入っていません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sound from the microphone"
+          }
+        }
+      }
+    },
+    "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone access is not allowed. Turn on the microphone for Hitorigoto in Settings."
+          }
+        }
+      }
+    },
+    "マイクの形式が取れませんでした": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read the microphone format"
+          }
+        }
+      }
+    },
+    "マイクを確かめて、もう一度どうぞ。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your microphone and try again."
+          }
+        }
+      }
+    },
+    "一覧に戻る": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to list"
+          }
+        }
+      }
+    },
+    "今のマイクは「%@」です。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current mic is “%@”."
+          }
+        }
+      }
+    },
+    "今のマイクは「%@」です。このままだと無音の録音になります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current mic is “%@”. This recording will be silent."
+          }
+        }
+      }
+    },
+    "今日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        }
+      }
+    },
+    "今日の %lld 回を使い切りました。日付が変わると戻ります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’ve used today’s %lld reviews. They reset at midnight"
+          }
+        }
+      }
+    },
+    "今日の無料の添削（%lld 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’ve used today’s %lld free reviews. They reset at midnight. Set your own Gemini key in Settings for unlimited reviews."
+          }
+        }
+      }
+    },
+    "今日の無料の添削（%lld 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’ve used today’s %lld free reviews. They reset at midnight. Set your own Gemini key for unlimited reviews."
+          }
+        }
+      }
+    },
+    "今日の表現": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today’s phrases"
+          }
+        }
+      }
+    },
+    "今日の表現の結果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today’s phrases: results"
+          }
+        }
+      }
+    },
+    "今日の話に合わないので外す（回数には数えません。2 日あけて戻ります）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip it today (doesn’t count; comes back in 2 days)"
+          }
+        }
+      }
+    },
+    "今日はあと %lld 回（%lld 回まで）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld left today (up to %lld)"
+          }
+        }
+      }
+    },
+    "今日はアクセスが集中しています。明日またどうぞ。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service is busy today. Please try again tomorrow."
+          }
+        }
+      }
+    },
+    "今日は言うことがねえ。指摘なし": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to say today. No corrections"
+          }
+        }
+      }
+    },
+    "今日出す表現はありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No phrases to show today"
+          }
+        }
+      }
+    },
+    "例: for a split second": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. for a split second"
+          }
+        }
+      }
+    },
+    "例: ほんの一瞬": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. for a very short moment"
+          }
+        }
+      }
+    },
+    "保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "修正版": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrected version"
+          }
+        }
+      }
+    },
+    "停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        }
+      }
+    },
+    "入れました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added"
+          }
+        }
+      }
+    },
+    "入れる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+    "全文": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full text"
+          }
+        }
+      }
+    },
+    "再挑戦": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        }
+      }
+    },
+    "再登場": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Again"
+          }
+        }
+      }
+    },
+    "削除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "削除…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete…"
+          }
+        }
+      }
+    },
+    "削除しました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted"
+          }
+        }
+      }
+    },
+    "削除する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "削除すると、もう一度キーを入力するまで「自分の Gemini キー」での添削はできません。「おまかせ」は引き続き使えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After deleting, “Your own Gemini key” won’t work until you enter a key again. “Default” keeps working."
+          }
+        }
+      }
+    },
+    "卒業": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graduated"
+          }
+        }
+      }
+    },
+    "卒業にする": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as graduated"
+          }
+        }
+      }
+    },
+    "単語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Word"
+          }
+        }
+      }
+    },
+    "口から出た形: ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you said: "
+          }
+        }
+      }
+    },
+    "古い記録（指摘だけ残しています）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Old record (only the corrections are kept)"
+          }
+        }
+      }
+    },
+    "同じ直しが 2 回以上出たものです。話す前にも出しています。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrections that have come up twice or more. They are also shown before you speak."
+          }
+        }
+      }
+    },
+    "字幕": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captions"
+          }
+        }
+      }
+    },
+    "字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。字幕を切ると、音声認識の許可は求めません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captions are only a reference. Feedback is based on the recorded audio itself, so caption errors are never “corrected”. With captions off, speech recognition permission is not requested."
+          }
+        }
+      }
+    },
+    "実際に話した内容（音声から書き起こし）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you actually said (transcribed from audio)"
+          }
+        }
+      }
+    },
+    "履歴": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        }
+      }
+    },
+    "左が言おうとした語、右がそう聞こえた語です。ここを直すと伝わります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left is what you meant, right is what it sounded like. Fixing these makes you understood."
+          }
+        }
+      }
+    },
+    "意味": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meaning"
+          }
+        }
+      }
+    },
+    "押して、%@で話すだけ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap and talk in %@"
+          }
+        }
+      }
+    },
+    "捨てる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard"
+          }
+        }
+      }
+    },
+    "接続テスト": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test connection"
+          }
+        }
+      }
+    },
+    "文法": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grammar"
+          }
+        }
+      }
+    },
+    "新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New"
+          }
+        }
+      }
+    },
+    "日本語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Japanese"
+          }
+        }
+      }
+    },
+    "明日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomorrow"
+          }
+        }
+      }
+    },
+    "書き出す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        }
+      }
+    },
+    "未挑戦": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untried"
+          }
+        }
+      }
+    },
+    "毎日の表現": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily phrases"
+          }
+        }
+      }
+    },
+    "添削": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feedback"
+          }
+        }
+      }
+    },
+    "添削が終わるまで録音は手元に残ります。送れたら自動で消えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording stays on your device until the review succeeds, then it is deleted automatically."
+          }
+        }
+      }
+    },
+    "添削には Google Gemini の API キーが必要です。「設定」で登録するか、「おまかせ（キー不要）」に切り替えてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feedback needs a Google Gemini API key. Set one in Settings, or switch to “Default (no key needed)”."
+          }
+        }
+      }
+    },
+    "添削には Google Gemini の API キーが必要です。設定から登録してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feedback needs a Google Gemini API key. Set one in Settings."
+          }
+        }
+      }
+    },
+    "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feedback needs a Google Gemini API key. Set one in Settings. Your recording is kept."
+          }
+        }
+      }
+    },
+    "添削のエンジン": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feedback engine"
+          }
+        }
+      }
+    },
+    "添削中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reviewing"
+          }
+        }
+      }
+    },
+    "独り言": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hitorigoto"
+          }
+        }
+      }
+    },
+    "独り言 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hitorigoto %@"
+          }
+        }
+      }
+    },
+    "独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use it as is in your monologue for a ◎. After the first ◎ it returns in a week, after the second in three weeks, and three ◎ graduate it. △ and ✗ return the next day; skipped phrases return after two days."
+          }
+        }
+      }
+    },
+    "独り言の記録はまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No recordings yet"
+          }
+        }
+      }
+    },
+    "独り言の記録（練習・繰り返し・表現集）を JSON として書き出し・読み込みできます。Chrome 拡張機能版の「書き出し」ファイルもそのまま読み込めます。読み込みは混ぜる方式で、同じ記録は増えません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export and import your records (sessions, recurring points, phrase list) as JSON. Export files from the Chrome extension can be imported as well. Imports are merged, so duplicates are not added."
+          }
+        }
+      }
+    },
+    "発音で伝わらなかった箇所": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pronunciation that didn’t come across"
+          }
+        }
+      }
+    },
+    "直しが届く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixes arrive"
+          }
+        }
+      }
+    },
+    "直すべし": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix these"
+          }
+        }
+      }
+    },
+    "短すぎました。もう少し話してから止めてください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too short. Talk a little longer before stopping"
+          }
+        }
+      }
+    },
+    "確認中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        }
+      }
+    },
+    "種類": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
+          }
+        }
+      }
+    },
+    "稽古に戻す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to training"
+          }
+        }
+      }
+    },
+    "稽古中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In training"
+          }
+        }
+      }
+    },
+    "端末の AI（Apple Intelligence）は通信もキーも要らず、話した内容が端末の外に出ません。ただし音声は聞かせられないので、録音中の字幕（音声認識の文字）を添削します。精度は Gemini よりかなり落ちます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device AI (Apple Intelligence) needs no network or key, and nothing you say leaves the device. It can’t hear audio, though, so it reviews the live captions. Accuracy is much lower than Gemini."
+          }
+        }
+      }
+    },
+    "端末の聞き取りが外した箇所": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where the device’s speech recognition missed"
+          }
+        }
+      }
+    },
+    "端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Places the device’s speech recognition got wrong. You said them fine in the audio. They don’t count as mistakes."
+          }
+        }
+      }
+    },
+    "端末内の AI が使えません: %@。録音は残してあります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device AI isn’t available: %@. Your recording is kept."
+          }
+        }
+      }
+    },
+    "端末内の AI が添削を返せませんでした: %@\n録音は残してあります。「もう一度送る」でやり直せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device AI couldn’t return a review: %@\nYour recording is kept. Tap “Send again” to retry."
+          }
+        }
+      }
+    },
+    "答えを見る": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal"
+          }
+        }
+      }
+    },
+    "聞き取り中…（字幕は参考です。添削は音声そのものから行います）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening… (captions are a reference; feedback uses the audio itself)"
+          }
+        }
+      }
+    },
+    "聞き取れる発話がありませんでした。マイクから音が入っていなかったかもしれません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No speech could be heard. The microphone may not have picked up any sound."
+          }
+        }
+      }
+    },
+    "聞き取れる発話がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No speech could be heard. On-device AI reviews the captions, so it can’t review without them."
+          }
+        }
+      }
+    },
+    "自分の API キーで Google の Gemini に直接送ります。開発者のサーバーは介在せず、回数の制限もありません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sends directly to Google’s Gemini with your own API key. No developer server, no daily limit."
+          }
+        }
+      }
+    },
+    "自分の Gemini キー（回数の制限なし）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your own Gemini key (no limit)"
+          }
+        }
+      }
+    },
+    "英語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "英語（アメリカ）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English (US)"
+          }
+        }
+      }
+    },
+    "英語（イギリス）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English (UK)"
+          }
+        }
+      }
+    },
+    "表現": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phrases"
+          }
+        }
+      }
+    },
+    "表現を入力してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a phrase"
+          }
+        }
+      }
+    },
+    "表現を追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add phrase"
+          }
+        }
+      }
+    },
+    "表現集に入っています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In your phrase list"
+          }
+        }
+      }
+    },
+    "表現集へ入れる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to phrases"
+          }
+        }
+      }
+    },
+    "見送り": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "覚えたい表現を入れると、毎日ここに出ます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add phrases you want to learn and they’ll show up here every day"
+          }
+        }
+      }
+    },
+    "言い回し": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phrasing"
+          }
+        }
+      }
+    },
+    "言えた": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Said it"
+          }
+        }
+      }
+    },
+    "言えなかった": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missed"
+          }
+        }
+      }
+    },
+    "言えなかったものは明日の「今日の表現」に戻ります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missed phrases come back in tomorrow’s “Today’s phrases”"
+          }
+        }
+      }
+    },
+    "記録の書き出し・読み込み": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export / import records"
+          }
+        }
+      }
+    },
+    "設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "設定で Apple Intelligence をオンにしてください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Apple Intelligence in Settings"
+          }
+        }
+      }
+    },
+    "話した内容（音声から書き起こし）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you said (transcribed from audio)"
+          }
+        }
+      }
+    },
+    "話している最中に字幕を出す（端末の音声認識）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show live captions while speaking (device speech recognition)"
+          }
+        }
+      }
+    },
+    "話し終えたら、もう一度押してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap again when you’re done"
+          }
+        }
+      }
+    },
+    "話す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speak"
+          }
+        }
+      }
+    },
+    "話す前に目を通しておき、無理のない範囲で独り言に混ぜてください（%lld 個）。停止すると、出たかどうかを判定します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read these before you speak and work them in where they fit (%lld). When you stop, they are checked."
+          }
+        }
+      }
+    },
+    "話す言語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language to speak"
+          }
+        }
+      }
+    },
+    "語彙": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vocabulary"
+          }
+        }
+      }
+    },
+    "読み上げます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read aloud"
+          }
+        }
+      }
+    },
+    "読み込む": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        }
+      }
+    },
+    "送っていない録音があります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have an unsent recording"
+          }
+        }
+      }
+    },
+    "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have an unsent recording. Choose “Send again” or “Discard” first."
+          }
+        }
+      }
+    },
+    "通信に失敗しました: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network error: %@"
+          }
+        }
+      }
+    },
+    "選んだマイクがつながっていません（%@ で録ります）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The chosen mic isn’t connected (recording with %@)"
+          }
+        }
+      }
+    },
+    "録音が取れませんでした": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t get the recording"
+          }
+        }
+      }
+    },
+    "録音に使うマイク": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone for recording"
+          }
+        }
+      }
+    },
+    "録音は残してあります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your recording is kept."
+          }
+        }
+      }
+    },
+    "録音を始められませんでした: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t start recording: %@"
+          }
+        }
+      }
+    },
+    "録音中。字幕は出ませんが、音声はそのまま添削に使います": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording. No captions, but the audio is used for feedback as usual"
+          }
+        }
+      }
+    },
+    "閉じる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
+    "開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "音声が空か大きすぎます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio is empty or too large."
+          }
+        }
+      }
+    },
+    "音声は開発者の中継サーバーを通して Google の Gemini に送られ、添削だけが返ります。音声はサーバーに保存しません。API キーの用意は要りません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your audio goes through the developer’s relay server to Google’s Gemini, and only the feedback comes back. The server does not store audio. No API key needed."
+          }
+        }
+      }
+    },
+    "音声を Gemini に送っています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending your audio to Gemini"
+          }
+        }
+      }
+    },
+    "＋": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+"
+          }
+        }
+      }
+    },
+    "＋ 表現集へ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ Add to phrases"
+          }
+        }
+      }
+    },
+    "＋ 追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ Add"
+          }
+        }
+      }
+    },
+    "🃏 カードで復習": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🃏 Review with cards"
+          }
+        }
+      }
+    },
+    "📋 コピー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📋 Copy"
+          }
+        }
+      }
+    },
+    "📋 コピー（指摘つき）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📋 Copy (with corrections)"
+          }
+        }
+      }
+    },
+    "📋 結果をまとめてコピー（指摘つき）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📋 Copy everything (with corrections)"
+          }
+        }
+      }
+    },
+    "🧠 音声を聞き直して添削中…（少し時間がかかります）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🧠 Listening back and reviewing… (this takes a moment)"
+          }
+        }
+      }
+    }
+  }
+}

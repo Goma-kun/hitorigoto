@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// 添削文（corrected_text）と書き起こしを突き合わせて、「直すべし」に挙がらなかった直しを拾う。
 /// コーチの指摘は最大 5 件なので、添削文の中で黙って直された箇所が残る（Day 28 で本人が気づいた）。
@@ -49,8 +50,8 @@ enum SilentFixes {
             if toWords.isEmpty, Set(fromKeys).count == 1, r.ai > 0, a[r.ai - 1].key == fromKeys[0] { continue }
             if fromWords.isEmpty && toWords.isEmpty { continue }
             // 前後 1 語を添えて読める形にする
-            let from = ((r.ai > 0 ? [a[r.ai - 1].text] : []) + fromWords + (r.aj < n ? [a[r.aj].text] : [])).joined(separator: " ")
-            let to = ((r.bi > 0 ? [b[r.bi - 1].text] : []) + toWords + (r.bj < m ? [b[r.bj].text] : [])).joined(separator: " ")
+            let from = join((r.ai > 0 ? [a[r.ai - 1].text] : []) + fromWords + (r.aj < n ? [a[r.aj].text] : []))
+            let to = join((r.bi > 0 ? [b[r.bi - 1].text] : []) + toWords + (r.bj < m ? [b[r.bj].text] : []))
             if from.lowercased() == to.lowercased() { continue }
             // コーチの指摘と重なるものは出さない（言った形か直した形のどちらかが指摘に含まれていれば重なり）
             let coreFrom = fromWords.joined(separator: " ").lowercased(), coreTo = toWords.joined(separator: " ").lowercased()
@@ -63,11 +64,27 @@ enum SilentFixes {
     }
 
     private struct Tok { let text: String; let key: String }
+    /// 語に切る。空白の無い言語（日本語）でも切れるように NaturalLanguage を使い、句読点は前の語に付ける
     private static func tokens(_ s: String) -> [Tok] {
-        s.split(whereSeparator: { $0 == " " || $0 == "\n" }).map { w in
-            let text = String(w)
-            let key = text.lowercased().trimmingCharacters(in: CharacterSet.alphanumerics.inverted.union(CharacterSet(charactersIn: "'’")))
-            return Tok(text: text, key: key.isEmpty ? text.lowercased() : key)
+        let tk = NLTokenizer(unit: .word); tk.string = s
+        var out: [Tok] = []
+        var last = s.startIndex
+        tk.enumerateTokens(in: s.startIndex..<s.endIndex) { r, _ in
+            // 前の語と今の語の間にある記号は前の語にくっつける（"inventory," のように）
+            let gap = s[last..<r.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !gap.isEmpty, !out.isEmpty { out[out.count - 1] = Tok(text: out[out.count - 1].text + gap, key: out[out.count - 1].key) }
+            let w = String(s[r])
+            out.append(Tok(text: w, key: w.lowercased()))
+            last = r.upperBound
+            return true
         }
+        let tail = s[last...].trimmingCharacters(in: .whitespacesAndNewlines)
+        if !tail.isEmpty, !out.isEmpty { out[out.count - 1] = Tok(text: out[out.count - 1].text + tail, key: out[out.count - 1].key) }
+        return out
+    }
+    /// 読める形に戻す（空白の無い言語は詰めて、ある言語は空白でつなぐ）
+    private static func join(_ ws: [String]) -> String {
+        let spaced = ws.contains { $0.unicodeScalars.contains { $0.properties.isAlphabetic && $0.value < 0x3000 } }
+        return ws.joined(separator: spaced ? " " : "")
     }
 }

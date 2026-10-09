@@ -38,7 +38,7 @@ struct SpeakView: View {
     private var idleBody: some View {
         Group {
             if let p = model.pending {
-                Card(title: "送っていない録音があります") {
+                Card(title: String(localized: "送っていない録音があります")) {
                     Text(p.label).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
                     if !p.transcript.isEmpty {
                         Text(p.transcript).font(.caption).foregroundStyle(Theme.muted).lineLimit(3)
@@ -49,7 +49,7 @@ struct SpeakView: View {
                         Button("捨てる") { confirmDiscard = true }
                             .buttonStyle(.bordered).tint(Theme.muted)
                     }
-                    Note(text: "添削が終わるまで録音は手元に残ります。送れたら自動で消えます。")
+                    Note(text: String(localized: "添削が終わるまで録音は手元に残ります。送れたら自動で消えます。"))
                 }
                 .confirmationDialog("この録音を捨てますか？ 添削されていない話した内容が消えます。", isPresented: $confirmDiscard, titleVisibility: .visible) {
                     Button("捨てる", role: .destructive) { model.discardPending() }
@@ -64,7 +64,7 @@ struct SpeakView: View {
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
             if !recurring.isEmpty {
-                Card(title: "また出やがった点（今日はここに気をつける）") {
+                Card(title: String(localized: "また出やがった点（今日はここに気をつける）")) {
                     ForEach(recurring, id: \.text) { r in RecurringRow(item: r) }
                 }
             }
@@ -89,15 +89,15 @@ struct SpeakView: View {
     private var resultBody: some View {
         if let fb = model.latest {
             if !fb.good.isEmpty {
-                Card(title: "わしが買ってやる点") { Text(fb.good).font(.callout).foregroundStyle(Theme.good) }
+                Card(title: String(localized: "わしが買ってやる点")) { Text(fb.good).font(.callout).foregroundStyle(Theme.good) }
             }
             // 結果を丸ごと持ち出す（チャットに貼って台本にする型）。履歴の「コピー（指摘つき）」と同じ本文
             CopyButton(text: Logic.buildSessionText(model.latestSession ?? Session(id: ""), labels: SessionCard.labels),
-                       label: "📋 結果をまとめてコピー（指摘つき）")
+                       label: String(localized: "📋 結果をまとめてコピー（指摘つき）"))
             if !model.latestJudged.isEmpty { TodayResultCard(judged: model.latestJudged) }
-            Card(title: "直すべし") {
+            Card(title: String(localized: "直すべし")) {
                 if fb.issues.isEmpty {
-                    Note(text: "今日は言うことがねえ。指摘なし")
+                    Note(text: String(localized: "今日は言うことがねえ。指摘なし"))
                 } else {
                     ForEach(Array(fb.issues.enumerated()), id: \.offset) { i, it in
                         if i > 0 { Divider().overlay(Theme.line) }
@@ -107,21 +107,21 @@ struct SpeakView: View {
             }
             let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues)
             if !silent.isEmpty {
-                Card(title: "ほかに、添削文で直っていたところ") {
+                Card(title: String(localized: "ほかに、添削文で直っていたところ")) {
                     ForEach(silent) { f in
                         (Text(f.from).strikethrough().foregroundStyle(Theme.bad) + Text("  →  ").foregroundStyle(Theme.faint) + Text(f.to).bold().foregroundStyle(Theme.good))
                             .font(.caption)
                     }
-                    Note(text: "コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。")
+                    Note(text: String(localized: "コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。"))
                 }
             }
             if !fb.recurring.isEmpty {
-                Card(title: "また出やがった点") {
+                Card(title: String(localized: "また出やがった点")) {
                     ForEach(fb.recurring, id: \.self) { Text("• \($0)").font(.callout).foregroundStyle(Theme.text) }
                 }
             }
             if !fb.pronunciation.isEmpty {
-                Card(title: "発音で伝わらなかった箇所") {
+                Card(title: String(localized: "発音で伝わらなかった箇所")) {
                     ForEach(Array(fb.pronunciation.enumerated()), id: \.offset) { i, p in
                         if i > 0 { Divider().overlay(Theme.line) }
                         VStack(alignment: .leading, spacing: 3) {
@@ -133,29 +133,29 @@ struct SpeakView: View {
                             if !p.note.isEmpty { Text(p.note).font(.caption).foregroundStyle(Theme.muted) }
                         }
                     }
-                    Note(text: "左が言おうとした語、右がそう聞こえた語です。ここを直すと伝わります。")
+                    Note(text: String(localized: "左が言おうとした語、右がそう聞こえた語です。ここを直すと伝わります。"))
                 }
             }
             if !fb.recognitionDoubt.isEmpty {
-                Card(title: "端末の聞き取りが外した箇所") {
+                Card(title: String(localized: "端末の聞き取りが外した箇所")) {
                     ForEach(fb.recognitionDoubt, id: \.self) { Text("• \($0)").font(.callout).foregroundStyle(Theme.muted) }
-                    Note(text: "端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。")
+                    Note(text: String(localized: "端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。"))
                 }
             }
             if !fb.correctedText.isEmpty {
-                Card(title: "あしたのために（音読用）") {
+                Card(title: String(localized: "あしたのために（音読用）")) {
                     Text(fb.correctedText).font(.body).foregroundStyle(Theme.text).textSelection(.enabled)
                     CopyButton(text: fb.correctedText)
                 }
             }
             if !fb.transcript.isEmpty {
-                Card(title: "実際に話した内容（音声から書き起こし）") {
+                Card(title: String(localized: "実際に話した内容（音声から書き起こし）")) {
                     Text(fb.transcript).font(.callout).foregroundStyle(Theme.muted).textSelection(.enabled)
                 }
             }
             Note(text: model.latestSession?.engine == "apple"
-                 ? "※ この端末の AI が、録音中の字幕の文字を添削しました。音声は端末の外に出ていません。"
-                 : "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。")
+                 ? String(localized: "※ この端末の AI が、録音中の字幕の文字を添削しました。音声は端末の外に出ていません。")
+                 : String(localized: "※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。"))
         }
     }
 
@@ -175,7 +175,7 @@ struct SpeakView: View {
                         case .recording: await model.stopAndReview()
                         case .reviewing: break
                         default:
-                            if model.pending != nil { model.errorMessage = "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。" }
+                            if model.pending != nil { model.errorMessage = String(localized: "送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。") }
                             else {
                                 Speaker.shared.stop()   // 読み上げ中なら止める。録音に混ざらないように
                                 await model.startRecording()
@@ -237,17 +237,17 @@ struct SpeakView: View {
 
     private var micLabel: String {
         switch model.phase {
-        case .recording: return "停止"
-        case .reviewing: return "添削中"
-        default: return "開始"
+        case .recording: return String(localized: "停止")
+        case .reviewing: return String(localized: "添削中")
+        default: return String(localized: "開始")
         }
     }
 
     private var micHint: String {
         switch model.phase {
-        case .recording: return "話し終えたら、もう一度押してください"
-        case .reviewing: return "音声を Gemini に送っています"
-        default: return "押して、\(model.targetLanguage.name)で話すだけ"
+        case .recording: return String(localized: "話し終えたら、もう一度押してください")
+        case .reviewing: return String(localized: "音声を Gemini に送っています")
+        default: return String(localized: "押して、\(model.targetLanguage.name)で話すだけ")
         }
     }
 }
@@ -270,11 +270,11 @@ struct Welcome: View {
                 }
             }
             HStack(alignment: .top, spacing: 4) {
-                step("mic.fill", "話す", Theme.accent, Theme.accentBg)
+                step("mic.fill", String(localized: "話す"), Theme.accent, Theme.accentBg)
                 arrow
-                step("sparkles", "AI が聞く", Theme.warn, Theme.warnBg)
+                step("sparkles", String(localized: "AI が聞く"), Theme.warn, Theme.warnBg)
                 arrow
-                step("checkmark.bubble.fill", "直しが届く", Theme.good, Theme.goodBg)
+                step("checkmark.bubble.fill", String(localized: "直しが届く"), Theme.good, Theme.goodBg)
             }
         }
         .frame(maxWidth: .infinity)
@@ -287,15 +287,15 @@ struct Welcome: View {
         if UserDefaults.standard.object(forKey: "HGHour") != nil { hour = UserDefaults.standard.integer(forKey: "HGHour") }   // スクショ用
         #endif
         switch hour {
-        case 5..<11: return "おはようございます"
-        case 11..<18: return "こんにちは"
-        default: return "こんばんは"
+        case 5..<11: return String(localized: "おはようございます")
+        case 11..<18: return String(localized: "こんにちは")
+        default: return String(localized: "こんばんは")
         }
     }
 
     private var sub: String {
         let n = model.snapshot.sessions.count
-        return n == 0 ? "\(model.targetLanguage.name)でひとりごと、はじめましょう" : "これまで \(n) 回。今日も聞かせてくれ"
+        return n == 0 ? String(localized: "\(model.targetLanguage.name)でひとりごと、はじめましょう") : String(localized: "これまで \(n) 回。今日も聞かせてくれ")
     }
 
     private func step(_ icon: String, _ label: String, _ fg: Color, _ bg: Color) -> some View {
@@ -335,14 +335,14 @@ struct TodayCard: View {
 
     var body: some View {
         let cards = model.todayCards()
-        Card(title: "今日の表現") {
+        Card(title: String(localized: "今日の表現")) {
             if cards.isEmpty {
                 // 空のときは絵と一言だけ。細かい入れ方は「表現」タブ側で分かる
                 HStack(spacing: 12) {
                     Image(systemName: "books.vertical.fill").font(.title2).foregroundStyle(Theme.accent)
                         .frame(width: 44, height: 44).background(Theme.accentBg, in: Circle())
-                    Text(model.snapshot.phrases.isEmpty ? "覚えたい表現を入れると、毎日ここに出ます"
-                                                        : "今日出す表現はありません")
+                    Text(model.snapshot.phrases.isEmpty ? String(localized: "覚えたい表現を入れると、毎日ここに出ます")
+                                                        : String(localized: "今日出す表現はありません"))
                         .font(.callout).foregroundStyle(Theme.text)
                     Spacer(minLength: 4)
                     Button("入れる", action: goPhrases).buttonStyle(.borderedProminent).tint(Theme.accent)
@@ -368,16 +368,16 @@ struct TodayCard: View {
                             .help("今日の話に合わないので外す（回数には数えません。2 日あけて戻ります）")
                     }
                 }
-                Note(text: "話す前に目を通しておき、無理のない範囲で独り言に混ぜてください（\(cards.count) 個）。停止すると、出たかどうかを判定します。")
+                Note(text: String(localized: "話す前に目を通しておき、無理のない範囲で独り言に混ぜてください（\(cards.count) 個）。停止すると、出たかどうかを判定します。"))
             }
         }
     }
 
     private func todayTag(_ c: PhraseCard) -> some View {
         let last = PhraseLogic.lastSpeechResult(c)
-        if PhraseLogic.isNew(c) { return Tag(text: "新", fg: Theme.good, bg: Theme.goodBg) }
-        if last == "miss" || last == "partial" { return Tag(text: "再挑戦", fg: Theme.warn, bg: Theme.warnBg) }
-        return Tag(text: "再登場")
+        if PhraseLogic.isNew(c) { return Tag(text: String(localized: "新"), fg: Theme.good, bg: Theme.goodBg) }
+        if last == "miss" || last == "partial" { return Tag(text: String(localized: "再挑戦"), fg: Theme.warn, bg: Theme.warnBg) }
+        return Tag(text: String(localized: "再登場"))
     }
 }
 
@@ -387,7 +387,7 @@ struct TodayResultCard: View {
     let judged: [Judged]
 
     var body: some View {
-        Card(title: "今日の表現の結果") {
+        Card(title: String(localized: "今日の表現の結果")) {
             ForEach(Array(judged.enumerated()), id: \.element.id) { i, j in
                 if let card = model.snapshot.phrases.first(where: { $0.id == j.id }) {
                     if i > 0 { Divider().overlay(Theme.line) }
@@ -414,7 +414,7 @@ struct TodayResultCard: View {
                     }
                 }
             }
-            Note(text: "◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。")
+            Note(text: String(localized: "◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。"))
         }
     }
 }
@@ -439,14 +439,14 @@ struct IssueRow: View {
             }
             if let r = issue.reason, !r.isEmpty { Text(r).font(.caption).foregroundStyle(Theme.muted) }
             let exists = added || model.hasPhrase(issue.suggestion)
-            Button(exists ? "✓ 入れた" : "＋ 表現集へ") {
+            Button(exists ? String(localized: "✓ 入れた") : String(localized: "＋ 表現集へ")) {
                 if model.addFromIssue(issue) { added = true }
             }
             .buttonStyle(.bordered).controlSize(.small).tint(exists ? Theme.good : Theme.accent).disabled(exists)
         }
     }
 
-    private var typeLabel: String { ["phrasing": "言い回し", "vocabulary": "語彙", "grammar": "文法"][issue.type] ?? "言い回し" }
+    private var typeLabel: String { ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")][issue.type] ?? String(localized: "言い回し") }
     private var typeColor: Color {
         switch issue.type { case "vocabulary": return Theme.info; case "grammar": return Theme.warn; default: return Theme.muted }
     }
@@ -454,10 +454,10 @@ struct IssueRow: View {
 
 struct CopyButton: View {
     let text: String
-    var label = "📋 コピー"
+    var label = String(localized: "📋 コピー")
     @State private var done = false
     var body: some View {
-        Button(done ? "✓ コピーしました" : label) {
+        Button(done ? String(localized: "✓ コピーしました") : label) {
             Platform.copy(text); done = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { done = false }
         }
@@ -472,8 +472,8 @@ struct MicSilentWarning: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("マイクから音が入っていません").font(.headline).foregroundStyle(Theme.warn)
-            Text(inputName.isEmpty ? "このままだと無音の録音になります。マイクを確かめてください。"
-                                   : "今のマイクは「\(inputName)」です。このままだと無音の録音になります。")
+            Text(inputName.isEmpty ? String(localized: "このままだと無音の録音になります。マイクを確かめてください。")
+                                   : String(localized: "今のマイクは「\(inputName)」です。このままだと無音の録音になります。"))
                 .font(.subheadline).foregroundStyle(Theme.text)
             if Platform.canChooseInput {
                 Text("いったん止めて、「設定」タブの「録音に使うマイク」で選び直してから録り直してください。").font(.caption).foregroundStyle(Theme.muted)
@@ -500,11 +500,11 @@ struct RecordingBody: View {
             if recorder.micSilent {
                 MicSilentWarning(inputName: recorder.inputName)
             } else if !recorder.inputName.isEmpty {
-                Note(text: "マイク: \(recorder.inputName)")
+                Note(text: String(localized: "マイク: \(recorder.inputName)"))
             }
             let live = recorder.transcript + recorder.interim
             if live.isEmpty {
-                Note(text: recorder.captionsAvailable ? "聞き取り中…（字幕は参考です。添削は音声そのものから行います）" : "録音中。字幕は出ませんが、音声はそのまま添削に使います")
+                Note(text: recorder.captionsAvailable ? String(localized: "聞き取り中…（字幕は参考です。添削は音声そのものから行います）") : String(localized: "録音中。字幕は出ませんが、音声はそのまま添削に使います"))
             } else {
                 Text(live).font(.body).foregroundStyle(Theme.text).frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)

@@ -69,10 +69,10 @@ final class AppModel: ObservableObject {
             return nil
         }
         if usesRelay {
-            if let q = quota, q.remaining == 0 { return "今日の無料の添削（\(q.limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。" }
+            if let q = quota, q.remaining == 0 { return String(localized: "今日の無料の添削（\(q.limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。") }
             return nil
         }
-        return hasKey ? nil : "添削には Google Gemini の API キーが必要です。「設定」で登録するか、「おまかせ（キー不要）」に切り替えてください。"
+        return hasKey ? nil : String(localized: "添削には Google Gemini の API キーが必要です。「設定」で登録するか、「おまかせ（キー不要）」に切り替えてください。")
     }
 
     /// 中継サーバーの残り回数を取り直す
@@ -178,17 +178,17 @@ final class AppModel: ObservableObject {
             try await recorder.start(captions: captionsOn || usesOnDevice, language: language, micUID: micUID)
             phase = .recording
         } catch Recorder.Failure.micDenied {
-            errorMessage = "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。"
+            errorMessage = String(localized: "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。")
         } catch {
-            errorMessage = "録音を始められませんでした: \(error.localizedDescription)"
+            errorMessage = String(localized: "録音を始められませんでした: \(error.localizedDescription)")
         }
     }
 
     func stopAndReview() async {
         guard phase == .recording else { return }
         let result = await recorder.stop()
-        guard let result else { phase = .idle; errorMessage = "録音が取れませんでした"; return }
-        guard result.seconds >= 2 else { phase = .idle; errorMessage = "短すぎました。もう少し話してから止めてください"; return }
+        guard let result else { phase = .idle; errorMessage = String(localized: "録音が取れませんでした"); return }
+        guard result.seconds >= 2 else { phase = .idle; errorMessage = String(localized: "短すぎました。もう少し話してから止めてください"); return }
         // まず手元に残す。ここから先で何が起きても、話した内容は消えない
         let p = PendingRecording(audio: result.audio, transcript: result.transcript, seconds: result.seconds, date: Date())
         p.save()
@@ -209,7 +209,7 @@ final class AppModel: ObservableObject {
             client = GeminiClient(key: key)
         } else {
             phase = .idle
-            errorMessage = "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。"
+            errorMessage = String(localized: "添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。")
             return
         }
         phase = .reviewing
@@ -224,11 +224,11 @@ final class AppModel: ObservableObject {
             if usesRelay { await refreshQuota() }
         } catch let f as GeminiClient.Failure {
             phase = .idle
-            errorMessage = Self.message(for: f, mic: recorder.inputName) + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+            errorMessage = Self.message(for: f, mic: recorder.inputName) + String(localized: "\n録音は残してあります。「もう一度送る」でやり直せます。")
             if usesRelay { await refreshQuota() }
         } catch {
             phase = .idle
-            errorMessage = error.localizedDescription + "\n録音は残してあります。「もう一度送る」でやり直せます。"
+            errorMessage = error.localizedDescription + String(localized: "\n録音は残してあります。「もう一度送る」でやり直せます。")
         }
     }
 
@@ -236,12 +236,12 @@ final class AppModel: ObservableObject {
     private func reviewOnDevice(_ p: PendingRecording) async {
         if case .unavailable(let why) = AppleReviewer.status {
             phase = .idle
-            errorMessage = "端末内の AI が使えません: \(why)。録音は残してあります。"
+            errorMessage = String(localized: "端末内の AI が使えません: \(why)。録音は残してあります。")
             return
         }
         guard !p.transcript.trimmingCharacters(in: .whitespaces).isEmpty else {
             phase = .idle
-            errorMessage = "聞き取れる発話がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。" + (recorder.inputName.isEmpty ? "" : "今のマイクは「\(recorder.inputName)」です。") + "録音は残してあります。"
+            errorMessage = String(localized: "聞き取れる発話がありませんでした。端末内の AI は音声認識の文字を添削するので、字幕が出ていないと添削できません。") + (recorder.inputName.isEmpty ? "" : String(localized: "今のマイクは「\(recorder.inputName)」です。")) + String(localized: "録音は残してあります。")
             return
         }
         phase = .reviewing
@@ -253,10 +253,10 @@ final class AppModel: ObservableObject {
             finish(p, fb: fb, engine: "apple", targetCards: targetCards)
         } catch AppleReviewer.Failure.model(let m) {
             phase = .idle
-            errorMessage = "端末内の AI が添削を返せませんでした: \(m)\n録音は残してあります。「もう一度送る」でやり直せます。"
+            errorMessage = String(localized: "端末内の AI が添削を返せませんでした: \(m)\n録音は残してあります。「もう一度送る」でやり直せます。")
         } catch {
             phase = .idle
-            errorMessage = error.localizedDescription + "\n録音は残してあります。"
+            errorMessage = error.localizedDescription + String(localized: "\n録音は残してあります。")
         }
     }
 
@@ -299,21 +299,21 @@ final class AppModel: ObservableObject {
 
     static func message(for f: GeminiClient.Failure, mic: String = "") -> String {
         switch f {
-        case .noKey: return "添削には Google Gemini の API キーが必要です。設定から登録してください。"
-        case .keyInvalid: return "API キーが正しくないようです。設定で確かめてください。"
-        case .projectDenied: return "この API キーのプロジェクトは Google 側で利用が許可されていません。Google AI Studio で「請求階層」を確認してください。"
-        case .rateLimited: return "アクセスが集中しています。少し待ってからもう一度どうぞ。"
-        case .server(let m): return "AI の応答でエラーが起きました: \(m)"
-        case .network(let m): return "通信に失敗しました: \(m)"
-        case .parse: return "AI の応答を読めませんでした。もう一度お試しください。"
-        case .audio: return "音声が空か大きすぎます。"
-        case .quota(_, let limit): return "今日の無料の添削（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。"
-        case .relayBusy: return "今日はアクセスが集中しています。明日またどうぞ。"
+        case .noKey: return String(localized: "添削には Google Gemini の API キーが必要です。設定から登録してください。")
+        case .keyInvalid: return String(localized: "API キーが正しくないようです。設定で確かめてください。")
+        case .projectDenied: return String(localized: "この API キーのプロジェクトは Google 側で利用が許可されていません。Google AI Studio で「請求階層」を確認してください。")
+        case .rateLimited: return String(localized: "アクセスが集中しています。少し待ってからもう一度どうぞ。")
+        case .server(let m): return String(localized: "AI の応答でエラーが起きました: \(m)")
+        case .network(let m): return String(localized: "通信に失敗しました: \(m)")
+        case .parse: return String(localized: "AI の応答を読めませんでした。もう一度お試しください。")
+        case .audio: return String(localized: "音声が空か大きすぎます。")
+        case .quota(_, let limit): return String(localized: "今日の無料の添削（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。")
+        case .relayBusy: return String(localized: "今日はアクセスが集中しています。明日またどうぞ。")
         case .silent:
             // 実際に録ったマイクの名前を出す（Mac の既定とは限らない）
             let name = mic.isEmpty ? Platform.inputDeviceName : mic
-            return "聞き取れる発話がありませんでした。マイクから音が入っていなかったかもしれません。"
-                + (name.isEmpty ? "" : "今のマイクは「\(name)」です。") + "マイクを確かめて、もう一度どうぞ。"
+            return String(localized: "聞き取れる発話がありませんでした。マイクから音が入っていなかったかもしれません。")
+                + (name.isEmpty ? "" : String(localized: "今のマイクは「\(name)」です。")) + String(localized: "マイクを確かめて、もう一度どうぞ。")
         }
     }
 
@@ -437,7 +437,8 @@ struct PendingRecording: Equatable {
     }
 
     var label: String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "ja_JP"); f.dateFormat = "M/d HH:mm"
-        return "\(f.string(from: date)) に録音（\(seconds / 60):\(String(format: "%02d", seconds % 60))）"
+        let f = DateFormatter(); f.locale = .current; f.setLocalizedDateFormatFromTemplate("Md HHmm")
+        let mmss = String(format: "%d:%02d", seconds / 60, seconds % 60)
+        return String(localized: "\(f.string(from: date)) に録音（\(mmss)）")
     }
 }

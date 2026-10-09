@@ -1,0 +1,54 @@
+{
+  "sourceLanguage": "ja",
+  "version": "1.0",
+  "strings": {
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "英語の独り言を録音して添削するためにマイクを使います。録音は添削のためにその場で送るだけで、保存しません。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hitorigoto records your monologue so it can be reviewed. The recording is sent only for that review and is not stored."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "話している最中に字幕を出すために音声認識を使います（設定で切れます）。添削は録音した音声から行います。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition is used for live captions while you speak (you can turn it off in Settings). Feedback is based on the recorded audio."
+          }
+        }
+      }
+    },
+    "CFBundleDisplayName": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "独り言"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hitorigoto"
+          }
+        }
+      }
+    }
+  }
+}

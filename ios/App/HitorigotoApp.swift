@@ -48,9 +48,9 @@ struct RootTabs: View {
         // toolbar に置くと、窓が細いときに「>>」へ畳まれて見えなくなる（実測）
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                tabButton(0, "話す", "mic.fill")
-                tabButton(1, "表現", "books.vertical.fill")
-                tabButton(2, "履歴", "clock.fill")
+                tabButton(0, String(localized: "話す"), "mic.fill")
+                tabButton(1, String(localized: "表現"), "books.vertical.fill")
+                tabButton(2, String(localized: "履歴"), "clock.fill")
                 Spacer(minLength: 0)
                 Button { tab = 3 } label: {
                     Image(systemName: "gearshape.fill").font(.title3)

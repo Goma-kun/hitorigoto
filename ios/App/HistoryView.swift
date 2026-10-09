@@ -10,15 +10,15 @@ struct HistoryView: View {
                 let recurring = Logic.topRecurring(model.snapshot.recurring)
                 if !recurring.isEmpty {
                     // 何の一覧かと、いつのことかが分かるようにする（唐突に見える・2026-09-28 本人指摘）
-                    Card(title: "また出やがった点（2 回以上出た指摘）") {
+                    Card(title: String(localized: "また出やがった点（2 回以上出た指摘）")) {
                         ForEach(recurring, id: \.text) { r in
                             RecurringRow(item: r)
                         }
-                        Note(text: "同じ直しが 2 回以上出たものです。話す前にも出しています。")
+                        Note(text: String(localized: "同じ直しが 2 回以上出たものです。話す前にも出しています。"))
                     }
                 }
                 if model.snapshot.sessions.isEmpty {
-                    Note(text: "独り言の記録はまだありません")
+                    Note(text: String(localized: "独り言の記録はまだありません"))
                 }
                 LazyVStack(spacing: 8) {
                     ForEach(model.snapshot.sessions, id: \.id) { s in SessionCard(session: s) }
@@ -41,14 +41,14 @@ struct SessionCard: View {
             Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
-                Text(lines.isEmpty ? "古い記録（指摘だけ残しています）" : lines.joined(separator: " / "))
+                Text(lines.isEmpty ? String(localized: "古い記録（指摘だけ残しています）") : lines.joined(separator: " / "))
                     .font(.callout).foregroundStyle(Theme.muted)
             } else {
                 let body = session.correctedText ?? session.transcript ?? ""
                 Text(body).font(.callout).foregroundStyle(Theme.text).lineLimit(expanded ? nil : 4).textSelection(.enabled)
                 if body.count > 120 {
                     // ScrollView 全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
-                    Button(expanded ? "たたむ" : "全文") { expanded.toggle() }
+                    Button(expanded ? String(localized: "たたむ") : String(localized: "全文")) { expanded.toggle() }
                         .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent)
                 }
                 if !session.issues.isEmpty {
@@ -82,12 +82,12 @@ struct SessionCard: View {
                     }
                 }
             }
-            CopyButton(text: Logic.buildSessionText(session, labels: Self.labels), label: "📋 コピー（指摘つき）")
+            CopyButton(text: Logic.buildSessionText(session, labels: Self.labels), label: String(localized: "📋 コピー（指摘つき）"))
         }
     }
 
-    static let labels = Logic.Labels(corrected: "修正版", issues: "直すべし", good: "わしが買ってやる点", said: "話した内容（音声から書き起こし）",
-                                     pron: "発音で伝わらなかった箇所", types: ["phrasing": "言い回し", "vocabulary": "語彙", "grammar": "文法"])
+    static let labels = Logic.Labels(corrected: String(localized: "修正版"), issues: String(localized: "直すべし"), good: String(localized: "わしが買ってやる点"), said: String(localized: "話した内容（音声から書き起こし）"),
+                                     pron: String(localized: "発音で伝わらなかった箇所"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
 
     private var dateLabel: String {
         guard let d = ISO8601DateFormatter.withMillis.date(from: session.id) ?? ISO8601DateFormatter().date(from: session.id) else { return session.id }
@@ -104,7 +104,7 @@ struct AddIssueButton: View {
         let exists = added || model.hasPhrase(issue.suggestion)
         Button(exists ? "✓" : "＋") { if model.addFromIssue(issue) { added = true } }
             .buttonStyle(.bordered).controlSize(.mini).tint(exists ? Theme.good : Theme.accent).disabled(exists)
-            .help(exists ? "表現集に入っています" : "表現集へ入れる")
+            .help(exists ? String(localized: "表現集に入っています") : String(localized: "表現集へ入れる"))
     }
 }
 

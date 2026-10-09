@@ -24,15 +24,15 @@ enum AppleReviewer {
             case .available: return .available
             case .unavailable(let reason):
                 switch reason {
-                case .deviceNotEligible: return .unavailable("この端末は Apple Intelligence に対応していません")
-                case .appleIntelligenceNotEnabled: return .unavailable("設定で Apple Intelligence をオンにしてください")
-                case .modelNotReady: return .unavailable("AI モデルを準備中です。しばらくしてからもう一度どうぞ")
-                @unknown default: return .unavailable("この端末では今は使えません")
+                case .deviceNotEligible: return .unavailable(String(localized: "この端末は Apple Intelligence に対応していません"))
+                case .appleIntelligenceNotEnabled: return .unavailable(String(localized: "設定で Apple Intelligence をオンにしてください"))
+                case .modelNotReady: return .unavailable(String(localized: "AI モデルを準備中です。しばらくしてからもう一度どうぞ"))
+                @unknown default: return .unavailable(String(localized: "この端末では今は使えません"))
                 }
             }
         }
         #endif
-        return .unavailable("iOS 26 / macOS 26 以上で使えます")
+        return .unavailable(String(localized: "iOS 26 / macOS 26 以上で使えます"))
     }
 
     static var isAvailable: Bool { status == .available }
@@ -65,7 +65,7 @@ enum AppleReviewer {
             }
         }
         #endif
-        throw Failure.unavailable("iOS 26 / macOS 26 以上で使えます")
+        throw Failure.unavailable(String(localized: "iOS 26 / macOS 26 以上で使えます"))
     }
 
     /// 指示は英語（モデルが一番安定する）。返事の日本語部分だけ日本語で、と頼む

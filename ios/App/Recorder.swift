@@ -231,7 +231,7 @@ final class Recorder: ObservableObject {
     private func startEngine(_ onBuffer: @escaping (AVAudioPCMBuffer) -> Void) throws {
         let input = engine.inputNode
         let inFormat = input.outputFormat(forBus: 0)
-        guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else { throw Failure.engine("マイクの形式が取れませんでした") }
+        guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else { throw Failure.engine(String(localized: "マイクの形式が取れませんでした")) }
         input.installTap(onBus: 0, bufferSize: 4096, format: inFormat) { buffer, _ in onBuffer(buffer) }
         engine.prepare()
         do { try engine.start() } catch {

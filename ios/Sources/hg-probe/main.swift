@@ -110,6 +110,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     let text = opt("--text"), audio = opt("--audio"), asr = opt("--asr") ?? ""
     let targets = (opt("--targets") ?? "").split(separator: "|").map(String.init)
     let lang = TargetLanguage(rawValue: opt("--lang") ?? "") ?? .default
+    let explain: TargetLanguage.Explanation = opt("--explain") == "en" ? .en : .ja
     let keyPath = NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath
     guard let key = try? String(contentsOfFile: keyPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) else {
         FileHandle.standardError.write("NG: キーが読めません\n".data(using: .utf8)!); exit(1)
@@ -133,9 +134,9 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
             if let audio {
                 let data = try Data(contentsOf: URL(fileURLWithPath: audio))
                 let mime = audio.hasSuffix(".wav") ? "audio/wav" : audio.hasSuffix(".webm") ? "audio/webm" : "audio/mp4"
-                fb = try await client.reviewEnglishAudio(data, mimeType: mime, asrTranscript: asr, recurring: [], extra: extra, system: lang.audioPrompt)
+                fb = try await client.reviewEnglishAudio(data, mimeType: mime, asrTranscript: asr, recurring: [], extra: extra, system: lang.localize(Prompts.audio, explanation: explain))
             } else {
-                fb = try await client.reviewEnglish(text ?? "", recurring: [], extra: extra, system: lang.systemPrompt)
+                fb = try await client.reviewEnglish(text ?? "", recurring: [], extra: extra, system: lang.localize(Prompts.system, explanation: explain))
             }
             let secs = String(format: "%.1f", Date().timeIntervalSince(t0))
             let out = try JSONSerialization.data(withJSONObject: ["seconds": secs, "feedback": encode(fb),

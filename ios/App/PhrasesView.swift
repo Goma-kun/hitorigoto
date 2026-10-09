@@ -8,7 +8,7 @@ struct PhrasesView: View {
     @State private var flashing = false
     @State private var confirmDelete: PhraseCard?
 
-    private let filters: [(String, String)] = [("all", "すべて"), ("today", "今日"), ("active", "稽古中"), ("fresh", "未挑戦"), ("graduated", "卒業"), ("word", "単語")]
+    private let filters: [(String, String)] = [("all", String(localized: "すべて")), ("today", String(localized: "今日")), ("active", String(localized: "稽古中")), ("fresh", String(localized: "未挑戦")), ("graduated", String(localized: "卒業")), ("word", String(localized: "単語"))]
 
     var body: some View {
         let today = model.today
@@ -17,7 +17,7 @@ struct PhrasesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    stat("稽古中", st.active); stat("まだ試していない", st.fresh); stat("卒業", st.graduated)
+                    stat(String(localized: "稽古中"), st.active); stat(String(localized: "まだ試していない"), st.fresh); stat(String(localized: "卒業"), st.graduated)
                 }
                 HStack(spacing: 8) {
                     Button("＋ 追加") { adding = true }.buttonStyle(.borderedProminent).tint(Theme.accent)
@@ -38,9 +38,9 @@ struct PhrasesView: View {
                 }
                 let shown = shownCards(todayIds: todayIds)
                 if model.snapshot.phrases.isEmpty {
-                    Note(text: "まだ表現がありません。「＋ 追加」で入れるか、添削の「直すべし」から 1 タップで入れてください。")
+                    Note(text: String(localized: "まだ表現がありません。「＋ 追加」で入れるか、添削の「直すべし」から 1 タップで入れてください。"))
                 } else if shown.isEmpty {
-                    Note(text: "この絞り込みに当てはまる表現はありません")
+                    Note(text: String(localized: "この絞り込みに当てはまる表現はありません"))
                 }
                 LazyVStack(spacing: 6) {
                     ForEach(shown) { p in
@@ -48,7 +48,7 @@ struct PhrasesView: View {
                                   onToggle: { model.toggleGraduate(p.id) }, onDelete: { confirmDelete = p })
                     }
                 }
-                Note(text: "独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。")
+                Note(text: String(localized: "独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。"))
             }
             .padding(12)
             .textSelection(.enabled)
@@ -101,7 +101,7 @@ struct PhraseRow: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(card.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
-                if card.kind == "word" { Tag(text: "単語", fg: Theme.info, bg: Theme.info.opacity(0.15)) }
+                if card.kind == "word" { Tag(text: String(localized: "単語"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
                 Spacer(minLength: 0)
             }
             if !card.meaning.isEmpty || !card.note.isEmpty {
@@ -109,14 +109,14 @@ struct PhraseRow: View {
             }
             HStack {
                 let marks = PhraseLogic.marks(card)
-                Text(marks.isEmpty ? "まだ試していない" : marks).font(.caption.weight(.bold)).foregroundStyle(Theme.muted).kerning(marks.isEmpty ? 0 : 2)
+                Text(marks.isEmpty ? String(localized: "まだ試していない") : marks).font(.caption.weight(.bold)).foregroundStyle(Theme.muted).kerning(marks.isEmpty ? 0 : 2)
                 Spacer()
                 let d = dueLabel
                 Text(d.text).font(.caption.weight(.bold)).foregroundStyle(d.color)
             }
             HStack(spacing: 6) {
                 Spacer()
-                Button(card.status == "graduated" ? "稽古に戻す" : "卒業にする", action: onToggle)
+                Button(card.status == "graduated" ? String(localized: "稽古に戻す") : String(localized: "卒業にする"), action: onToggle)
                     .buttonStyle(.bordered).controlSize(.small).tint(Theme.muted)
                 Button("削除", action: onDelete).buttonStyle(.bordered).controlSize(.small).tint(Theme.muted)
             }
@@ -128,13 +128,13 @@ struct PhraseRow: View {
     }
 
     private var dueLabel: (text: String, color: Color) {
-        if card.status == "graduated" { return ("卒業", Theme.good) }
+        if card.status == "graduated" { return (String(localized: "卒業"), Theme.good) }
         guard let due = card.due else { return ("", Theme.faint) }
         let n = PhraseLogic.daysBetween(today, due)
-        if n < 0 { return ("\(-n) 日遅れ", Theme.warn) }
-        if n == 0 { return ("今日", Theme.accent) }
-        if n == 1 { return ("明日", Theme.faint) }
-        return ("\(n) 日後", Theme.faint)
+        if n < 0 { return (String(localized: "\(-n) 日遅れ"), Theme.warn) }
+        if n == 0 { return (String(localized: "今日"), Theme.accent) }
+        if n == 1 { return (String(localized: "明日"), Theme.faint) }
+        return (String(localized: "\(n) 日後"), Theme.faint)
     }
 }
 
@@ -162,8 +162,8 @@ struct AddPhraseSheet: View {
                         .frame(maxWidth: .infinity)
                     Picker("種類", selection: $kind) { Text("表現").tag("phrase"); Text("単語").tag("word") }
                     Button("入れる") {
-                        if model.addPhrase(phrase, meaning: meaning, kind: kind) { status = "入れました"; phrase = ""; meaning = "" }
-                        else { status = phrase.trimmingCharacters(in: .whitespaces).isEmpty ? "表現を入力してください" : "その表現はもう入っています" }
+                        if model.addPhrase(phrase, meaning: meaning, kind: kind) { status = String(localized: "入れました"); phrase = ""; meaning = "" }
+                        else { status = phrase.trimmingCharacters(in: .whitespaces).isEmpty ? String(localized: "表現を入力してください") : String(localized: "その表現はもう入っています") }
                     }
                     .disabled(phrase.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -173,7 +173,7 @@ struct AddPhraseSheet: View {
                         .font(.caption).foregroundStyle(Theme.muted)
                     Button("まとめて入れる") {
                         let n = model.addBulk(bulk, kind: kind)
-                        status = "\(n) 件入れました"; bulk = ""
+                        status = String(localized: "\(n) 件入れました"); bulk = ""
                     }
                     .disabled(bulk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }

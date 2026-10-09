@@ -21,7 +21,7 @@ struct SettingsView: View {
                 }
                 if model.usesRelay {
                     if let q = model.quota {
-                        Label(q.remaining > 0 ? "今日はあと \(q.remaining) 回（\(q.limit) 回まで）" : "今日の \(q.limit) 回を使い切りました。日付が変わると戻ります",
+                        Label(q.remaining > 0 ? String(localized: "今日はあと \(q.remaining) 回（\(q.limit) 回まで）") : String(localized: "今日の \(q.limit) 回を使い切りました。日付が変わると戻ります"),
                               systemImage: q.remaining > 0 ? "checkmark.circle.fill" : "exclamationmark.circle")
                             .foregroundStyle(q.remaining > 0 ? Theme.good : Theme.warn)
                     }
@@ -53,13 +53,13 @@ struct SettingsView: View {
                 // 入力欄はシートに出す。**Mac の設定画面（Form）に直に置いた入力欄はクリックしてもフォーカスが入らなかった**
                 // （2026-09-27 実測。同じ TextField でもシートの中なら入る）
                 HStack {
-                    Button(model.hasKey ? "キーを変更…" : "キーを登録…") { editingKey = true }
+                    Button(model.hasKey ? String(localized: "キーを変更…") : String(localized: "キーを登録…")) { editingKey = true }
                     Spacer()
                     if model.hasKey {
                         // 一押しで消えないように、確認を挟む（2026-10-09 本人要望。キーの再発行は手間なので）
                         Button("削除…", role: .destructive) { confirmDeleteKey = true }
                             .confirmationDialog("Gemini の API キーを削除しますか？", isPresented: $confirmDeleteKey, titleVisibility: .visible) {
-                                Button("削除する", role: .destructive) { model.setKey(nil); keyStatus = "削除しました" }
+                                Button("削除する", role: .destructive) { model.setKey(nil); keyStatus = String(localized: "削除しました") }
                                 Button("やめる", role: .cancel) {}
                             } message: {
                                 Text("削除すると、もう一度キーを入力するまで「自分の Gemini キー」での添削はできません。「おまかせ」は引き続き使えます。")
@@ -98,8 +98,8 @@ struct SettingsView: View {
             } header: { Text("字幕") }
 
             Section {
-                CountPicker(title: "1 日に出す表現の数", range: 1...12, value: $model.dailyTotal)
-                CountPicker(title: "そのうち、まだ試していない表現は最大", range: 0...6, value: $model.dailyNew)
+                CountPicker(title: String(localized: "1 日に出す表現の数"), range: 1...12, value: $model.dailyTotal)
+                CountPicker(title: String(localized: "そのうち、まだ試していない表現は最大"), range: 0...6, value: $model.dailyNew)
                 Text("「話す」タブに毎日出す表現の数です。出せなかった表現（✗・△）と期日が来た表現を先に選び、残りの枠にまだ試していない表現を入れます。数を増やすより、無理なく混ぜられる数にしておくほうが続きます。")
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("毎日の表現") }
@@ -125,7 +125,7 @@ struct SettingsView: View {
         .sheet(isPresented: $editingKey) { KeySheet(status: $keyStatus).environmentObject(model) }
         .fileExporter(isPresented: $exporting, document: JSONDocument(data: model.exportData()), contentType: .json,
                       defaultFilename: "hitorigoto-history-\(Logic.todayStamp().replacingOccurrences(of: "-", with: ""))") { r in
-            dataStatus = (try? r.get()) != nil ? "✓ 書き出しました" : "✗ 書き出せませんでした"
+            dataStatus = (try? r.get()) != nil ? String(localized: "✓ 書き出しました") : String(localized: "✗ 書き出せませんでした")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
             do {
@@ -133,9 +133,9 @@ struct SettingsView: View {
                 let ok = url.startAccessingSecurityScopedResource()
                 defer { if ok { url.stopAccessingSecurityScopedResource() } }
                 let n = try model.importData(Data(contentsOf: url))
-                dataStatus = "✓ 読み込みました（追加されたセッション: \(n) 件）"
+                dataStatus = String(localized: "✓ 読み込みました（追加されたセッション: \(n) 件）")
             } catch {
-                dataStatus = "✗ 読み込めませんでした（独り言の書き出しファイルではないようです）"
+                dataStatus = String(localized: "✗ 読み込めませんでした（独り言の書き出しファイルではないようです）")
             }
         }
     }
@@ -168,14 +168,14 @@ struct KeySheet: View {
                         .textInputAutocapitalization(.never)
                         #endif
                     HStack {
-                        Button(testing ? "確認中…" : "接続テスト") {
+                        Button(testing ? String(localized: "確認中…") : String(localized: "接続テスト")) {
                             testing = true
-                            Task { result = (await model.testKey(keyInput.trimmingCharacters(in: .whitespaces))).map { "✗ \($0)" } ?? "✓ つながりました"; testing = false }
+                            Task { result = (await model.testKey(keyInput.trimmingCharacters(in: .whitespaces))).map { "✗ \($0)" } ?? String(localized: "✓ つながりました"); testing = false }
                         }
                         .disabled(testing || keyInput.trimmingCharacters(in: .whitespaces).isEmpty)
                         Button("保存") {
                             model.setKey(keyInput)
-                            status = "✓ 保存しました"
+                            status = String(localized: "✓ 保存しました")
                             dismiss()
                         }
                         .buttonStyle(.borderedProminent).tint(Theme.accent)
