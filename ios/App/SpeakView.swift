@@ -261,9 +261,13 @@ struct Welcome: View {
         VStack(spacing: 16) {
             // 誰が添削してくれるのかを顔で見せる（手を挙げた丹下。2026-10-04 本人承認）
             HStack(spacing: 14) {
-                Image("Tange").resizable().scaledToFill()
-                    .frame(width: 76, height: 76).clipShape(Circle())
-                    .overlay(Circle().stroke(Theme.accent.opacity(0.6), lineWidth: 2))
+                VStack(spacing: 4) {
+                    Image("Tange").resizable().scaledToFill()
+                        .frame(width: 76, height: 76).clipShape(Circle())
+                        .overlay(Circle().stroke(Theme.accent.opacity(0.6), lineWidth: 2))
+                    // コーチの呼び名（2026-10-10 本人決定「トラさん」。作品のキャラ名は使わない）
+                    Text("トラさん").font(.caption2.weight(.bold)).foregroundStyle(Theme.muted)
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(greeting).font(.title2.weight(.bold)).fontDesign(.rounded).foregroundStyle(Theme.text)
                     Text(sub).font(.subheadline).foregroundStyle(Theme.muted)
