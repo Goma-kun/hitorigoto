@@ -265,8 +265,8 @@ struct Welcome: View {
                     Image("Tange").resizable().scaledToFill()
                         .frame(width: 76, height: 76).clipShape(Circle())
                         .overlay(Circle().stroke(Theme.accent.opacity(0.6), lineWidth: 2))
-                    // コーチの呼び名（2026-10-10 本人決定「トラさん」。作品のキャラ名は使わない）
-                    Text("トラさん").font(.caption2.weight(.bold)).foregroundStyle(Theme.muted)
+                    // コーチの名前は寅吉（トラキチ）、呼ぶときは「トラさん」（2026-10-10 本人決定。作品のキャラ名は使わない）
+                    Text("寅吉（トラさん）").font(.caption2.weight(.bold)).foregroundStyle(Theme.muted)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(greeting).font(.title2.weight(.bold)).fontDesign(.rounded).foregroundStyle(Theme.text)
