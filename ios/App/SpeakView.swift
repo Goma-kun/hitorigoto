@@ -500,7 +500,10 @@ struct RecordingBody: View {
             if recorder.micSilent {
                 MicSilentWarning(inputName: recorder.inputName)
             } else if !recorder.inputName.isEmpty {
-                Note(text: String(localized: "マイク: \(recorder.inputName)"))
+                Note(text: String(localized: "マイク: \(recorder.inputName)") + (recorder.inputDetail.isEmpty ? "" : "（\(recorder.inputDetail)）"))
+            }
+            if !recorder.engineNote.isEmpty {
+                Text(recorder.engineNote).font(.caption).foregroundStyle(Theme.warn)
             }
             let live = recorder.transcript + recorder.interim
             if live.isEmpty {

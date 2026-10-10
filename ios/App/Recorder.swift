@@ -119,6 +119,8 @@ final class Recorder: ObservableObject {
     @Published private(set) var captionsAvailable = false
     @Published private(set) var inputName = ""              // 今使っているマイクの名前
     @Published private(set) var micSilent = false           // しばらく音が入っていない（別のマイクを掴んでいる疑い）
+    @Published private(set) var inputDetail = ""            // 入力の形式（例: 16000 Hz・1ch）。不具合の切り分け用に画面へ出す
+    @Published private(set) var engineNote = ""             // エンジンの張り直しで起きたこと（空なら順調）
 
     /// これ以上のピークが来たら「音が入っている」とみなす（level は 3 倍済み。素の値で −46dB ほど）
     private static let soundThreshold: Float = 0.015
@@ -137,6 +139,8 @@ final class Recorder: ObservableObject {
     private var fileURL: URL?
     private var timer: Timer?
     private var configObserver: NSObjectProtocol?
+    private var routeObserver: NSObjectProtocol?
+    private var restartTask: Task<Void, Never>?
     private var started: Date?
 
     private var recognizer: SFSpeechRecognizer?
@@ -202,19 +206,44 @@ final class Recorder: ObservableObject {
         #endif
         if !named {
             inputName = Platform.inputDeviceName
-            do { try startEngine(onBuffer) } catch {
-                stopCaptions(); sink.close()
-                throw error
+            engineNote = ""
+            // Bluetooth へ切り替わる途中だと入力形式が 0 Hz のことがあるので、少し待って何度か試す
+            var lastError: Error?
+            for wait in [0.0, 0.3, 0.8, 1.5] {
+                if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000)) }
+                do { try startEngine(onBuffer); lastError = nil; break } catch { lastError = error }
             }
+            if let lastError { stopCaptions(); sink.close(); throw lastError }
             // **Bluetooth イヤホン（HFP）に切り替わると、エンジンの入力形式が変わってエンジンが止まる**
             // （iPhone 18 Pro＋WF-1000XM4 で実測: 音量ゼロのまま「音が入っていません」）。
-            // 形式が変わったら、新しい形式でタップを張り直して動かし直す
-            configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
-                guard let self, self.isRecording else { return }
-                self.engine.inputNode.removeTap(onBus: 0)
-                self.inputName = Platform.inputDeviceName
-                try? self.startEngine(onBuffer)
+            // 形式が変わったら、新しい形式でタップを張り直して動かし直す。失敗したら間を置いて何度か試す
+            let restart: @Sendable (String) -> Void = { [weak self] why in
+                Task { @MainActor in
+                    guard let self, self.isRecording else { return }
+                    self.restartTask?.cancel()
+                    self.restartTask = Task { @MainActor in
+                        for wait in [0.1, 0.4, 1.0, 2.0] {
+                            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                            guard self.isRecording, !Task.isCancelled else { return }
+                            self.engine.inputNode.removeTap(onBus: 0)
+                            if self.engine.isRunning { self.engine.stop() }
+                            self.inputName = Platform.inputDeviceName
+                            do { try self.startEngine(onBuffer); self.engineNote = ""; return }
+                            catch { self.engineNote = "\(why)のあと録音を張り直せていません: \(error.localizedDescription)" }
+                        }
+                    }
+                }
             }
+            configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { _ in restart("入力の切り替え") }
+            #if os(iOS)
+            routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { n in
+                // 新しい機器がつながった・外れたときだけ（それ以外の理由は AVAudioEngine 側の通知で足りる）
+                let raw = (n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) ?? 0
+                if raw == AVAudioSession.RouteChangeReason.newDeviceAvailable.rawValue || raw == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue {
+                    restart("イヤホンの付け外し")
+                }
+            }
+            #endif
         }
         isRecording = true
         started = Date()
@@ -238,12 +267,15 @@ final class Recorder: ObservableObject {
             input.removeTap(onBus: 0)
             throw Failure.engine(error.localizedDescription)
         }
+        inputDetail = "\(Int(inFormat.sampleRate)) Hz・\(inFormat.channelCount)ch"
     }
 
     func stop() async -> Result? {
         guard isRecording else { return nil }
         isRecording = false
         if let o = configObserver { NotificationCenter.default.removeObserver(o); configObserver = nil }
+        if let o = routeObserver { NotificationCenter.default.removeObserver(o); routeObserver = nil }
+        restartTask?.cancel(); restartTask = nil
         timer?.invalidate(); timer = nil
         var named = false
         #if os(macOS)
