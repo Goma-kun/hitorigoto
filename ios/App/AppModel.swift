@@ -261,7 +261,14 @@ final class AppModel: ObservableObject {
     }
 
     /// 添削の結果を記録に入れて画面に出す（エンジン共通）
-    private func finish(_ p: PendingRecording, fb: Feedback, engine: String, targetCards: [PhraseCard]) {
+    private func finish(_ p: PendingRecording, fb feedback: Feedback, engine: String, targetCards: [PhraseCard]) {
+        var fb = feedback
+        // 言った形と直した形が同じ「指摘」は指摘ではない（コーチが褒め言葉を指摘の枠に入れることがある・2026-10-10 実機）
+        fb.issues = fb.issues.filter { i in
+            let a = (i.original ?? "").lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
+            let b = i.suggestion.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
+            return a.isEmpty || a != b
+        }
         do {
             var session = Session(id: ISO8601DateFormatter.withMillis.string(from: p.date), transcript: fb.transcript,
                                   correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: engine)

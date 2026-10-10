@@ -498,7 +498,7 @@ struct RecordingBody: View {
                 LevelBar(level: recorder.level)
             }
             if recorder.micSilent {
-                MicSilentWarning(inputName: recorder.inputName)
+                MicSilentWarning(inputName: recorder.inputName + (recorder.inputDetail.isEmpty ? "" : "・\(recorder.inputDetail)"))
             } else if !recorder.inputName.isEmpty {
                 Note(text: String(localized: "マイク: \(recorder.inputName)") + (recorder.inputDetail.isEmpty ? "" : "（\(recorder.inputDetail)）"))
             }

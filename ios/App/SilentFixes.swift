@@ -44,19 +44,30 @@ enum SilentFixes {
         var out: [Fix] = []
         for r in merged {
             let fromWords = a[r.ai..<r.aj].map(\.text), toWords = b[r.bi..<r.bj].map(\.text)
-            let fromKeys = a[r.ai..<r.aj].map(\.key)
-            // 言いよどみ・同じ語の繰り返しを消しただけなら出さない
-            if toWords.isEmpty, fromKeys.allSatisfy({ fillers.contains($0) }) { continue }
-            if toWords.isEmpty, Set(fromKeys).count == 1, r.ai > 0, a[r.ai - 1].key == fromKeys[0] { continue }
+            let fromKeys = a[r.ai..<r.aj].map(\.key), toKeys = b[r.bi..<r.bj].map(\.key)
             if fromWords.isEmpty && toWords.isEmpty { continue }
+            // 言いよどみ（uh）と同じ語の繰り返しを除いた「中身」で比べる。中身が同じなら出さない
+            func gist(_ toks: ArraySlice<Tok>, before: String?) -> [String] {
+                var out: [String] = []
+                for t in toks {
+                    if fillers.contains(t.key) { continue }
+                    if out.last == t.key { continue }
+                    if out.isEmpty, before == t.key { continue }     // 直前の語をもう一度言っただけ
+                    out.append(t.key)
+                }
+                return out
+            }
+            let gf = gist(a[r.ai..<r.aj], before: r.ai > 0 ? a[r.ai - 1].key : nil)
+            let gt = gist(b[r.bi..<r.bj], before: r.bi > 0 ? b[r.bi - 1].key : nil)
+            if gf == gt { continue }
+            // コーチの指摘と重なるものは出さない（中身の語が、指摘の「言った形」か「直した形」に全部入っていれば重なり）
+            let gfs = gf.joined(separator: " "), gts = gt.joined(separator: " ")
+            if (!gfs.isEmpty && coveredFrom.contains(where: { $0.contains(gfs) || gfs.contains($0) }))
+                || (!gts.isEmpty && coveredTo.contains(where: { $0.contains(gts) || gts.contains($0) })) { continue }
             // 前後 1 語を添えて読める形にする
             let from = join((r.ai > 0 ? [a[r.ai - 1].text] : []) + fromWords + (r.aj < n ? [a[r.aj].text] : []))
             let to = join((r.bi > 0 ? [b[r.bi - 1].text] : []) + toWords + (r.bj < m ? [b[r.bj].text] : []))
             if from.lowercased() == to.lowercased() { continue }
-            // コーチの指摘と重なるものは出さない（言った形か直した形のどちらかが指摘に含まれていれば重なり）
-            let coreFrom = fromWords.joined(separator: " ").lowercased(), coreTo = toWords.joined(separator: " ").lowercased()
-            if !coreFrom.isEmpty, coveredFrom.contains(where: { $0.contains(coreFrom) || coreFrom.contains($0) }) { continue }
-            if !coreTo.isEmpty, coveredTo.contains(where: { $0.contains(coreTo) || coreTo.contains($0) }) { continue }
             out.append(Fix(from: from, to: to))
             if out.count >= limit { break }
         }
