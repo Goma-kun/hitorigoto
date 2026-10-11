@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Speech
+import CoreMedia
 
 /// オーディオスレッドと画面側の橋渡し。マイクのタップは別スレッドから呼ばれるので、
 /// 書き込み先と認識リクエストの差し替えをロックで守る（まもるくん iOS 版の AudioSink と同じ型）
@@ -9,6 +10,10 @@ private final class Sink: @unchecked Sendable {
     private var file: AVAudioFile?
     private var converter: AVAudioConverter?
     private var requests: [SFSpeechAudioBufferRecognitionRequest?] = [nil, nil]   // 0: 話す言語、1: 母語（日本語）
+    // SpeechAnalyzer（iOS 26 / macOS 26）へ流す口。形式が違えば変換して、全部の流れに同じバッファを入れる
+    private var analyzerFormat: AVAudioFormat?
+    private var analyzerConverter: AVAudioConverter?
+    private var analyzerFeed: [(AVAudioPCMBuffer) -> Void] = []
 
     func open(file: AVAudioFile) {
         lock.lock(); defer { lock.unlock() }
@@ -18,6 +23,12 @@ private final class Sink: @unchecked Sendable {
     func close() {
         lock.lock(); defer { lock.unlock() }
         file = nil; converter = nil; requests = [nil, nil]
+        analyzerFormat = nil; analyzerConverter = nil; analyzerFeed = []
+    }
+
+    func setAnalyzer(format: AVAudioFormat?, feed: [(AVAudioPCMBuffer) -> Void]) {
+        lock.lock(); defer { lock.unlock() }
+        analyzerFormat = format; analyzerConverter = nil; analyzerFeed = feed
     }
 
     func attach(_ request: SFSpeechAudioBufferRecognitionRequest?, slot: Int) {
@@ -50,6 +61,25 @@ private final class Sink: @unchecked Sendable {
             }
         }
         for r in requests { r?.append(buffer) }
+        if !analyzerFeed.isEmpty, let fmt = analyzerFormat {
+            if buffer.format == fmt { for f in analyzerFeed { f(buffer) } }
+            else {
+                if analyzerConverter?.inputFormat != buffer.format { analyzerConverter = AVAudioConverter(from: buffer.format, to: fmt) }
+                if let conv = analyzerConverter {
+                    let ratio = fmt.sampleRate / buffer.format.sampleRate
+                    let cap = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
+                    if let out = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: cap) {
+                        var consumed = false
+                        var err: NSError?
+                        conv.convert(to: out, error: &err) { _, status in
+                            if consumed { status.pointee = .noDataNow; return nil }
+                            consumed = true; status.pointee = .haveData; return buffer
+                        }
+                        if err == nil, out.frameLength > 0 { for f in analyzerFeed { f(out) } }
+                    }
+                }
+            }
+        }
         guard let ch = buffer.floatChannelData?[0] else { return 0 }
         var m: Float = 0
         for i in 0..<Int(buffer.frameLength) { m = max(m, abs(ch[i])) }
@@ -143,8 +173,14 @@ final class Recorder: ObservableObject {
     private var restartTask: Task<Void, Never>?
     private var started: Date?
 
-    /// 認識は 2 本まで並走する: [0] 話す言語、[1] 母語（日本語）。詳しくは「字幕」の節
-    private var streams: [CaptionStream] = []
+    /// 字幕の認識。一度に 1 本（詳しくは「字幕」の節）
+    private var active: CaptionStream?
+    private var primaryRecognizer: SFSpeechRecognizer?
+    private var nativeRecognizer: SFSpeechRecognizer?
+    private var doneSegs: [CaptionSeg] = []          // 終わった認識の区切り（切り替えをまたいで積む）
+    private var nativeSince: Date?
+    private var nativeIdle: Task<Void, Never>?
+    private var analyzerCaptions: AnyObject?          // AnalyzerCaptions（iOS 26 / macOS 26）。古い OS では nil
     private var wantCaptions = false
 
     struct Result {
@@ -296,41 +332,166 @@ final class Recorder: ObservableObject {
 
     // MARK: - 字幕（端末の音声認識）
     //
-    // 認識は 2 本並走させることがある: 話す言語（例: 英語）と、学習者の母語（日本語）。
-    // 英語が出てこなくて日本語で言った箇所は、英語の認識だと英単語に化けて読めない（2026-10-11 本人）。
-    // 両方の認識が返す区切り（時刻つき）を一本の時間軸に並べ、日本語側が「本当に日本語を話している」と
-    // 見えるかたまり（ひらがな・漢字が混ざる。英語を日本語で聞くとカタカナばかりになる）だけ日本語を採り、
-    // その時間帯の話す言語側の区切りは捨てる。母語側は、アプリの表示が日本語で、話す言語が日本語でないときだけ動かす
+    // 認識は**一度に 1 本**しか動かせない（端末内でもサーバーでも、2 本目を始めると 1 本目が
+    // 「No speech detected」で落ち、交互に落ち続ける・2026-10-12 Mac で実測。test: scratchpad hgcap.log）。
+    // そこで、ふだんは話す言語（例: 英語）の認識を動かし、学習者が「寅さん」と呼びかけたら
+    // 母語（日本語）の認識に切り替え、間が空いたら（認識が区切りを返したら）話す言語に戻す。
+    // 英語が出てこなくて日本語で言うときは「寅さん、〜って何て言う？」と呼びかける使い方なので、これで拾える。
+    // 母語側はアプリの表示が日本語で、話す言語が日本語でないときだけ用意する。
+    // 区切りには時刻を付け、切り替えをまたいでも一本の時間軸に並べて字幕にする（merge）
 
     private func startCaptions(language: String) {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            // 新しい認識（SpeechAnalyzer）は 2 本同時に動かせる（2026-10-12 Mac で実測: scratchpad sa_test.swift）。
+            // 話す言語と母語を同時に聞き、日本語に見えるかたまりだけ日本語を採る。呼びかけは要らない
+            let nativeLocale: Locale? = (TargetLanguage.explanation == .ja && !language.hasPrefix("ja")) ? Locale(identifier: "ja-JP") : nil
+            let ac = AnalyzerCaptions()
+            ac.onChange = { [weak self] in self?.refreshCaptions() }
+            analyzerCaptions = ac
+            doneSegs = []
+            SFSpeechRecognizer.requestAuthorization { [weak self] status in
+                Task { @MainActor in
+                    guard let self, self.wantCaptions else { return }
+                    guard status == .authorized else { self.captionsAvailable = false; return }
+                    do {
+                        try await ac.start(primary: Locale(identifier: language), native: nativeLocale, sink: self.sink)
+                        self.captionsAvailable = self.wantCaptions
+                    } catch {
+                        CapLog.write("HGCAP analyzer start failed: %@", String(describing: error))
+                        // 新しい認識が使えなければ従来の認識に落ちる
+                        self.analyzerCaptions = nil
+                        self.startLegacyCaptions(language: language)
+                    }
+                }
+            }
+            return
+        }
+        startLegacyCaptions(language: language)
+    }
+
+    /// 従来の認識（SFSpeechRecognizer）。一度に 1 本なので「寅さん」の呼びかけで母語に切り替える
+    private func startLegacyCaptions(language: String) {
         guard let primary = SFSpeechRecognizer(locale: Locale(identifier: language)), primary.isAvailable else {
             captionsAvailable = false; return
         }
-        var list = [CaptionStream(recognizer: primary, native: false, slot: 0)]
+        primaryRecognizer = primary
+        nativeRecognizer = nil
         if TargetLanguage.explanation == .ja, !language.hasPrefix("ja"),
            let native = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP")), native.isAvailable {
-            list.append(CaptionStream(recognizer: native, native: true, slot: 1))
+            nativeRecognizer = native
         }
-        let sink = self.sink
-        for st in list {
-            st.attach = { req, slot in sink.attach(req, slot: slot) }
-            st.clock = { [weak self] in self?.started.map { Date().timeIntervalSince($0) } ?? 0 }
-            st.onChange = { [weak self] in self?.refreshCaptions() }
-        }
-        streams = list
+        doneSegs = []
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             Task { @MainActor in
                 guard let self, self.wantCaptions else { return }
                 guard status == .authorized else { self.captionsAvailable = false; return }
                 self.captionsAvailable = true
-                for st in self.streams { st.start() }
+                self.runStream(native: false)
             }
         }
     }
 
-    /// 2 本の認識の区切りを一本に並べて、字幕の文字列にする
+    /// 話す言語（native=false）か母語（native=true）の認識を 1 本だけ動かす
+    private func runStream(native: Bool) {
+        guard wantCaptions else { return }
+        guard let r = native ? nativeRecognizer : primaryRecognizer else { return }
+        active?.stop()
+        nativeIdle?.cancel(); nativeIdle = nil
+        let st = CaptionStream(recognizer: r, native: native)
+        let sink = self.sink
+        st.attach = { req in sink.attach(req, slot: 0) }
+        st.clock = { [weak self] in self?.started.map { Date().timeIntervalSince($0) } ?? 0 }
+        st.onChange = { [weak self] in self?.captionsChanged() }
+        st.onEnd = { [weak self] in self?.streamEnded() }
+        active = st
+        nativeSince = native ? Date() : nil
+        st.start()
+        CapLog.write("HGCAP run native=%d", native ? 1 : 0)
+    }
+
+    /// 途中結果が更新された。話す言語の認識中に「寅さん」の呼びかけが聞こえたら母語へ切り替える
+    private func captionsChanged() {
+        guard let st = active else { return }
+        if !st.native, nativeRecognizer != nil {
+            let tail = st.live.suffix(4)
+            if let hit = Self.coachCall(in: tail.map(\.text)) {
+                // 呼びかけの語そのものは字幕に残さない
+                var segs = st.segments
+                segs.removeLast(min(hit, segs.count))
+                doneSegs += segs
+                CapLog.write("HGCAP coach call -> native (drop %d)", hit)
+                runStream(native: true)
+                refreshCaptions()
+                return
+            }
+        }
+        if st.native {
+            // 母語の認識は、英語に戻っても止まらずカタカナを吐き続ける（実測: "ドゥザBad"）。
+            // いまの一文が日本語に見えなくなったら、そこで話す言語に戻す（その一文は捨てる）
+            let liveText = st.live.map(\.text).joined()
+            if liveText.count >= 2, !st.done.isEmpty || liveText.count >= 6, !Self.looksJapanese(liveText) {
+                doneSegs += st.done
+                CapLog.write("HGCAP native looks foreign -> primary: %@", liveText)
+                runStream(native: false)
+                refreshCaptions()
+                return
+            }
+            // 1.5 秒なにも変わらなければ（言い終わって間が空いた）話す言語に戻す。20 秒を超えても戻す
+            nativeIdle?.cancel()
+            nativeIdle = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard let self, !Task.isCancelled, let st = self.active, st.native else { return }
+                self.doneSegs += st.segments
+                CapLog.write("HGCAP native idle -> primary")
+                self.runStream(native: false)
+                self.refreshCaptions()
+            }
+            if let since = nativeSince, Date().timeIntervalSince(since) > 20 {
+                doneSegs += st.segments
+                runStream(native: false)
+            }
+        }
+        refreshCaptions()
+    }
+
+    /// 認識が終わった（確定・打ち切り・間が空いた）。母語なら話す言語へ戻し、話す言語なら張り直す
+    private func streamEnded() {
+        guard wantCaptions, let st = active else { return }
+        doneSegs += st.segments
+        active = nil
+        refreshCaptions()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, self.wantCaptions, self.active == nil else { return }
+            self.runStream(native: false)
+        }
+    }
+
+    /// 英語の認識が「寅さん」と聞いた形。該当したら、呼びかけに使われた区切りの数を返す
+    /// （英語の認識は Tora-san を Torah son / tora san / tourists on などと書く）
+    static func coachCall(in words: [String]) -> Int? {
+        let joined = words.joined(separator: " ").lowercased()
+        // Mac の実測: 合成音声の Tora-san は "Toran" と聞こえた。人の声では Torah son / tora san なども出る
+        let patterns = ["\\b(tora|torah|thora|tola|toro|taura|tara)\\s*-?\\s*(san|son|sun|sign|sans|sang)\\b", "\\btourists?\\s*(on|an)\\b",
+                        "\\btaurus\\s*(on|an)\\b", "\\btora-?san\\b", "\\b(toran|torasan|torah|tora)\\b"]
+        for pat in patterns {
+            if let re = try? NSRegularExpression(pattern: pat), let m = re.firstMatch(in: joined, range: NSRange(joined.startIndex..., in: joined)),
+               let r = Range(m.range, in: joined) {
+                // 一致した文字列に含まれる語の数ぶんの区切りを落とす（区切りはだいたい語ごと）
+                let n = joined[r].split(separator: " ").count
+                return max(1, min(n, words.count))
+            }
+        }
+        return nil
+    }
+
     private func refreshCaptions() {
-        transcript = Self.merge(primary: streams.first?.segments ?? [], native: streams.count > 1 ? streams[1].segments : [])
+        if #available(iOS 26.0, macOS 26.0, *), let ac = analyzerCaptions as? AnalyzerCaptions {
+            transcript = Self.merge(primary: ac.segments(native: false), native: ac.segments(native: true))
+            interim = ""
+            return
+        }
+        transcript = Self.merge(primary: doneSegs.filter { !$0.native } + (active?.native == false ? active!.segments : []),
+                                native: doneSegs.filter(\.native) + (active?.native == true ? active!.segments : []))
         interim = ""
     }
 
@@ -339,10 +500,11 @@ final class Recorder: ObservableObject {
     static func merge(primary: [CaptionSeg], native: [CaptionSeg]) -> String {
         var chosen = primary
         if !native.isEmpty {
-            // 0.6 秒以内に続く区切りをひとかたまりにして、かたまりごとに日本語かどうかを見る
+            // 0.6 秒以内に続く、同じ文字種（日本語の文字を含む／含まない）の区切りをひとかたまりにして、
+            // かたまりごとに日本語かどうかを見る。日本語の認識は英語を聞くとローマ字で書くので、文字種で切ると英語の部分が分かれる
             var groups: [[CaptionSeg]] = []
             for sg in native.sorted(by: { $0.t < $1.t }) {
-                if var last = groups.last, let tail = last.last, sg.t - (tail.t + tail.d) < 0.6 {
+                if var last = groups.last, let tail = last.last, sg.t - (tail.t + tail.d) < 0.6, hasJapaneseScript(tail.text) == hasJapaneseScript(sg.text) {
                     last.append(sg); groups[groups.count - 1] = last
                 } else { groups.append([sg]) }
             }
@@ -361,6 +523,13 @@ final class Recorder: ObservableObject {
             out += sg.text; prev = sg
         }
         return out
+    }
+
+    /// ひらがな・カタカナ・漢字を 1 文字でも含むか
+    static func hasJapaneseScript(_ text: String) -> Bool {
+        text.unicodeScalars.contains { u in
+            (0x3041...0x309F).contains(u.value) || (0x30A0...0x30FF).contains(u.value) || (0x4E00...0x9FFF).contains(u.value) || (0xFF66...0xFF9F).contains(u.value)
+        }
     }
 
     /// 日本語の認識が返した文字列が「本当に日本語を話した」ものに見えるか。
@@ -391,19 +560,25 @@ final class Recorder: ObservableObject {
 
     private func stopCaptions() {
         wantCaptions = false
-        for st in streams { st.stop() }
-        streams = []
+        nativeIdle?.cancel(); nativeIdle = nil
+        active?.stop(); active = nil
+        if #available(iOS 26.0, macOS 26.0, *), let ac = analyzerCaptions as? AnalyzerCaptions { ac.cancel(); analyzerCaptions = nil }
     }
 
     /// 停止時：最後の未確定分を短く待って拾い、字幕の全文を返す
     private func finishCaptions() async -> String {
         guard wantCaptions else { return transcript.trimmingCharacters(in: .whitespacesAndNewlines) }
         wantCaptions = false
-        for st in streams { st.endAudio() }
+        if #available(iOS 26.0, macOS 26.0, *), let ac = analyzerCaptions as? AnalyzerCaptions {
+            await ac.finish()
+            refreshCaptions()
+            analyzerCaptions = nil
+            return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        active?.endAudio()
         try? await Task.sleep(nanoseconds: 700_000_000)
         refreshCaptions()
-        for st in streams { st.stop() }
-        streams = []
+        active?.stop(); active = nil
         return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
@@ -416,63 +591,58 @@ struct CaptionSeg: Equatable {
     var native: Bool     // 母語（日本語）の認識が返したもの
 }
 
-/// 認識 1 本ぶん。タスクは 1 分ほどで打ち切られるので、終わるたびに確定分を積んで張り直す
+/// 認識 1 本ぶん（1 タスク）。終わったら onEnd を呼ぶだけで、張り直しは Recorder が決める
 @MainActor
 private final class CaptionStream {
     let recognizer: SFSpeechRecognizer
     let native: Bool
-    let slot: Int
-    private var done: [CaptionSeg] = []      // 確定した区切り
-    private var live: [CaptionSeg] = []      // いまの途中結果の区切り（結果が来るたびに丸ごと入れ替わる）
+    private(set) var done: [CaptionSeg] = []      // 確定した区切り（頭からの作り直しで押し出された分）
+    private(set) var live: [CaptionSeg] = []      // いまの途中結果の区切り（結果が来るたびに丸ごと入れ替わる）
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    private var base: Double = 0             // いまのリクエストを作った時点の、録音開始からの秒
-    private var wantMore = true
-    var attach: (SFSpeechAudioBufferRecognitionRequest?, Int) -> Void = { _, _ in }
+    private var base: Double = 0                  // リクエストを作った時点の、録音開始からの秒
+    private var liveText = ""                     // いまの途中結果の全文（作り直しの検知用）
+    private var ended = false
+    var attach: (SFSpeechAudioBufferRecognitionRequest?) -> Void = { _ in }
     var clock: () -> Double = { 0 }
     var onChange: () -> Void = {}
+    var onEnd: () -> Void = {}
 
-    init(recognizer: SFSpeechRecognizer, native: Bool, slot: Int) {
-        self.recognizer = recognizer; self.native = native; self.slot = slot
+    init(recognizer: SFSpeechRecognizer, native: Bool) {
+        self.recognizer = recognizer; self.native = native
     }
 
     var segments: [CaptionSeg] { done + live }
 
-    func start() { wantMore = true; newTask() }
-
-    private func newTask() {
-        guard wantMore else { return }
+    func start() {
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         request = req
         base = clock()
-        attach(req, slot)
+        attach(req)
         task = recognizer.recognitionTask(with: req) { [weak self] result, error in
             Task { @MainActor in
-                guard let self, self.request === req else { return }
+                guard let self, self.request === req, !self.ended else { return }
                 if let result {
                     self.take(result)
-                    if result.isFinal {
-                        self.done += self.live; self.live = []
-                        self.onChange()
-                        if self.wantMore { self.newTask() }
-                        return
-                    }
+                    if result.isFinal { self.finish(); return }
                     self.onChange()
                 }
-                if error != nil {
-                    // 打ち切り・一時的な失敗。未確定分を確定に回して張り直す
-                    self.done += self.live; self.live = []
-                    self.request = nil
-                    self.attach(nil, self.slot)
-                    self.onChange()
-                    if self.wantMore {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.newTask() }
-                    }
+                if let error {
+                    CapLog.write("HGCAP native=%d error: %@", self.native ? 1 : 0, String(describing: error))
+                    self.finish()
                 }
             }
         }
+    }
+
+    private func finish() {
+        guard !ended else { return }
+        ended = true
+        attach(nil)
+        request = nil; task = nil
+        onEnd()
     }
 
     /// 途中結果を時刻つきの区切りに直す。
@@ -480,14 +650,17 @@ private final class CaptionStream {
     /// 新しい結果が前の結果より後ろの時刻から始まっていたら、その前の区切りは確定に回す
     private func take(_ result: SFSpeechRecognitionResult) {
         let raw = result.bestTranscription.segments
-        var segs = raw.map { CaptionSeg(t: base + $0.timestamp, d: $0.duration, text: $0.substring, native: native) }
-        // 時刻が付かない認識（全部 0）のときは、結果全体を 1 つの区切りとして扱う
-        if !raw.isEmpty, raw.allSatisfy({ $0.timestamp == 0 && $0.duration == 0 }) {
-            let text = result.bestTranscription.formattedString
-            segs = text.isEmpty ? [] : [CaptionSeg(t: base, d: max(0, clock() - base), text: text, native: native)]
+        let text = result.bestTranscription.formattedString
+        // 「頭からの作り直し」は、前の文の先頭を引き継いでいないことで見る（区切りの時刻は作り直しごとに 0 に戻るので当てにしない）
+        if !liveText.isEmpty, Recorder.looksRestarted(prev: liveText, now: text) {
+            done += live
+            // 作り直し後の区切りは「いま」から始まるものとして時刻を振る
+            base = clock()
         }
-        if let first = segs.first, let oldFirst = live.first, first.t > oldFirst.t + 0.5 {
-            done += live.filter { $0.t + $0.d <= first.t }
+        liveText = text
+        var segs = raw.map { CaptionSeg(t: base + $0.timestamp, d: $0.duration, text: $0.substring, native: native) }
+        if !raw.isEmpty, raw.allSatisfy({ $0.timestamp == 0 && $0.duration == 0 }) {
+            segs = text.isEmpty ? [] : [CaptionSeg(t: base, d: max(0, clock() - base), text: text, native: native)]
         }
         live = segs
     }
@@ -495,10 +668,115 @@ private final class CaptionStream {
     func endAudio() { request?.endAudio() }
 
     func stop() {
-        wantMore = false
-        attach(nil, slot)
+        ended = true
+        attach(nil)
         request?.endAudio()
         task?.cancel()
         request = nil; task = nil
+    }
+}
+
+/// 新しい認識（SpeechAnalyzer）で、話す言語と母語の書き起こしを同時に動かす。
+/// 結果は語ごとの時刻つきで、確定分（finals）と未確定分（volatile）を言語ごとに持つ
+@available(iOS 26.0, macOS 26.0, *)
+@MainActor
+fileprivate final class AnalyzerCaptions {
+    private struct Lane {
+        let native: Bool
+        let transcriber: SpeechTranscriber
+        let analyzer: SpeechAnalyzer
+        let continuation: AsyncStream<AnalyzerInput>.Continuation
+        var finals: [CaptionSeg] = []
+        var volatileSegs: [CaptionSeg] = []
+        var reader: Task<Void, Never>?
+    }
+    private var lanes: [Lane] = []
+    var onChange: () -> Void = {}
+
+    func segments(native: Bool) -> [CaptionSeg] {
+        guard let l = lanes.first(where: { $0.native == native }) else { return [] }
+        return l.finals + l.volatileSegs
+    }
+
+    func start(primary: Locale, native: Locale?, sink: Sink) async throws {
+        var specs: [(Locale, Bool)] = [(primary, false)]
+        if let native { specs.append((native, true)) }
+        var transcribers: [SpeechTranscriber] = []
+        for (loc, _) in specs {
+            let t = SpeechTranscriber(locale: loc, transcriptionOptions: [], reportingOptions: [.volatileResults], attributeOptions: [.audioTimeRange])
+            // 言語の素材が入っていなければ取りに行く（初回だけ時間がかかる）
+            if let req = try await AssetInventory.assetInstallationRequest(supporting: [t]) { try await req.downloadAndInstall() }
+            transcribers.append(t)
+        }
+        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: transcribers)
+        var feeds: [(AVAudioPCMBuffer) -> Void] = []
+        for (i, (_, isNative)) in specs.enumerated() {
+            let t = transcribers[i]
+            let analyzer = SpeechAnalyzer(modules: [t])
+            let (stream, cont) = AsyncStream<AnalyzerInput>.makeStream()
+            try await analyzer.start(inputSequence: stream)
+            var lane = Lane(native: isNative, transcriber: t, analyzer: analyzer, continuation: cont)
+            lane.reader = Task { [weak self] in
+                do {
+                    for try await r in t.results {
+                        await MainActor.run { self?.take(r, native: isNative) }
+                    }
+                } catch { CapLog.write("HGCAP analyzer native=%d results error: %@", isNative ? 1 : 0, String(describing: error)) }
+            }
+            lanes.append(lane)
+            feeds.append { buf in cont.yield(AnalyzerInput(buffer: buf)) }
+        }
+        sink.setAnalyzer(format: format, feed: feeds)
+        CapLog.write("HGCAP analyzer started lanes=%d format=%@", lanes.count, format?.description ?? "nil")
+    }
+
+    /// 結果を語ごとの区切りに直す。確定なら finals に積み、未確定なら volatile を丸ごと入れ替える
+    private func take(_ r: SpeechTranscriber.Result, native: Bool) {
+        guard let idx = lanes.firstIndex(where: { $0.native == native }) else { return }
+        var segs: [CaptionSeg] = []
+        for run in r.text.runs {
+            let text = String(r.text[run.range].characters)
+            guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
+            if let tr = run.audioTimeRange {
+                segs.append(CaptionSeg(t: CMTimeGetSeconds(tr.start), d: CMTimeGetSeconds(tr.duration), text: text.trimmingCharacters(in: .whitespaces), native: native))
+            } else {
+                segs.append(CaptionSeg(t: CMTimeGetSeconds(r.range.start), d: CMTimeGetSeconds(r.range.duration), text: text.trimmingCharacters(in: .whitespaces), native: native))
+            }
+        }
+        if r.isFinal { lanes[idx].finals += segs; lanes[idx].volatileSegs = [] }
+        else { lanes[idx].volatileSegs = segs }
+        if r.isFinal { CapLog.write("HGCAP analyzer native=%d final text=%@", native ? 1 : 0, String(r.text.characters)) }
+        onChange()
+    }
+
+    /// 停止時: 入力を閉じて、残りを確定させる（長くても 1.5 秒）
+    func finish() async {
+        for l in lanes { l.continuation.finish() }
+        await withTaskGroup(of: Void.self) { group in
+            for l in lanes {
+                group.addTask { try? await l.analyzer.finalizeAndFinishThroughEndOfInput() }
+            }
+            group.addTask { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+            await group.next()
+            group.cancelAll()
+        }
+        for l in lanes { l.reader?.cancel() }
+    }
+
+    func cancel() {
+        for l in lanes { l.continuation.finish(); l.reader?.cancel(); Task { try? await l.analyzer.cancelAndFinishNow() } }
+        lanes = []
+    }
+}
+
+/// 字幕の不具合を追うための記録（DEBUG だけ）。アプリの tmp に hgcap.log を書く
+enum CapLog {
+    static func write(_ format: String, _ args: CVarArg...) {
+        #if DEBUG
+        let line = "\(Date()) " + String(format: format, arguments: args) + "\n"
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("hgcap.log")
+        if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); h.closeFile() }
+        else { try? line.write(to: url, atomically: true, encoding: .utf8) }
+        #endif
     }
 }

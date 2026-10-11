@@ -19,6 +19,8 @@ struct HitorigotoApp: App {
                     let d = UserDefaults.standard
                     if d.object(forKey: "HGShotTab") != nil { tab = d.integer(forKey: "HGShotTab") }
                     if d.string(forKey: "HGShot") == "result" { model.showLatestSessionAsResult() }
+                    // 字幕の検証用: -HGAutoStart 1 で起動と同時に録音を始める（Mac で合成音声を流して試すため）
+                    if d.bool(forKey: "HGAutoStart") { Task { try? await Task.sleep(nanoseconds: 1_500_000_000); await model.startRecording() } }
                 }
                 #endif
             .environmentObject(model)
