@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 日本語が既定。英語は values-en。文言は iOS の Localizable.xcstrings と同じ -->
+<resources>
+    <string name="app_name">独り言</string>
+</resources>

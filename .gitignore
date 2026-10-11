@@ -10,3 +10,11 @@
 STORE_LISTING*.md
 notes/
 store-assets-ios/
+
+# Android 版のビルド成果物と端末ごとの設定（local.properties には中継の合言葉が入る）
+android/.gradle/
+android/build/
+android/*/build/
+android/local.properties
+android/.idea/
+android/.kotlin/
