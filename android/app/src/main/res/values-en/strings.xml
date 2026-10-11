@@ -122,9 +122,9 @@
         <item quantity="other">You’ve used today’s %1$d free reviews. They reset at midnight. Set your own Gemini key in Settings for unlimited reviews.</item>
     </plurals>
     <string name="err_relay_busy">The service is busy today. Please try again tomorrow.</string>
-    <string name="err_silent">No speech could be heard. The microphone may not have picked up any sound.</string>
-    <string name="err_silent_local">The recording had no sound. The microphone isn’t picking anything up. Check your earphone settings.</string>
-    <string name="current_mic">The current mic is “%1$s”.</string>
+    <string name="err_silent">"No speech could be heard. The microphone may not have picked up any sound. "</string>
+    <string name="err_silent_local">"The recording had no sound. The microphone isn’t picking anything up. Check your earphone settings. "</string>
+    <string name="current_mic">"The current mic is “%1$s”. "</string>
     <string name="check_mic">Check your microphone and try again.</string>
 
     <string name="in_training">In training</string>

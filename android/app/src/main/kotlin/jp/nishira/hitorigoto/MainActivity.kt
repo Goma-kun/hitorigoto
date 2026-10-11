@@ -43,16 +43,22 @@ import jp.nishira.hitorigoto.ui.SpeakScreen
 
 class MainActivity : ComponentActivity() {
     private val model: AppModel by viewModels()
+    private var initialTab = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // スクショ用（デバッグ版だけ）: am start -e HGShot result / -e HGShotTab 2
+        if (BuildConfig.DEBUG) {
+            if (intent?.getStringExtra("HGShot") == "result") model.showLatestSessionAsResult()
+            intent?.getStringExtra("HGShotTab")?.toIntOrNull()?.let { initialTab = it }
+        }
         setContent { HgTheme { Root() } }
     }
 
     @Composable
     private fun Root() {
-        var tab by remember { mutableStateOf(0) }
+        var tab by remember { mutableStateOf(initialTab) }
         val context = LocalContext.current
         val micDenied = stringResource(R.string.err_mic_denied)
 

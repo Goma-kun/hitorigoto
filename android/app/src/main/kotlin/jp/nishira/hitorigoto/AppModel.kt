@@ -194,6 +194,20 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         save()
     }
 
+    /** スクショ用（デバッグ版だけ）: 記録の先頭を「いま添削が終わった」ように見せる */
+    fun showLatestSessionAsResult() {
+        if (!BuildConfig.DEBUG) return
+        val s = snapshot.sessions.firstOrNull() ?: return
+        latest = Feedback(correctedText = s.correctedText ?: "", issues = s.issues, good = s.good ?: "",
+            transcript = s.transcript ?: "", pronunciation = s.pronunciation ?: emptyList())
+        latestSession = s
+        latestJudged = (s.targets ?: emptyList()).mapNotNull { t ->
+            val c = snapshot.phrases.firstOrNull { it.phrase == t.phrase } ?: return@mapNotNull null
+            Judged(id = c.id, result = t.r, asSaid = t.asSaid, judge = "ai")
+        }
+        phase = Phase.RESULT
+    }
+
     // ---- 録音と添削 ----
 
     /** 録音を始める（マイクの許可は画面側で取ってから呼ぶ） */

@@ -185,10 +185,10 @@ fun SettingsToggle(text: String, on: Boolean, onChange: (Boolean) -> Unit) {
 fun <T> SettingsPicker(title: String, value: T, options: List<T>, label: @Composable (T) -> String, onPick: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().clickable { open = true }.padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = Hg.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(title, color = Hg.text, fontSize = 15.sp)
         Spacer(Modifier.width(8.dp))
-        Box {
-            Text(label(value) + "  ⌄", color = Hg.accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            Text(label(value) + "  ⌄", color = Hg.accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.End)
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 for (o in options) DropdownMenuItem(
                     text = { Text(label(o), color = if (o == value) Hg.accent else Hg.text, fontWeight = if (o == value) FontWeight.Bold else FontWeight.Normal) },
