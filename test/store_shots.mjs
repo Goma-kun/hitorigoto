@@ -106,6 +106,10 @@ await evalIn(pageSid, `(async () => {
           { type: 'vocabulary', original: 'concentrate to', suggestion: 'concentrate on', reason: 'concentrate は前置詞 on と組み合わせます。' },
         ],
         good: '時間や比較の表現（for thirty minutes / more than last week）が自然に使えています。',
+        asks: [
+          { said: 'アイデアの壁打ちをする', ways: ['bounce ideas off someone', 'run ideas by someone'], ipa: ['/baʊns aɪˈdiːəz ɒf ˈsʌmwʌn/', '/rʌn aɪˈdiːəz baɪ ˈsʌmwʌn/'], note: 'アイデアを間に挟んで bounce ideas off him と打つのが基本の型だ。相手に軽く打診する、まさに壁打ちの理屈だぞ' },
+          { said: '結膜炎', ways: ['pinkeye', 'conjunctivitis'], ipa: ['/ˈpɪŋkaɪ/', '/kənˌdʒʌŋktɪˈvaɪtɪs/'], note: '日常会話なら pinkeye 一発で通る。医者が使う堅い言い方が conjunctivitis だ' },
+        ],
         engineId: 'nano',
       },
       {
@@ -171,11 +175,25 @@ await evalIn(pageSid, `(() => {
     recurring: [],
     recognition_doubt: [],
     good: '時間や比較の表現が自然に使えています。',
+    asks: [
+      { said: 'アイデアの壁打ちをする', ways: ['bounce ideas off someone', 'run ideas by someone'], ipa: ['/baʊns aɪˈdiːəz ɒf ˈsʌmwʌn/', '/rʌn aɪˈdiːəz baɪ ˈsʌmwʌn/'], note: 'アイデアを間に挟んで bounce ideas off him と打つのが基本の型だ。相手に軽く打診する、まさに壁打ちの理屈だぞ' },
+      { said: '結膜炎', ways: ['pinkeye', 'conjunctivitis'], ipa: ['/ˈpɪŋkaɪ/', '/kənˌdʒʌŋktɪˈvaɪtɪs/'], note: '日常会話なら pinkeye 一発で通る。医者が使う堅い言い方が conjunctivitis だ' },
+    ],
   };
   renderEnglish();
   return true;
 })()`);
 await shot('screenshot_02.png');
+
+// ---- 2b: 結果の下のほう「日本語で言った分、英語ならこう」まで下げる（v1.2.0 の売り） ----
+await evalIn(pageSid, `(() => {
+  const titles = [...document.querySelectorAll('.en-section-title, .en-section h3, .en-section h2, .en-section > div')];
+  const t = titles.find(e => (e.textContent || '').includes('英語ならこう'));
+  const sec = t ? (t.closest('.en-section') || t) : null;
+  if (sec) sec.scrollIntoView({ block: 'start' });
+  return !!sec;
+})()`);
+await shot('screenshot_05.png');
 
 // ---- 3枚目: 聞き取りが怪しい箇所（別枠表示）を含む結果 ----
 await evalIn(pageSid, `(() => {
