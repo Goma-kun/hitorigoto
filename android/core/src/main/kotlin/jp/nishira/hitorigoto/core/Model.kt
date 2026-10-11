@@ -29,6 +29,8 @@ data class Pronunciation(
 data class Ask(
     val said: String,
     val ways: List<String>,
+    /** ways と同じ長さ。i 番目の言い方の発音記号（IPA）。無いときは空文字 */
+    val ipa: List<String> = emptyList(),
     val note: String = "",
 )
 

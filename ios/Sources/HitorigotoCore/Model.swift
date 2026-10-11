@@ -32,10 +32,22 @@ public struct Pronunciation: Codable, Equatable, Sendable {
 public struct Ask: Codable, Equatable, Sendable {
     public var said: String
     public var ways: [String]
+    /// ways と同じ長さ。i 番目の言い方の発音記号（IPA）。無いときは空文字
+    public var ipa: [String]
     public var note: String
 
-    public init(said: String, ways: [String], note: String = "") {
+    public init(said: String, ways: [String], ipa: [String] = [], note: String = "") {
         self.said = said; self.ways = ways; self.note = note
+        self.ipa = ways.indices.map { i in i < ipa.count ? ipa[i] : "" }
+    }
+
+    enum CodingKeys: String, CodingKey { case said, ways, ipa, note }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let ways = try c.decodeIfPresent([String].self, forKey: .ways) ?? []
+        self.init(said: try c.decodeIfPresent(String.self, forKey: .said) ?? "", ways: ways,
+                  ipa: try c.decodeIfPresent([String].self, forKey: .ipa) ?? [],
+                  note: try c.decodeIfPresent(String.self, forKey: .note) ?? "")
     }
 }
 

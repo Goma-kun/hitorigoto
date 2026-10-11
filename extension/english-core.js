@@ -88,15 +88,17 @@ function parseFeedback(raw) {
 }
 
 // 「日本語で言った分 → 英語ならこう」。said（言ったこと）と ways（言い方）が揃っているものだけ残す。
-// ways は文字列だけを残し、最大 3 通り。件数は最大 5
+// ways は文字列だけを残し、最大 3 通り。件数は最大 5。
+// ipa は ways と同じ長さに揃える（足りなければ空文字で埋め、多ければ切る）。ways の i 番目の発音記号が ipa[i]
 function asAsks(v) {
   if (!Array.isArray(v)) return [];
   return v
-    .map(it => ({
-      said: asText(it && it.said),
-      ways: (Array.isArray(it && it.ways) ? it.ways : []).map(asText).filter(Boolean).slice(0, 3),
-      note: asText(it && it.note),
-    }))
+    .map(it => {
+      const ways = (Array.isArray(it && it.ways) ? it.ways : []).map(asText).filter(Boolean).slice(0, 3);
+      const ipaRaw = Array.isArray(it && it.ipa) ? it.ipa.map(asText) : [];
+      const ipa = ways.map((_, i) => ipaRaw[i] || '');
+      return { said: asText(it && it.said), ways, ipa, note: asText(it && it.note) };
+    })
     .filter(it => it.said && it.ways.length > 0)
     .slice(0, 5);
 }

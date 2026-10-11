@@ -92,7 +92,8 @@ public enum Logic {
             let said = asText(it?["said"])
             let ways = ((it?["ways"] as? [Any]) ?? []).map { asText($0) }.filter { !$0.isEmpty }.prefix(3)
             guard !said.isEmpty, !ways.isEmpty else { return nil }
-            return Ask(said: said, ways: Array(ways), note: asText(it?["note"]))
+            let ipa = ((it?["ipa"] as? [Any]) ?? []).map { asText($0) }
+            return Ask(said: said, ways: Array(ways), ipa: ipa, note: asText(it?["note"]))
         }
         return Feedback(
             correctedText: asText(d["corrected_text"]),

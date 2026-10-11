@@ -65,7 +65,8 @@ push({ fn: 'prompts' }, { system: JS.EN_SYSTEM_PROMPT, audio: JS.EN_SYSTEM_PROMP
 const SAMPLE = { corrected_text: 'I went.', issues: [{ type: 'VOCABULARY', original: 'a', suggestion: 'b', reason: 'r' }, { type: 'x', original: 'c', suggestion: 'd' }, { type: 'grammar', original: 'e' }],
   recurring: ['x', 3, ''], recognition_doubt: ['their'], good: 'g', transcript: 't', pronunciation: [{ said: 's', heard_as: 'h' }, { said: 'only' }],
   targets: [{ phrase: 'p', used: 1, exact: 'yes', as_said: 'x' }, { used: true }, { phrase: 'q', used: false }],
-  asks: [{ said: 'ガツガツ食べてた', ways: ['He was wolfing down the food.', 'He was scarfing it down.', 3, 'third', 'fourth'], note: 'n' },
+  asks: [{ said: 'ガツガツ食べてた', ways: ['He was wolfing down the food.', 'He was scarfing it down.', 3, 'third', 'fourth'], ipa: ['/wʊlf/', 7], note: 'n' },
+         { said: 'あくび', ways: ['yawn'], ipa: ['/jɔːn/', '/x/', '/y/'] },
          { said: '', ways: ['x'] }, { said: 'only said' }, { said: 'no ways', ways: [] }, { said: 'a', ways: ['b'] }, { said: 'c', ways: ['d'] },
          { said: 'e', ways: ['f'] }, { said: 'g', ways: ['h'] }, { said: 'i', ways: ['j'] }] };
 for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) + '\n```', 'はい。' + JSON.stringify({ ...SAMPLE, good: '括弧 } と "引用符"' }) + ' です',

@@ -480,6 +480,13 @@ function renderEnglish() {
         way.className = 'en-said';
         way.textContent = (i === 0 ? '→ ' : '　 ') + w;
         row.appendChild(way);
+        // 発音記号（IPA）。カタカナでは表せない音を確かめるためのもの
+        if (it.ipa && it.ipa[i]) {
+          const ipa = document.createElement('span');
+          ipa.className = 'en-ipa';
+          ipa.textContent = it.ipa[i];
+          row.appendChild(ipa);
+        }
         card.appendChild(row);
       });
       if (it.note) {

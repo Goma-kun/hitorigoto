@@ -104,7 +104,9 @@ object Logic {
             val it = raw as? JsonObject
             val said = asText(it?.get("said"))
             val ways = (it?.get("ways") as? JsonArray ?: JsonArray(emptyList())).map { w -> asText(w) }.filter { w -> w.isNotEmpty() }.take(3)
-            if (said.isEmpty() || ways.isEmpty()) null else Ask(said, ways, asText(it?.get("note")))
+            val ipaRaw = (it?.get("ipa") as? JsonArray ?: JsonArray(emptyList())).map { w -> asText(w) }
+            val ipa = ways.indices.map { i -> ipaRaw.getOrNull(i) ?: "" }
+            if (said.isEmpty() || ways.isEmpty()) null else Ask(said, ways, ipa, asText(it?.get("note")))
         }
         return Feedback(
             correctedText = asText(d["corrected_text"]),

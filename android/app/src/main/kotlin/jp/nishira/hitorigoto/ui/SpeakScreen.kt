@@ -51,6 +51,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -407,7 +408,12 @@ fun AskRow(model: AppModel, ask: Ask) {
         ask.ways.forEachIndexed { i, w ->
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(if (i == 0) "→" else "　", color = c.faint)
-                Text(w, color = c.good, fontSize = 15.sp, fontWeight = if (i == 0) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.weight(1f))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(w, color = c.good, fontSize = 15.sp, fontWeight = if (i == 0) FontWeight.Bold else FontWeight.Normal)
+                    // 発音記号（IPA）。カタカナでは表せない音を確かめるためのもの
+                    val ipa = ask.ipa.getOrNull(i) ?: ""
+                    if (ipa.isNotEmpty()) Text(ipa, color = c.muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                }
                 SpeakButton(model, w)
                 val exists = w in added || model.hasPhrase(w)
                 TextButton(onClick = { if (model.addFromAsk(ask, w)) added = added + w }, enabled = !exists) {

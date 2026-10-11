@@ -446,7 +446,13 @@ struct AskRow: View {
             ForEach(Array(ask.ways.enumerated()), id: \.offset) { i, w in
                 HStack(alignment: .top, spacing: 6) {
                     Text(i == 0 ? "→" : "　").foregroundStyle(Theme.faint)
-                    Text(w).font(.callout.weight(i == 0 ? .bold : .regular)).foregroundStyle(Theme.good).textSelection(.enabled)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(w).font(.callout.weight(i == 0 ? .bold : .regular)).foregroundStyle(Theme.good).textSelection(.enabled)
+                        // 発音記号（IPA）。カタカナでは表せない音を確かめるためのもの
+                        if i < ask.ipa.count, !ask.ipa[i].isEmpty {
+                            Text(ask.ipa[i]).font(.caption.monospaced()).foregroundStyle(Theme.muted).textSelection(.enabled)
+                        }
+                    }
                     Spacer(minLength: 0)
                     SpeakButton(text: w)
                     let exists = added.contains(w) || model.hasPhrase(w)
