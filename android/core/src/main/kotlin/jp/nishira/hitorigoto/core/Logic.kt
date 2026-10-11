@@ -117,7 +117,9 @@ object Logic {
 
     fun recurringKey(text: String): String = collapseSpaces(text.lowercase())
 
-    private val spaces = Regex("(?U)\\s+")
+    /** JS の `\s`（Unicode の空白）。Android の正規表現（ICU）は `(?U)` を受け付けず、`\s` は ASCII だけなので文字で書く */
+    const val JS_WS = "[\\t\\n\\x0B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]"
+    private val spaces = Regex("$JS_WS+")
 
     /** 空白の連続を 1 つに（JS の replace(/\s+/g, ' ').trim()） */
     fun collapseSpaces(s: String): String = s.split(spaces).filter { it.isNotEmpty() }.joinToString(" ")

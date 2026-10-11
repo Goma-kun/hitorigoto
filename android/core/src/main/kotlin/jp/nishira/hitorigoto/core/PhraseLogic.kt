@@ -75,7 +75,7 @@ object PhraseLogic {
             added = today, due = today, hits = 0, status = "active", history = emptyList())
     }
 
-    private val lineRe = Regex("(?U)^(.+?)(?:\\t+|\\s*[｜|—–]\\s*|\\s+-\\s+)(.+)$")
+    private val lineRe = Regex("^(.+?)(?:\\t+|${Logic.JS_WS}*[｜|—–]${Logic.JS_WS}*|${Logic.JS_WS}+-${Logic.JS_WS}+)(.+)$")
 
     /** まとめて追加の 1 行 → (表現, 意味)。区切りは タブ・｜・|・—・–・「 - 」 */
     fun parsePhraseLine(line: String): Pair<String, String>? {
@@ -251,7 +251,7 @@ object PhraseLogic {
     private val edgeRe = Regex("^[^a-z〜~…]+|[^a-z'〜~…]+$")
     private val wildRe = Regex("[〜~…]")
     private val xRe = Regex("^x+$")
-    private val ws = Regex("(?U)\\s+")
+    private val ws = Regex("${Logic.JS_WS}+")
 
     /** 表現を照合用トークン列にする。「／」で区切った別形ごとの配列 */
     private fun tokenAlternatives(phrase: String): List<List<Tok>> {

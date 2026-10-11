@@ -2,4 +2,264 @@
 <!-- 日本語が既定。英語は values-en。文言は iOS の Localizable.xcstrings と同じ -->
 <resources>
     <string name="app_name">独り言</string>
+
+    <!-- タブ・共通 -->
+    <string name="tab_speak">話す</string>
+    <string name="tab_phrases">表現</string>
+    <string name="tab_history">履歴</string>
+    <string name="tab_settings">設定</string>
+    <string name="cancel">やめる</string>
+    <string name="close">閉じる</string>
+    <string name="save">保存</string>
+    <string name="delete">削除</string>
+    <string name="delete_do">削除する</string>
+    <string name="discard">捨てる</string>
+    <string name="copy">📋 コピー</string>
+    <string name="copied">✓ コピーしました</string>
+    <string name="read_aloud">読み上げます</string>
+    <string name="coach_name">寅吉（トラさん）</string>
+
+    <!-- 話す -->
+    <string name="greeting_morning">おはようございます</string>
+    <string name="greeting_day">こんにちは</string>
+    <string name="greeting_evening">こんばんは</string>
+    <string name="sub_first">%1$sでひとりごと、はじめましょう</string>
+    <plurals name="sub_rounds">
+        <item quantity="other">これまで %1$d 回。今日も聞かせてくれ</item>
+    </plurals>
+    <string name="step_speak">話す</string>
+    <string name="step_ai">AI が聞く</string>
+    <string name="step_fixes">直しが届く</string>
+    <string name="mic_start">開始</string>
+    <string name="mic_stop">停止</string>
+    <string name="mic_reviewing">添削中</string>
+    <string name="hint_idle">押して、%1$sで話すだけ</string>
+    <string name="hint_recording">話し終えたら、もう一度押してください</string>
+    <string name="hint_reviewing">音声を Gemini に送っています</string>
+    <string name="reviewing_body">🧠 音声を聞き直して添削中…（少し時間がかかります）</string>
+    <string name="mic_builtin">内蔵マイク</string>
+    <string name="mic_wired">有線イヤホンのマイク</string>
+    <string name="mic_label">マイク: %1$s</string>
+    <string name="mic_silent_title">マイクから音が入っていません</string>
+    <string name="mic_silent_body">このままだと無音の録音になります。マイクを確かめてください。</string>
+    <string name="mic_silent_body_named">今のマイクは「%1$s」です。このままだと無音の録音になります。</string>
+    <string name="listening">聞き取り中…（字幕は参考です。添削は音声そのものから行います）</string>
+    <string name="recording_no_captions">録音中。字幕は出ませんが、音声はそのまま添削に使います</string>
+    <string name="captions_stopped_for_recording">録音を優先して字幕を止めました（同時に使うとマイクを取り合う機種です）</string>
+
+    <string name="pending_title">送っていない録音があります</string>
+    <string name="pending_label">%1$s に録音（%2$s）</string>
+    <string name="send_again">もう一度送る</string>
+    <string name="pending_note">添削が終わるまで録音は手元に残ります。送れたら自動で消えます。</string>
+    <string name="pending_discard_confirm">この録音を捨てますか？ 添削されていない話した内容が消えます。</string>
+    <string name="pending_blocks_start">送っていない録音があります。先に「もう一度送る」か「捨てる」を選んでください。</string>
+
+    <string name="today_phrases">今日の表現</string>
+    <string name="today_empty_add">覚えたい表現を入れると、毎日ここに出ます</string>
+    <string name="today_empty_none">今日出す表現はありません</string>
+    <string name="add_short">入れる</string>
+    <string name="tag_new">新</string>
+    <string name="tag_retry">再挑戦</string>
+    <string name="tag_again">再登場</string>
+    <string name="skip">見送り</string>
+    <string name="skip_help">今日の話に合わないので外す（回数には数えません。2 日あけて戻ります）</string>
+    <plurals name="today_note">
+        <item quantity="other">話す前に目を通しておき、無理のない範囲で独り言に混ぜてください（%1$d 個）。停止すると、出たかどうかを判定します。</item>
+    </plurals>
+    <string name="recurring_today">また出やがった点（今日はここに気をつける）</string>
+    <string name="recurring_short">また出やがった点</string>
+    <string name="recurring_history">また出やがった点（2 回以上出た指摘）</string>
+    <string name="recurring_history_note">同じ直しが 2 回以上出たものです。話す前にも出しています。</string>
+    <plurals name="times_last">
+        <item quantity="other">%1$d 回・最後は %2$s</item>
+    </plurals>
+
+    <string name="good_title">わしが買ってやる点</string>
+    <string name="copy_all">📋 結果をまとめてコピー（指摘つき）</string>
+    <string name="copy_with_issues">📋 コピー（指摘つき）</string>
+    <string name="today_results">今日の表現の結果</string>
+    <string name="today_results_note">◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。</string>
+    <string name="as_said_prefix">口から出た形: </string>
+    <string name="cycle_help">タップで ◎ → △ → ✗ → − と切り替え</string>
+    <string name="fix_these">直すべし</string>
+    <string name="no_issues">今日は言うことがねえ。指摘なし</string>
+    <string name="type_phrasing">言い回し</string>
+    <string name="type_vocabulary">語彙</string>
+    <string name="type_grammar">文法</string>
+    <string name="add_to_phrases">＋ 表現集へ</string>
+    <string name="added_check">✓ 入れた</string>
+    <string name="silent_fixes_title">ほかに、添削文で直っていたところ</string>
+    <string name="silent_fixes_note">コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。</string>
+    <string name="pron_title">発音で伝わらなかった箇所</string>
+    <string name="pron_note">左が言おうとした語、右がそう聞こえた語です。ここを直すと伝わります。</string>
+    <string name="doubt_title">端末の聞き取りが外した箇所</string>
+    <string name="doubt_note">端末の音声認識が外した箇所です。音声ではちゃんと言えていました。誤りとしては数えていません。</string>
+    <string name="corrected_title">あしたのために（音読用）</string>
+    <string name="transcript_title">実際に話した内容（音声から書き起こし）</string>
+    <string name="result_footnote">※ 音声を Gemini に送って書き起こし・添削しました。音声は添削のためにその場で送るだけで、保存されません。</string>
+
+    <!-- エラー -->
+    <string name="err_mic_denied">マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。</string>
+    <string name="err_start">録音を始められませんでした: %1$s</string>
+    <string name="err_no_recording">録音が取れませんでした</string>
+    <string name="err_too_short">短すぎました。もう少し話してから止めてください</string>
+    <string name="err_kept">\n録音は残してあります。「もう一度送る」でやり直せます。</string>
+    <string name="err_need_key_blocker">添削には Google Gemini の API キーが必要です。「設定」で登録するか、「おまかせ（キー不要）」に切り替えてください。</string>
+    <string name="err_need_key_kept">添削には Google Gemini の API キーが必要です。設定から登録してください。録音は残してあります。</string>
+    <string name="err_no_key">添削には Google Gemini の API キーが必要です。設定から登録してください。</string>
+    <string name="err_key_invalid">API キーが正しくないようです。設定で確かめてください。</string>
+    <string name="err_project_denied">この API キーのプロジェクトは Google 側で利用が許可されていません。Google AI Studio で「請求階層」を確認してください。</string>
+    <string name="err_rate_limited">アクセスが集中しています。少し待ってからもう一度どうぞ。</string>
+    <string name="err_server">AI の応答でエラーが起きました: %1$s</string>
+    <string name="err_network">通信に失敗しました: %1$s</string>
+    <string name="err_parse">AI の応答を読めませんでした。もう一度お試しください。</string>
+    <string name="err_audio">音声が空か大きすぎます。</string>
+    <plurals name="err_quota">
+        <item quantity="other">今日の無料の添削（%1$d 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。</item>
+    </plurals>
+    <plurals name="err_quota_blocker">
+        <item quantity="other">今日の無料の添削（%1$d 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。</item>
+    </plurals>
+    <string name="err_relay_busy">今日はアクセスが集中しています。明日またどうぞ。</string>
+    <string name="err_silent">聞き取れる発話がありませんでした。マイクから音が入っていなかったかもしれません。</string>
+    <string name="err_silent_local">録音に音が入っていませんでした。マイクが拾えていません。イヤホンの設定を確かめてください。</string>
+    <string name="current_mic">今のマイクは「%1$s」です。</string>
+    <string name="check_mic">マイクを確かめて、もう一度どうぞ。</string>
+
+    <!-- 表現 -->
+    <string name="in_training">稽古中</string>
+    <string name="untried">まだ試していない</string>
+    <string name="graduated">卒業</string>
+    <string name="add_button">＋ 追加</string>
+    <string name="flash_button">🃏 カードで復習</string>
+    <string name="filter_all">すべて</string>
+    <string name="filter_today">今日</string>
+    <string name="filter_active">稽古中</string>
+    <string name="filter_fresh">未挑戦</string>
+    <string name="filter_graduated">卒業</string>
+    <string name="filter_word">単語</string>
+    <string name="phrases_empty">まだ表現がありません。「＋ 追加」で入れるか、添削の「直すべし」から 1 タップで入れてください。</string>
+    <string name="phrases_no_match">この絞り込みに当てはまる表現はありません</string>
+    <string name="phrases_rule">独り言の中で形のまま使えたら ◎。◎ 1 回目のあとは 1 週間後、2 回目のあとは 3 週間後に戻り、3 回で卒業です。△ と ✗ は翌日、見送りは 2 日あけて戻ります。</string>
+    <string name="word">単語</string>
+    <string name="due_today">今日</string>
+    <string name="due_tomorrow">明日</string>
+    <plurals name="due_days">
+        <item quantity="other">%1$d 日後</item>
+    </plurals>
+    <plurals name="due_overdue">
+        <item quantity="other">%1$d 日遅れ</item>
+    </plurals>
+    <string name="back_to_training">稽古に戻す</string>
+    <string name="mark_graduated">卒業にする</string>
+    <string name="delete_phrase_confirm">「%1$s」を削除しますか？</string>
+    <string name="add_phrase_title">表現を追加</string>
+    <string name="one_at_a_time">1 件ずつ</string>
+    <string name="phrase">表現</string>
+    <string name="phrase_example">例: for a split second</string>
+    <string name="meaning">意味</string>
+    <string name="meaning_example">例: ほんの一瞬</string>
+    <string name="kind">種類</string>
+    <string name="kind_phrase">表現</string>
+    <string name="kind_word">単語</string>
+    <string name="added">入れました</string>
+    <string name="enter_phrase">表現を入力してください</string>
+    <string name="already_in">その表現はもう入っています</string>
+    <string name="add_several">まとめて入れる</string>
+    <string name="add_several_hint">1 行に 1 つ。「表現 ｜ 意味」の形。区切りは ｜ か — かタブ。区切りが無い行は表現だけ入ります。同じ表現は増えません。</string>
+    <plurals name="added_n">
+        <item quantity="other">%1$d 件入れました</item>
+    </plurals>
+    <string name="flash_title">カードで復習</string>
+    <string name="flash_empty">カードで復習できる表現（意味つき・稽古中）がありません</string>
+    <string name="flash_done">おしまい。言えた %1$d・言えなかった %2$d</string>
+    <string name="flash_done_note">言えなかったものは明日の「今日の表現」に戻ります</string>
+    <string name="back_to_list">一覧に戻る</string>
+    <string name="flash_say_first">%1$sで言ってみてから、答えを見てください</string>
+    <string name="flash_reveal">答えを見る</string>
+    <string name="said_it">言えた</string>
+    <string name="missed">言えなかった</string>
+
+    <!-- 履歴 -->
+    <plurals name="corrections_count">
+        <item quantity="other">指摘 %1$d 件</item>
+    </plurals>
+    <string name="old_record">古い記録（指摘だけ残しています）</string>
+    <string name="full_text">全文</string>
+    <string name="collapse">たたむ</string>
+    <string name="history_empty">独り言の記録はまだありません</string>
+    <string name="in_phrases">表現集に入っています</string>
+    <string name="to_phrases">表現集へ入れる</string>
+    <string name="label_corrected">修正版</string>
+    <string name="label_said">話した内容（音声から書き起こし）</string>
+
+    <!-- 設定 -->
+    <string name="section_review">添削</string>
+    <string name="engine_label">添削のエンジン</string>
+    <string name="engine_cloud">おまかせ（キー不要・1 日の回数制限あり）</string>
+    <string name="engine_gemini">自分の Gemini キー（回数の制限なし）</string>
+    <plurals name="reviews_left">
+        <item quantity="other">今日はあと %1$d 回（%2$d 回まで）</item>
+    </plurals>
+    <plurals name="reviews_used_up">
+        <item quantity="other">今日の %1$d 回を使い切りました。日付が変わると戻ります</item>
+    </plurals>
+    <string name="cloud_note">音声は開発者の中継サーバーを通して Google の Gemini に送られ、添削だけが返ります。音声はサーバーに保存しません。API キーの用意は要りません。</string>
+    <string name="gemini_note">自分の API キーで Google の Gemini に直接送ります。開発者のサーバーは介在せず、回数の制限もありません。</string>
+    <string name="section_key">Google Gemini API キー</string>
+    <string name="key_set">キーは登録済みです</string>
+    <string name="key_not_set">まだ登録されていません</string>
+    <string name="key_change">キーを変更…</string>
+    <string name="key_register">キーを登録…</string>
+    <string name="key_delete">削除…</string>
+    <string name="key_delete_confirm">Gemini の API キーを削除しますか？</string>
+    <string name="key_delete_body">削除すると、もう一度キーを入力するまで「自分の Gemini キー」での添削はできません。「おまかせ」は引き続き使えます。</string>
+    <string name="key_deleted">削除しました</string>
+    <string name="key_note">キーは端末の中にだけ暗号化して保存します。録音した音声と話した内容は、あなたのキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。日本からの利用は無料枠が使えず従量課金になることがあります（1 回の添削で数円程度）。</string>
+    <string name="key_sheet_title">キーを登録</string>
+    <string name="key_field">キー</string>
+    <string name="key_placeholder">AIza… または AQ… で始まるキー</string>
+    <string name="key_test">接続テスト</string>
+    <string name="key_testing">確認中…</string>
+    <string name="key_connected">✓ つながりました</string>
+    <string name="key_saved">✓ 保存しました</string>
+    <string name="key_sheet_note">Google AI Studio で作ったキーを貼り付けてください。キーはこの端末の中にだけ保存します。</string>
+    <string name="key_get">Google AI Studio でキーを取得する</string>
+    <string name="section_language">話す言語</string>
+    <string name="lang_en_us">英語（アメリカ）</string>
+    <string name="lang_en_gb">英語（イギリス）</string>
+    <string name="lang_es_es">スペイン語（スペイン）</string>
+    <string name="lang_es_mx">スペイン語（中南米）</string>
+    <string name="lang_ja_jp">日本語</string>
+    <string name="name_english">英語</string>
+    <string name="name_spanish">スペイン語</string>
+    <string name="name_japanese">日本語</string>
+    <string name="language_note">コーチの添削・字幕の聞き取り・読み上げの声が、この言語に合わせて変わります。アメリカとイギリス、スペインと中南米では綴りや言い回しをそれぞれに揃えます。説明は端末の言語に合わせます。</string>
+    <string name="section_captions">字幕</string>
+    <string name="captions_toggle">話している最中に字幕を出す（端末の音声認識）</string>
+    <string name="captions_note">字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。</string>
+    <string name="section_voice">読み上げの声</string>
+    <string name="voice_rate">読み上げの速さ</string>
+    <string name="voice_slow">ゆっくり</string>
+    <string name="voice_normal">ふつう</string>
+    <string name="voice_try">試しに読み上げる</string>
+    <string name="voice_note">直した文と今日の表現を、端末の声で読み上げます。通信もお金もかかりません。</string>
+    <string name="section_daily">毎日の表現</string>
+    <string name="daily_total">1 日に出す表現の数</string>
+    <string name="daily_new">そのうち、まだ試していない表現は最大</string>
+    <string name="daily_note">「話す」タブに毎日出す表現の数です。出せなかった表現（✗・△）と期日が来た表現を先に選び、残りの枠にまだ試していない表現を入れます。数を増やすより、無理なく混ぜられる数にしておくほうが続きます。</string>
+    <string name="section_data">記録の書き出し・読み込み</string>
+    <string name="export">書き出す</string>
+    <string name="import_">読み込む</string>
+    <string name="exported">✓ 書き出しました</string>
+    <string name="export_failed">✗ 書き出せませんでした</string>
+    <plurals name="imported">
+        <item quantity="other">✓ 読み込みました（追加されたセッション: %1$d 件）</item>
+    </plurals>
+    <string name="import_failed">✗ 読み込めませんでした（独り言の書き出しファイルではないようです）</string>
+    <string name="data_note">独り言の記録（練習・繰り返し・表現集）を JSON として書き出し・読み込みできます。Chrome 拡張機能版・iPhone 版の「書き出し」ファイルもそのまま読み込めます。読み込みは混ぜる方式で、同じ記録は増えません。</string>
+    <string name="section_about">このアプリについて</string>
+    <string name="about_version">独り言 %1$s</string>
+    <string name="privacy_policy">プライバシーポリシー</string>
+    <string name="support">サポート</string>
 </resources>
