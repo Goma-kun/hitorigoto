@@ -50,7 +50,10 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true, model: MODEL });
 
-    if (!env.APP_KEY || request.headers.get('x-app-key') !== env.APP_KEY) {
+    // 合言葉は APP_KEY（現行）と APP_KEY_OLD（入れ替え中の旧。配信中の旧版が更新されたら消す）のどちらか
+    const presented = request.headers.get('x-app-key');
+    const accepted = [env.APP_KEY, env.APP_KEY_OLD].filter((k) => k && k.length > 0);
+    if (!presented || !accepted.includes(presented)) {
       return json({ error: { code: 'forbidden', message: 'このアプリからの呼び出しではありません' } }, 403);
     }
     const device = (request.headers.get('x-device-id') || '').trim();

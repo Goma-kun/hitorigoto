@@ -5,8 +5,10 @@ import Security
 /// 音声はここを経由して Gemini に送られる。回数は端末ごとに 1 日 FREE_PER_DAY 回（サーバー側の設定）
 enum Relay {
     static let url = URL(string: "https://hitorigoto-relay.jsphdn.workers.dev")!
-    /// アプリであることの合言葉。本格的な不正対策（App Attest）は後で足す
-    static let appKey = "RcyXaLCKzZ2tkKfSkTAE8yw5jEZH-erC"
+    /// アプリであることの合言葉。本格的な不正対策（App Attest）は後で足す。
+    /// **値はリポジトリに置かない。** `ios/tools/gen_relay_secret.sh` が `~/.config/nishira/hitorigoto_relay_app_key` から
+    /// `ios/App/RelaySecret.swift`（gitignore 済み）を作る。無いとビルドが通らない（README 参照）
+    static let appKey = RelaySecret.appKey
 
     /// 端末ごとの識別子。初回に作って Keychain に置く（アプリを入れ直しても同じ端末なら残る）
     static var deviceId: String {

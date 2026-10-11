@@ -59,6 +59,19 @@ node test/prompt_test.mjs
 
 `test/harness-*.html` は chrome API をスタブして本番コードを通す検証用ページです（パッケージには含めません）。
 
+### iPhone / Mac アプリ（ios/）と中継サーバーの合言葉
+
+アプリは開発者の中継サーバー（`server/`）経由で Gemini に送るため、アプリであることを示す合言葉を持ちます。
+**合言葉はリポジトリに入れていません。** ビルドの前に一度、
+
+```
+sh ios/tools/gen_relay_secret.sh
+```
+
+を実行すると `~/.config/nishira/hitorigoto_relay_app_key` から `ios/App/RelaySecret.swift`（.gitignore 済み）が作られます。
+自分で中継サーバーを立てて使う場合は、そのサーバーの `APP_KEY` と同じ値をそのファイルに置いてください。
+Android 版（`android/`）は `android/local.properties` の `hitorigoto.relayAppKey=` から読みます（`android/README.md`）。
+
 ## プライバシー
 
 [PRIVACY.md](PRIVACY.md) を参照してください。
