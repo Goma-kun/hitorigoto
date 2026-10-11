@@ -45,6 +45,7 @@ func run(_ c: [String: Any]) -> Any {
         let L = c["labels"] as? [String: Any] ?? [:]
         let labels = Logic.Labels(corrected: L["corrected"] as? String ?? "", issues: L["issues"] as? String ?? "",
                                   good: L["good"] as? String ?? "", said: L["said"] as? String ?? "", pron: L["pron"] as? String ?? "",
+                                  asks: L["asks"] as? String ?? "",
                                   types: L["types"] as? [String: String] ?? [:])
         return Logic.buildSessionText(s, labels: labels)
     case "addDays":

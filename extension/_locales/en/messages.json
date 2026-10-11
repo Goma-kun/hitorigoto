@@ -652,5 +652,11 @@
   },
   "dailySetTo": {
     "message": "✓ Saved. Takes effect the next time phrases are picked."
+  },
+  "enAsks": {
+    "message": "What you said in your own language, in English"
+  },
+  "enAsksNote": {
+    "message": "Spots where you switched to your own language. Treat it like asking a friend: try the first way out loud."
   }
 }

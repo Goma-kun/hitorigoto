@@ -64,7 +64,10 @@ push({ fn: 'prompts' }, { system: JS.EN_SYSTEM_PROMPT, audio: JS.EN_SYSTEM_PROMP
 // 応答の解釈
 const SAMPLE = { corrected_text: 'I went.', issues: [{ type: 'VOCABULARY', original: 'a', suggestion: 'b', reason: 'r' }, { type: 'x', original: 'c', suggestion: 'd' }, { type: 'grammar', original: 'e' }],
   recurring: ['x', 3, ''], recognition_doubt: ['their'], good: 'g', transcript: 't', pronunciation: [{ said: 's', heard_as: 'h' }, { said: 'only' }],
-  targets: [{ phrase: 'p', used: 1, exact: 'yes', as_said: 'x' }, { used: true }, { phrase: 'q', used: false }] };
+  targets: [{ phrase: 'p', used: 1, exact: 'yes', as_said: 'x' }, { used: true }, { phrase: 'q', used: false }],
+  asks: [{ said: 'ガツガツ食べてた', ways: ['He was wolfing down the food.', 'He was scarfing it down.', 3, 'third', 'fourth'], note: 'n' },
+         { said: '', ways: ['x'] }, { said: 'only said' }, { said: 'no ways', ways: [] }, { said: 'a', ways: ['b'] }, { said: 'c', ways: ['d'] },
+         { said: 'e', ways: ['f'] }, { said: 'g', ways: ['h'] }, { said: 'i', ways: ['j'] }] };
 for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) + '\n```', 'はい。' + JSON.stringify({ ...SAMPLE, good: '括弧 } と "引用符"' }) + ' です',
   '{ "corrected_text": ', 'ローマ帝国は…', '{"corrected_text":"Hello."}', JSON.stringify({ issues: [] })]) {
   push({ fn: 'parseFeedback', raw }, JS.parseFeedback(raw));
@@ -88,7 +91,11 @@ for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) 
   push({ fn: 'userMessage', text: '  Hi there.\n', recurring: rec, extra: '' }, JS.buildEnglishUserMessage('  Hi there.\n', rec, ''));
   push({ fn: 'userMessage', text: '', recurring: [], extra: '\n\n## x', audio: true }, JS.buildEnglishAudioUserMessage('', [], '\n\n## x'));
   push({ fn: 'userMessage', text: 'asr', recurring: rec, extra: '', audio: true }, JS.buildEnglishAudioUserMessage('asr', rec, ''));
-  const labels = { corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容', pron: '発音', types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' } };
+  const labels = { corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容', pron: '発音', asks: '英語ならこう', types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' } };
+  const labelsNoAsks = { corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容', pron: '発音', types: {} };
+  const s2 = { id: 'z', transcript: 't', asks: [{ said: 'ガツガツ', ways: ['wolf down', 'scarf down'], note: 'n' }, { said: 'x', ways: ['y'], note: '' }], good: 'g' };
+  push({ fn: 'sessionText', session: s2, labels }, JS.buildSessionText(s2, labels));
+  push({ fn: 'sessionText', session: s2, labels: labelsNoAsks }, JS.buildSessionText(s2, labelsNoAsks));
   const s1 = { id: 'x', transcript: ' I go. ', corrected_text: 'I went.', issues: [{ type: 'grammar', original: 'go', suggestion: 'went', reason: 'r' }, { type: 'zzz', suggestion: 'only' }], good: 'g', pronunciation: [{ said: 'a', heard_as: 'b', note: '' }, { said: 'c', heard_as: 'd', note: 'n' }] };
   push({ fn: 'sessionText', session: s1, labels }, JS.buildSessionText(s1, labels));
   push({ fn: 'sessionText', session: { id: 'y', folded: true, issues: [{ type: 'grammar', suggestion: 's' }] }, labels }, JS.buildSessionText({ id: 'y', folded: true, issues: [{ type: 'grammar', suggestion: 's' }] }, labels));

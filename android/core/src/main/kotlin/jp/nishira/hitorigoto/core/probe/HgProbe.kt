@@ -56,7 +56,7 @@ private fun run(c: JsonObject): JsonElement {
             val L = c["labels"] as? JsonObject ?: JsonObject(emptyMap())
             val types = (L["types"] as? JsonObject)?.mapValues { it.value.str() ?: "" } ?: emptyMap()
             JsonPrimitive(Logic.buildSessionText(s, Logic.Labels(L["corrected"].str() ?: "", L["issues"].str() ?: "",
-                L["good"].str() ?: "", L["said"].str() ?: "", L["pron"].str() ?: "", types)))
+                L["good"].str() ?: "", L["said"].str() ?: "", L["pron"].str() ?: "", types, asks = L["asks"].str() ?: "")))
         }
         "addDays" -> JsonPrimitive(PhraseLogic.addDays(c["date"].str() ?: "", c["n"].int() ?: 0))
         "daysBetween" -> JsonPrimitive(PhraseLogic.daysBetween(c["from"].str() ?: "", c["to"].str() ?: ""))

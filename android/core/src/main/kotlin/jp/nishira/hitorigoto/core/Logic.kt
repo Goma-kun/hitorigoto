@@ -99,6 +99,13 @@ object Logic {
             else Target(phrase, used = truthy(it?.get("used")), exact = truthy(it?.get("exact")),
                 asSaid = asText(it?.get("as_said")), note = asText(it?.get("note")))
         }
+        // 「日本語で言った分 → 英語ならこう」。said と ways が揃っているものだけ。ways は最大 3・件数は最大 5（JS と同じ）
+        val asks = (d["asks"] as? JsonArray ?: JsonArray(emptyList())).mapNotNull { raw ->
+            val it = raw as? JsonObject
+            val said = asText(it?.get("said"))
+            val ways = (it?.get("ways") as? JsonArray ?: JsonArray(emptyList())).map { w -> asText(w) }.filter { w -> w.isNotEmpty() }.take(3)
+            if (said.isEmpty() || ways.isEmpty()) null else Ask(said, ways, asText(it?.get("note")))
+        }
         return Feedback(
             correctedText = asText(d["corrected_text"]),
             issues = issues,
@@ -108,6 +115,7 @@ object Logic {
             transcript = asText(d["transcript"]),
             pronunciation = pron.take(3),
             targets = targets,
+            asks = asks.take(5),
         )
     }
 
@@ -164,6 +172,8 @@ object Logic {
     data class Labels(
         val corrected: String, val issues: String, val good: String, val said: String, val pron: String,
         val types: Map<String, String>,
+        /** 「日本語で言った分 → 英語ならこう」の見出し。空なら出さない（JS の L.asks が無いときと同じ） */
+        val asks: String = "",
     )
 
     /** 履歴からコピーするときの本文。修正版だけでなく、何をどう直されたのかも持ち出せる */
@@ -184,6 +194,11 @@ object Logic {
         if (!pron.isNullOrEmpty() && L.pron.isNotEmpty()) {
             val lines = pron.mapIndexed { i, it -> "${i + 1}. ${it.said} → ${it.heardAs}" + (if (it.note.isEmpty()) "" else "\n   ${it.note}") }
             out.add("【${L.pron}】\n${lines.joinToString("\n\n")}")
+        }
+        val asks = s.asks
+        if (!asks.isNullOrEmpty() && L.asks.isNotEmpty()) {
+            val lines = asks.mapIndexed { i, it -> "${i + 1}. ${it.said}\n   → ${it.ways.joinToString(" / ")}" + (if (it.note.isEmpty()) "" else "\n   ${it.note}") }
+            out.add("【${L.asks}】\n${lines.joinToString("\n\n")}")
         }
         val g = s.good
         if (!g.isNullOrEmpty()) out.add("【${L.good}】\n$g")

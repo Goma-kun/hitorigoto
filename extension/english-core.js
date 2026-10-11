@@ -82,7 +82,23 @@ function parseFeedback(raw) {
     pronunciation:     asPronunciation(data.pronunciation),
     // 「今日の狙いの表現」を渡したときだけ入る。渡していなければ空
     targets:           asTargets(data.targets),
+    // 日本語で言った箇所（英語が出てこなかったところ）→ 英語ならこう言う。無ければ空
+    asks:              asAsks(data.asks),
   };
+}
+
+// 「日本語で言った分 → 英語ならこう」。said（言ったこと）と ways（言い方）が揃っているものだけ残す。
+// ways は文字列だけを残し、最大 3 通り。件数は最大 5
+function asAsks(v) {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(it => ({
+      said: asText(it && it.said),
+      ways: (Array.isArray(it && it.ways) ? it.ways : []).map(asText).filter(Boolean).slice(0, 3),
+      note: asText(it && it.note),
+    }))
+    .filter(it => it.said && it.ways.length > 0)
+    .slice(0, 5);
 }
 
 // 「今日使うと決めていた表現」の判定。phrase が無いものは何の判定か分からないので捨てる
@@ -196,6 +212,14 @@ function buildSessionText(session, labels) {
     const lines = pron.map((it, i) =>
       `${i + 1}. ${it.said} → ${it.heard_as}${it.note ? `\n   ${it.note}` : ''}`);
     out.push(`【${L.pron}】\n${lines.join('\n\n')}`);
+  }
+
+  // 日本語で言った分 → 英語ならこう。無いセッションでは出さない
+  const asks = s.asks || [];
+  if (asks.length > 0 && L.asks) {
+    const lines = asks.map((it, i) =>
+      `${i + 1}. ${it.said}\n   → ${(it.ways || []).join(' / ')}${it.note ? `\n   ${it.note}` : ''}`);
+    out.push(`【${L.asks}】\n${lines.join('\n\n')}`);
   }
 
   if (s.good) out.push(`【${L.good}】\n${s.good}`);

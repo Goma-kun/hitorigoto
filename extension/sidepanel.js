@@ -282,6 +282,7 @@ async function runEnglishFeedback(blob = null) {
     };
     if (fb.audio && fb.transcript && text && text !== fb.transcript) session.asr_transcript = text;
     if (fb.pronunciation && fb.pronunciation.length > 0) session.pronunciation = fb.pronunciation;
+    if (fb.asks && fb.asks.length > 0) session.asks = fb.asks;
 
     // 今日の表現が出たかを判定して記録する。AI の判定（音声を聞いている）があればそちらを優先
     if (targetCards.length > 0) {
@@ -458,6 +459,40 @@ function renderEnglish() {
       ul.appendChild(li);
     });
     sec.appendChild(ul);
+    enFeedback.appendChild(sec);
+  }
+
+  // 日本語で言った分（英語が出てこなかったところ）→ 英語ならこう。
+  // 英語が話せる友だちに「これ、英語でどう言う？」と聞いた答えとして出す。叱る枠ではないので緑で
+  if ((fb.asks || []).length > 0) {
+    const sec = enSection(T('enAsks'));
+    fb.asks.forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'en-issue';
+      const said = document.createElement('p');
+      said.className = 'en-ask-said';
+      said.textContent = it.said;
+      card.appendChild(said);
+      it.ways.forEach((w, i) => {
+        const row = document.createElement('div');
+        row.className = 'en-swap';
+        const way = document.createElement('span');
+        way.className = 'en-said';
+        way.textContent = (i === 0 ? '→ ' : '　 ') + w;
+        row.appendChild(way);
+        card.appendChild(row);
+      });
+      if (it.note) {
+        const why = document.createElement('p');
+        why.className = 'en-reason';
+        why.textContent = it.note;
+        card.appendChild(why);
+      }
+      // 1 つ目の言い方を表現集へ（言ったこと＝日本語をメモに残す）
+      card.appendChild(phraseAddBtn({ suggestion: it.ways[0], type: 'phrasing', original: it.said }));
+      sec.appendChild(card);
+    });
+    sec.appendChild(enNote(T('enAsksNote'), 'en-fineprint'));
     enFeedback.appendChild(sec);
   }
 
@@ -660,6 +695,23 @@ function renderHistory() {
       card.appendChild(ul);
     }
 
+    // 日本語で言った分 → 英語ならこう。無いセッションでは出さない
+    if ((s.asks || []).length > 0) {
+      const title = document.createElement('div');
+      title.className = 'en-section-title';
+      title.textContent = T('enAsks');
+      card.appendChild(title);
+
+      const ul = document.createElement('ul');
+      ul.className = 'en-recurring';
+      s.asks.forEach(it => {
+        const li = document.createElement('li');
+        li.textContent = `${it.said} → ${(it.ways || []).join(' / ')}${it.note ? ` — ${it.note}` : ''}`;
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+
     const btn = enHistoryCopyBtn(s);
     if (btn) card.appendChild(btn);
     panelHistory.appendChild(card);
@@ -674,6 +726,7 @@ function enCopyLabels() {
     issues:    T('enIssues'),
     good:      T('enGood'),
     pron:      T('enPronunciation'),
+    asks:      T('enAsks'),
     said:      T('enLabelSaid'),
     types: { phrasing: T('typePhrasing'), vocabulary: T('typeVocabulary'), grammar: T('typeGrammar') },
   };

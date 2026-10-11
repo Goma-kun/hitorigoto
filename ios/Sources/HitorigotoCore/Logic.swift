@@ -86,6 +86,14 @@ public enum Logic {
             return Target(phrase: phrase, used: truthy(it?["used"]), exact: truthy(it?["exact"]),
                           asSaid: asText(it?["as_said"]), note: asText(it?["note"]))
         }
+        // 「日本語で言った分 → 英語ならこう」。said と ways が揃っているものだけ。ways は最大 3・件数は最大 5（JS と同じ）
+        let asks = ((d["asks"] as? [Any]) ?? []).compactMap { raw -> Ask? in
+            let it = raw as? [String: Any]
+            let said = asText(it?["said"])
+            let ways = ((it?["ways"] as? [Any]) ?? []).map { asText($0) }.filter { !$0.isEmpty }.prefix(3)
+            guard !said.isEmpty, !ways.isEmpty else { return nil }
+            return Ask(said: said, ways: Array(ways), note: asText(it?["note"]))
+        }
         return Feedback(
             correctedText: asText(d["corrected_text"]),
             issues: issues,
@@ -94,7 +102,8 @@ public enum Logic {
             good: asText(d["good"]),
             transcript: asText(d["transcript"]),
             pronunciation: Array(pron.prefix(3)),
-            targets: targets
+            targets: targets,
+            asks: Array(asks.prefix(5))
         )
     }
 
@@ -158,9 +167,11 @@ public enum Logic {
 
     public struct Labels {
         public var corrected: String, issues: String, good: String, said: String, pron: String
+        /// 「日本語で言った分 → 英語ならこう」の見出し。空なら出さない（JS の L.asks が無いときと同じ）
+        public var asks: String
         public var types: [String: String]
-        public init(corrected: String, issues: String, good: String, said: String, pron: String, types: [String: String]) {
-            self.corrected = corrected; self.issues = issues; self.good = good; self.said = said; self.pron = pron; self.types = types
+        public init(corrected: String, issues: String, good: String, said: String, pron: String, asks: String = "", types: [String: String]) {
+            self.corrected = corrected; self.issues = issues; self.good = good; self.said = said; self.pron = pron; self.asks = asks; self.types = types
         }
     }
 
@@ -182,6 +193,12 @@ public enum Logic {
                 "\(i + 1). \(it.said) → \(it.heardAs)" + (it.note.isEmpty ? "" : "\n   \(it.note)")
             }
             out.append("【\(L.pron)】\n\(lines.joined(separator: "\n\n"))")
+        }
+        if let asks = s.asks, !asks.isEmpty, !L.asks.isEmpty {
+            let lines = asks.enumerated().map { i, it in
+                "\(i + 1). \(it.said)\n   → \(it.ways.joined(separator: " / "))" + (it.note.isEmpty ? "" : "\n   \(it.note)")
+            }
+            out.append("【\(L.asks)】\n\(lines.joined(separator: "\n\n"))")
         }
         if let g = s.good, !g.isEmpty { out.append("【\(L.good)】\n\(g)") }
         if let t = s.transcript, !t.isEmpty { out.append("【\(L.said)】\n\(t.trimmingCharacters(in: .whitespacesAndNewlines))") }

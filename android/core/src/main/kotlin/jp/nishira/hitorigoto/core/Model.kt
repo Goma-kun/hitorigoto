@@ -24,6 +24,14 @@ data class Pronunciation(
     val note: String = "",
 )
 
+/** 日本語で言った分（英語が出てこなかったところ）→ 英語ならこう言う */
+@Serializable
+data class Ask(
+    val said: String,
+    val ways: List<String>,
+    val note: String = "",
+)
+
 /** 「今日の狙いの表現」の AI 判定 */
 @Serializable
 data class Target(
@@ -45,6 +53,7 @@ data class Feedback(
     val transcript: String = "",             // 音声モードだけ
     val pronunciation: List<Pronunciation> = emptyList(),
     val targets: List<Target> = emptyList(),
+    val asks: List<Ask> = emptyList(),
 )
 
 /** 履歴に残す「その日の今日の表現の結果」 */
@@ -67,6 +76,8 @@ data class Session(
     val good: String? = null,
     val pronunciation: List<Pronunciation>? = null,
     val targets: List<SessionTarget>? = null,
+    /** 日本語で言った分 → 英語ならこう。無いセッションでは null */
+    val asks: List<Ask>? = null,
     /** アプリ版だけ: どのエンジンで添削したか（cloud / gemini）。拡張の記録には無い */
     val engine: String? = null,
 )

@@ -28,6 +28,17 @@ public struct Pronunciation: Codable, Equatable, Sendable {
     }
 }
 
+/// 日本語で言った分（英語が出てこなかったところ）→ 英語ならこう言う
+public struct Ask: Codable, Equatable, Sendable {
+    public var said: String
+    public var ways: [String]
+    public var note: String
+
+    public init(said: String, ways: [String], note: String = "") {
+        self.said = said; self.ways = ways; self.note = note
+    }
+}
+
 /// 「今日の狙いの表現」の AI 判定
 public struct Target: Codable, Equatable, Sendable {
     public var phrase: String
@@ -53,18 +64,19 @@ public struct Feedback: Codable, Equatable, Sendable {
     public var transcript: String            // 音声モードだけ
     public var pronunciation: [Pronunciation]
     public var targets: [Target]
+    public var asks: [Ask]
 
     enum CodingKeys: String, CodingKey {
         case correctedText = "corrected_text", issues, recurring
-        case recognitionDoubt = "recognition_doubt", good, transcript, pronunciation, targets
+        case recognitionDoubt = "recognition_doubt", good, transcript, pronunciation, targets, asks
     }
 
     public init(correctedText: String = "", issues: [Issue] = [], recurring: [String] = [],
                 recognitionDoubt: [String] = [], good: String = "", transcript: String = "",
-                pronunciation: [Pronunciation] = [], targets: [Target] = []) {
+                pronunciation: [Pronunciation] = [], targets: [Target] = [], asks: [Ask] = []) {
         self.correctedText = correctedText; self.issues = issues; self.recurring = recurring
         self.recognitionDoubt = recognitionDoubt; self.good = good; self.transcript = transcript
-        self.pronunciation = pronunciation; self.targets = targets
+        self.pronunciation = pronunciation; self.targets = targets; self.asks = asks
     }
 }
 
@@ -88,20 +100,23 @@ public struct Session: Codable, Equatable, Sendable {
     public var good: String?
     public var pronunciation: [Pronunciation]?
     public var targets: [SessionTarget]?
+    /// 日本語で言った分 → 英語ならこう。無いセッションでは nil
+    public var asks: [Ask]?
     /// アプリ版だけ: どのエンジンで添削したか（gemini / apple）。拡張の記録には無い
     public var engine: String?
 
     enum CodingKeys: String, CodingKey {
         case id, folded, transcript, asrTranscript = "asr_transcript", correctedText = "corrected_text"
-        case issues, good, pronunciation, targets, engine
+        case issues, good, pronunciation, targets, asks, engine
     }
 
     public init(id: String, folded: Bool? = nil, transcript: String? = nil, asrTranscript: String? = nil,
                 correctedText: String? = nil, issues: [Issue] = [], good: String? = nil,
-                pronunciation: [Pronunciation]? = nil, targets: [SessionTarget]? = nil, engine: String? = nil) {
+                pronunciation: [Pronunciation]? = nil, targets: [SessionTarget]? = nil, asks: [Ask]? = nil,
+                engine: String? = nil) {
         self.id = id; self.folded = folded; self.transcript = transcript; self.asrTranscript = asrTranscript
         self.correctedText = correctedText; self.issues = issues; self.good = good
-        self.pronunciation = pronunciation; self.targets = targets; self.engine = engine
+        self.pronunciation = pronunciation; self.targets = targets; self.asks = asks; self.engine = engine
     }
 
     public init(from decoder: Decoder) throws {
@@ -115,6 +130,7 @@ public struct Session: Codable, Equatable, Sendable {
         good = try c.decodeIfPresent(String.self, forKey: .good)
         pronunciation = try c.decodeIfPresent([Pronunciation].self, forKey: .pronunciation)
         targets = try c.decodeIfPresent([SessionTarget].self, forKey: .targets)
+        asks = try c.decodeIfPresent([Ask].self, forKey: .asks)
         engine = try c.decodeIfPresent(String.self, forKey: .engine)
     }
 }
