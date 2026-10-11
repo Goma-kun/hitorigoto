@@ -13,7 +13,9 @@ enum SilentFixes {
 
     private static let fillers: Set<String> = ["uh", "um", "er", "hmm", "mm", "ah", "oh"]
 
-    static func find(transcript: String, corrected: String, issues: [Issue], limit: Int = 10) -> [Fix] {
+    static func find(transcript: String, corrected: String, issues: [Issue], asks: [Ask] = [], limit: Int = 10) -> [Fix] {
+        // 「日本語で言った分 → 英語ならこう」は指摘と同じ扱いで除く（日本語の箇所を "直し" として出さない）
+        let issues = issues + asks.compactMap { a in a.ways.first.map { Issue(type: "phrasing", original: a.said, suggestion: $0) } }
         let a = tokens(transcript), b = tokens(corrected)
         guard !a.isEmpty, !b.isEmpty, a.count < 1200, b.count < 1200 else { return [] }
         // LCS で「同じ語」の並びを取り、それ以外を変更の塊にまとめる
@@ -39,8 +41,9 @@ enum SilentFixes {
         }
         closeRun()
         let merged = runs
-        let coveredFrom = issues.compactMap { $0.original?.lowercased() }
-        let coveredTo = issues.map { $0.suggestion.lowercased() }
+        // 日本語は分かち書きで語が割れるので、空白を除いた形で比べる
+        let coveredFrom = issues.compactMap { $0.original?.lowercased().replacingOccurrences(of: " ", with: "") }
+        let coveredTo = issues.map { $0.suggestion.lowercased().replacingOccurrences(of: " ", with: "") }
         var out: [Fix] = []
         for r in merged {
             let fromWords = a[r.ai..<r.aj].map(\.text), toWords = b[r.bi..<r.bj].map(\.text)
@@ -61,7 +64,7 @@ enum SilentFixes {
             let gt = gist(b[r.bi..<r.bj], before: r.bi > 0 ? b[r.bi - 1].key : nil)
             if gf == gt { continue }
             // コーチの指摘と重なるものは出さない（中身の語が、指摘の「言った形」か「直した形」に全部入っていれば重なり）
-            let gfs = gf.joined(separator: " "), gts = gt.joined(separator: " ")
+            let gfs = gf.joined(), gts = gt.joined()
             if (!gfs.isEmpty && coveredFrom.contains(where: { $0.contains(gfs) || gfs.contains($0) }))
                 || (!gts.isEmpty && coveredTo.contains(where: { $0.contains(gts) || gts.contains($0) })) { continue }
             // 前後 1 語を添えて読める形にする

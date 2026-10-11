@@ -105,7 +105,7 @@ struct SpeakView: View {
                     }
                 }
             }
-            let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues)
+            let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues, asks: fb.asks)
             if !silent.isEmpty {
                 Card(title: String(localized: "ほかに、添削文で直っていたところ")) {
                     ForEach(silent) { f in
@@ -118,6 +118,17 @@ struct SpeakView: View {
             if !fb.recurring.isEmpty {
                 Card(title: String(localized: "また出やがった点")) {
                     ForEach(fb.recurring, id: \.self) { Text("• \($0)").font(.callout).foregroundStyle(Theme.text) }
+                }
+            }
+            if !fb.asks.isEmpty {
+                // 日本語で言った分（英語が出てこなかったところ）→ 英語ならこう。
+                // 英語が話せる友だちに「これ、英語でどう言う？」と聞いた答え。叱る枠ではない
+                Card(title: String(localized: "日本語で言った分、英語ならこう")) {
+                    ForEach(Array(fb.asks.enumerated()), id: \.offset) { i, a in
+                        if i > 0 { Divider().overlay(Theme.line) }
+                        AskRow(ask: a)
+                    }
+                    Note(text: String(localized: "英語が出てこなくて日本語で言ったところです。友だちに聞いたつもりで、いちばん上の言い方から口に出してみてください。"))
                 }
             }
             if !fb.pronunciation.isEmpty {
@@ -419,6 +430,33 @@ struct TodayResultCard: View {
                 }
             }
             Note(text: String(localized: "◎ 形のまま出た ／ △ 崩れて出た ／ ✗ 出なかった ／ − 見送り。判定が違っていたら記号をタップして直してください。"))
+        }
+    }
+}
+
+/// 「日本語で言った分 → 英語ならこう」1 件。言い方ごとに読み上げと「表現集へ」
+struct AskRow: View {
+    @EnvironmentObject var model: AppModel
+    let ask: Ask
+    @State private var added: Set<String> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(ask.said).font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
+            ForEach(Array(ask.ways.enumerated()), id: \.offset) { i, w in
+                HStack(alignment: .top, spacing: 6) {
+                    Text(i == 0 ? "→" : "　").foregroundStyle(Theme.faint)
+                    Text(w).font(.callout.weight(i == 0 ? .bold : .regular)).foregroundStyle(Theme.good).textSelection(.enabled)
+                    Spacer(minLength: 0)
+                    SpeakButton(text: w)
+                    let exists = added.contains(w) || model.hasPhrase(w)
+                    Button(exists ? String(localized: "✓ 入れた") : String(localized: "＋ 表現集へ")) {
+                        if model.addFromAsk(ask, way: w) { added.insert(w) }
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini).tint(exists ? Theme.good : Theme.accent).disabled(exists)
+                }
+            }
+            if !ask.note.isEmpty { Text(ask.note).font(.caption).foregroundStyle(Theme.muted) }
         }
     }
 }

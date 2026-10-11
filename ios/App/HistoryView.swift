@@ -62,7 +62,7 @@ struct SessionCard: View {
                         }
                     }
                 }
-                let silent = SilentFixes.find(transcript: session.transcript ?? "", corrected: session.correctedText ?? "", issues: session.issues)
+                let silent = SilentFixes.find(transcript: session.transcript ?? "", corrected: session.correctedText ?? "", issues: session.issues, asks: session.asks ?? [])
                 if !silent.isEmpty {
                     Text("ほかに、添削文で直っていたところ").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(silent) { f in
@@ -73,6 +73,12 @@ struct SessionCard: View {
                     Text("発音で伝わらなかった箇所").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(pron.enumerated()), id: \.offset) { _, p in
                         Text("• \(p.said) → \(p.heardAs)" + (p.note.isEmpty ? "" : " — \(p.note)")).font(.caption).foregroundStyle(Theme.text)
+                    }
+                }
+                if let asks = session.asks, !asks.isEmpty {
+                    Text("日本語で言った分、英語ならこう").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                    ForEach(Array(asks.enumerated()), id: \.offset) { _, a in
+                        Text("• \(a.said) → \(a.ways.joined(separator: " / "))").font(.caption).foregroundStyle(Theme.text)
                     }
                 }
                 if let t = session.targets, !t.isEmpty {
@@ -87,7 +93,7 @@ struct SessionCard: View {
     }
 
     static let labels = Logic.Labels(corrected: String(localized: "修正版"), issues: String(localized: "直すべし"), good: String(localized: "わしが買ってやる点"), said: String(localized: "話した内容（音声から書き起こし）"),
-                                     pron: String(localized: "発音で伝わらなかった箇所"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
+                                     pron: String(localized: "発音で伝わらなかった箇所"), asks: String(localized: "日本語で言った分、英語ならこう"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
 
     private var dateLabel: String {
         guard let d = ISO8601DateFormatter.withMillis.date(from: session.id) ?? ISO8601DateFormatter().date(from: session.id) else { return session.id }

@@ -62,6 +62,7 @@ import jp.nishira.hitorigoto.PendingRecording
 import jp.nishira.hitorigoto.R
 import jp.nishira.hitorigoto.Recorder
 import jp.nishira.hitorigoto.SilentFixes
+import jp.nishira.hitorigoto.core.Ask
 import jp.nishira.hitorigoto.core.Feedback
 import jp.nishira.hitorigoto.core.Issue
 import jp.nishira.hitorigoto.core.Judged
@@ -326,7 +327,7 @@ private fun ResultBody(model: AppModel) {
         if (fb.issues.isEmpty()) Note(stringResource(R.string.no_issues))
         else fb.issues.forEachIndexed { i, it -> if (i > 0) Line(); IssueRow(model, it) }
     }
-    val silent = SilentFixes.find(fb.transcript, fb.correctedText, fb.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces)
+    val silent = SilentFixes.find(fb.transcript, fb.correctedText, fb.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = fb.asks)
     if (silent.isNotEmpty()) {
         Card(title = stringResource(R.string.silent_fixes_title)) {
             for (f in silent) {
@@ -340,6 +341,16 @@ private fun ResultBody(model: AppModel) {
         }
     }
     if (fb.recurring.isNotEmpty()) Card(title = stringResource(R.string.recurring_short)) { for (r in fb.recurring) Text("• $r", color = Hg.text, fontSize = 15.sp) }
+    if (fb.asks.isNotEmpty()) {
+        // 日本語で言った分（英語が出てこなかったところ）→ 英語ならこう。友だちに聞いた答えなので叱る枠ではない
+        Card(title = stringResource(R.string.asks_title)) {
+            fb.asks.forEachIndexed { i, a ->
+                if (i > 0) Line()
+                AskRow(model, a)
+            }
+            Note(stringResource(R.string.asks_note))
+        }
+    }
     if (fb.pronunciation.isNotEmpty()) {
         Card(title = stringResource(R.string.pron_title)) {
             fb.pronunciation.forEachIndexed { i, p ->
@@ -382,8 +393,31 @@ private fun ResultBody(model: AppModel) {
 fun sessionLabels() = Logic.Labels(
     corrected = stringResource(R.string.label_corrected), issues = stringResource(R.string.fix_these), good = stringResource(R.string.good_title),
     said = stringResource(R.string.label_said), pron = stringResource(R.string.pron_title),
+    asks = stringResource(R.string.asks_title),
     types = mapOf("phrasing" to stringResource(R.string.type_phrasing), "vocabulary" to stringResource(R.string.type_vocabulary), "grammar" to stringResource(R.string.type_grammar)),
 )
+
+/** 「日本語で言った分 → 英語ならこう」1 件。言い方ごとに読み上げと「表現集へ」 */
+@Composable
+fun AskRow(model: AppModel, ask: Ask) {
+    val c = Hg
+    var added by remember(ask) { mutableStateOf(setOf<String>()) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(ask.said, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        ask.ways.forEachIndexed { i, w ->
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (i == 0) "→" else "　", color = c.faint)
+                Text(w, color = c.good, fontSize = 15.sp, fontWeight = if (i == 0) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.weight(1f))
+                SpeakButton(model, w)
+                val exists = w in added || model.hasPhrase(w)
+                TextButton(onClick = { if (model.addFromAsk(ask, w)) added = added + w }, enabled = !exists) {
+                    Text(stringResource(if (exists) R.string.added_check else R.string.add_to_phrases), fontSize = 12.sp)
+                }
+            }
+        }
+        if (ask.note.isNotEmpty()) Text(ask.note, color = c.muted, fontSize = 12.sp)
+    }
+}
 
 /** 添削のあとの「今日の表現の結果」。記号をタップして直せる */
 @Composable

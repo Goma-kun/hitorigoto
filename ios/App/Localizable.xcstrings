@@ -2291,6 +2291,26 @@
           }
         }
       }
+    },
+    "日本語で言った分、英語ならこう": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you said in your own language, in English"
+          }
+        }
+      }
+    },
+    "英語が出てこなくて日本語で言ったところです。友だちに聞いたつもりで、いちばん上の言い方から口に出してみてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spots where you switched to your own language. Treat it like asking a friend: try the first way out loud."
+          }
+        }
+      }
     }
   }
 }

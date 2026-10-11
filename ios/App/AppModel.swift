@@ -158,7 +158,7 @@ final class AppModel: ObservableObject {
     func showLatestSessionAsResult() {
         guard let s = snapshot.sessions.first else { return }
         latest = Feedback(correctedText: s.correctedText ?? "", issues: s.issues, recurring: [], recognitionDoubt: [],
-                          good: s.good ?? "", transcript: s.transcript ?? "", pronunciation: s.pronunciation ?? [], targets: [])
+                          good: s.good ?? "", transcript: s.transcript ?? "", pronunciation: s.pronunciation ?? [], targets: [], asks: s.asks ?? [])
         latestSession = s
         latestJudged = (s.targets ?? []).compactMap { t in
             guard let c = snapshot.phrases.first(where: { $0.phrase == t.phrase }) else { return nil }
@@ -274,6 +274,7 @@ final class AppModel: ObservableObject {
                                   correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: engine)
             if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
             if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
+            if !fb.asks.isEmpty { session.asks = fb.asks }
 
             var judged: [Judged] = []
             if !targetCards.isEmpty {
@@ -343,6 +344,11 @@ final class AppModel: ObservableObject {
 
     func addFromIssue(_ issue: Issue) -> Bool {
         addPhrase(issue.suggestion, meaning: "", kind: issue.type == "vocabulary" ? "word" : "phrase", source: "issue", note: issue.original ?? "")
+    }
+
+    /// 「日本語で言った分 → 英語ならこう」から表現集へ。意味の欄に日本語で言ったことを残す
+    func addFromAsk(_ ask: Ask, way: String) -> Bool {
+        addPhrase(way, meaning: ask.said, kind: "phrase", source: "issue")
     }
 
     func hasPhrase(_ text: String) -> Bool { PhraseLogic.findPhrase(snapshot.phrases, text) != nil }

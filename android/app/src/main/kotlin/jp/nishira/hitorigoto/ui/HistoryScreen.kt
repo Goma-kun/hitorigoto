@@ -80,7 +80,7 @@ private fun SessionCard(model: AppModel, session: Session) {
                     }
                 }
             }
-            val silent = SilentFixes.find(session.transcript ?: "", session.correctedText ?: "", session.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces)
+            val silent = SilentFixes.find(session.transcript ?: "", session.correctedText ?: "", session.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = session.asks ?: emptyList())
             if (silent.isNotEmpty()) {
                 Text(stringResource(R.string.silent_fixes_title), color = Hg.faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 for (f in silent) Text("• ${f.from} → ${f.to}", color = Hg.text, fontSize = 12.sp, lineHeight = 17.sp)
@@ -89,6 +89,11 @@ private fun SessionCard(model: AppModel, session: Session) {
             if (!pron.isNullOrEmpty()) {
                 Text(stringResource(R.string.pron_title), color = Hg.faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 for (p in pron) Text("• ${p.said} → ${p.heardAs}" + (if (p.note.isEmpty()) "" else " — ${p.note}"), color = Hg.text, fontSize = 12.sp, lineHeight = 17.sp)
+            }
+            val asks = session.asks
+            if (!asks.isNullOrEmpty()) {
+                Text(stringResource(R.string.asks_title), color = Hg.faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                for (a in asks) Text("• ${a.said} → ${a.ways.joinToString(" / ")}", color = Hg.text, fontSize = 12.sp, lineHeight = 17.sp)
             }
             val t = session.targets
             if (!t.isNullOrEmpty()) {

@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import jp.nishira.hitorigoto.core.ExportFile
+import jp.nishira.hitorigoto.core.Ask
 import jp.nishira.hitorigoto.core.Feedback
 import jp.nishira.hitorigoto.core.GeminiClient
 import jp.nishira.hitorigoto.core.HgJson
@@ -199,7 +200,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         if (!BuildConfig.DEBUG) return
         val s = snapshot.sessions.firstOrNull() ?: return
         latest = Feedback(correctedText = s.correctedText ?: "", issues = s.issues, good = s.good ?: "",
-            transcript = s.transcript ?: "", pronunciation = s.pronunciation ?: emptyList())
+            transcript = s.transcript ?: "", pronunciation = s.pronunciation ?: emptyList(), asks = s.asks ?: emptyList())
         latestSession = s
         latestJudged = (s.targets ?: emptyList()).mapNotNull { t ->
             val c = snapshot.phrases.firstOrNull { it.phrase == t.phrase } ?: return@mapNotNull null
@@ -292,6 +293,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             correctedText = fb.correctedText, issues = fb.issues, good = fb.good, engine = engine)
         if (p.transcript.isNotEmpty() && p.transcript != fb.transcript) session = session.copy(asrTranscript = p.transcript)
         if (fb.pronunciation.isNotEmpty()) session = session.copy(pronunciation = fb.pronunciation)
+        if (fb.asks.isNotEmpty()) session = session.copy(asks = fb.asks)
 
         var judged: List<Judged> = emptyList()
         if (targetCards.isNotEmpty()) {
@@ -357,6 +359,9 @@ class AppModel(app: Application) : AndroidViewModel(app) {
 
     fun addFromIssue(issue: Issue): Boolean =
         addPhrase(issue.suggestion, "", if (issue.type == "vocabulary") "word" else "phrase", "issue", issue.original ?: "")
+
+    /** 「日本語で言った分 → 英語ならこう」から表現集へ。意味の欄に日本語で言ったことを残す */
+    fun addFromAsk(ask: Ask, way: String): Boolean = addPhrase(way, ask.said, "phrase", "issue")
 
     fun hasPhrase(text: String): Boolean = PhraseLogic.findPhrase(snapshot.phrases, text) != null
 

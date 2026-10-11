@@ -1,5 +1,6 @@
 package jp.nishira.hitorigoto
 
+import jp.nishira.hitorigoto.core.Ask
 import jp.nishira.hitorigoto.core.Issue
 
 /**
@@ -14,8 +15,10 @@ object SilentFixes {
 
     private class Tok(val text: String, val key: String)
 
-    fun find(transcript: String, corrected: String, issues: List<Issue>, wordSpaces: Boolean = true, limit: Int = 10): List<Fix> {
+    fun find(transcript: String, corrected: String, issues0: List<Issue>, wordSpaces: Boolean = true, limit: Int = 10, asks: List<Ask> = emptyList()): List<Fix> {
         if (!wordSpaces) return emptyList()
+        // 「日本語で言った分 → 英語ならこう」は指摘と同じ扱いで除く（日本語の箇所を "直し" として出さない）
+        val issues = issues0 + asks.mapNotNull { a -> a.ways.firstOrNull()?.let { Issue("phrasing", a.said, it) } }
         val a = tokens(transcript); val b = tokens(corrected)
         if (a.isEmpty() || b.isEmpty() || a.size >= 1200 || b.size >= 1200) return emptyList()
         val n = a.size; val m = b.size
@@ -38,8 +41,9 @@ object SilentFixes {
             }
         }
         closeRun()
-        val coveredFrom = issues.mapNotNull { it.original?.lowercase() }
-        val coveredTo = issues.map { it.suggestion.lowercase() }
+        // 日本語は分かち書きで語が割れるので、空白を除いた形で比べる
+        val coveredFrom = issues.mapNotNull { it.original?.lowercase()?.replace(" ", "") }
+        val coveredTo = issues.map { it.suggestion.lowercase().replace(" ", "") }
         val out = ArrayList<Fix>()
         for (r in runs) {
             val (ai, aj, bi, bj) = r
@@ -59,7 +63,7 @@ object SilentFixes {
             val gf = gist(a.subList(ai, aj), if (ai > 0) a[ai - 1].key else null)
             val gt = gist(b.subList(bi, bj), if (bi > 0) b[bi - 1].key else null)
             if (gf == gt) continue
-            val gfs = gf.joinToString(" "); val gts = gt.joinToString(" ")
+            val gfs = gf.joinToString(""); val gts = gt.joinToString("")
             if ((gfs.isNotEmpty() && coveredFrom.any { it.contains(gfs) || gfs.contains(it) })
                 || (gts.isNotEmpty() && coveredTo.any { it.contains(gts) || gts.contains(it) })) continue
             // 前後 1 語を添えて読める形にする

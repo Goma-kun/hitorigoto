@@ -90,6 +90,8 @@
     <string name="added_check">✓ 入れた</string>
     <string name="silent_fixes_title">ほかに、添削文で直っていたところ</string>
     <string name="silent_fixes_note">コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。</string>
+    <string name="asks_title">日本語で言った分、英語ならこう</string>
+    <string name="asks_note">英語が出てこなくて日本語で言ったところです。友だちに聞いたつもりで、いちばん上の言い方から口に出してみてください。</string>
     <string name="pron_title">発音で伝わらなかった箇所</string>
     <string name="pron_note">左が言おうとした語、右がそう聞こえた語です。ここを直すと伝わります。</string>
     <string name="doubt_title">端末の聞き取りが外した箇所</string>

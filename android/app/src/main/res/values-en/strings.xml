@@ -90,6 +90,8 @@
     <string name="added_check">✓ Added</string>
     <string name="silent_fixes_title">Other fixes in the corrected text</string>
     <string name="silent_fixes_note">The coach only lists the important corrections. These are the rest, found by comparing the corrected text with what you said.</string>
+    <string name="asks_title">What you said in your own language, in English</string>
+    <string name="asks_note">Spots where you switched to your own language. Treat it like asking a friend: try the first way out loud.</string>
     <string name="pron_title">Pronunciation that didn’t come across</string>
     <string name="pron_note">Left is what you meant, right is what it sounded like. Fixing these makes you understood.</string>
     <string name="doubt_title">Where the device’s speech recognition missed</string>
