@@ -233,8 +233,14 @@ struct SpeakView: View {
         } else if let name = Platform.inputName(uid: model.micUID) {
             Label(name, systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
         } else if model.micUID == Platform.micAuto {
-            // イヤホンがつながっていないだけなので、警告にはしない
-            Label("イヤホンなし（\(Platform.inputDeviceName) で録ります）", systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
+            if let held = Platform.bluetoothOutputsWithoutMic().first {
+                // つながってはいるが、通話用（マイク）を iPhone など別の機器が掴んでいる
+                Label("\(held) はつながっていますが、マイクが Mac に出ていません（iPhone などが通話用に掴んでいるとこうなります）。今は \(Platform.inputDeviceName) で録ります", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2.weight(.bold)).foregroundStyle(Theme.warn).multilineTextAlignment(.center)
+            } else {
+                // イヤホンがつながっていないだけなので、警告にはしない
+                Label("イヤホンなし（\(Platform.inputDeviceName) で録ります）", systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
+            }
         } else {
             Label("選んだマイクがつながっていません（\(Platform.inputDeviceName) で録ります）", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption2.weight(.bold)).foregroundStyle(Theme.warn)

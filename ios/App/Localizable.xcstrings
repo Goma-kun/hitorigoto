@@ -2341,6 +2341,16 @@
           }
         }
       }
+    },
+    "%1$@ はつながっていますが、マイクが Mac に出ていません（iPhone などが通話用に掴んでいるとこうなります）。今は %2$@ で録ります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ is connected, but its microphone isn’t available to the Mac (this happens when an iPhone or another device holds it for calls). Recording with %2$@ for now"
+          }
+        }
+      }
     }
   }
 }

@@ -92,6 +92,22 @@ enum Platform {
         return devices.first { $0.uid == setting }
     }
 
+    /// つながってはいるがマイクが Mac に出ていない Bluetooth 機器の名前。
+    /// Sony のイヤホンのように 2 台同時につなげる機種は、通話用（マイク）を iPhone 側が掴んでいると
+    /// Mac には音の出口（出力）だけが見えて、入力装置が現れない（2026-10-12 XM4 で実測）
+    static func bluetoothOutputsWithoutMic() -> [String] {
+        #if os(macOS)
+        let inputs = Set(macInputDevices().map(\.uid))
+        return macOutputDevices().filter { $0.bluetooth }.map(\.uid).compactMap { uid -> String? in
+            let base = uid.hasSuffix(":output") ? String(uid.dropLast(7)) : uid
+            if inputs.contains(base + ":input") || inputs.contains(base) { return nil }
+            return macOutputDevices().first { $0.uid == uid }?.name
+        }
+        #else
+        return []
+        #endif
+    }
+
     /// 設定で選んだマイクの名前。選んでいない・今つながっていないときは nil（そのときは Mac の既定で録る）。
     /// 選んだマイクは Recorder が名指しで掴む。**Mac の既定の入力は変えない**
     /// （既定を Bluetooth イヤホンにすると、ほかのアプリがマイクを使うたびに通話モードに落ちて音楽の音が細くなるため）
@@ -119,7 +135,16 @@ enum Platform {
         return value == kAudioDeviceTransportTypeBluetooth || value == kAudioDeviceTransportTypeBluetoothLE
     }
 
+    /// 出力装置（Bluetooth のイヤホンがマイク無しでつながっている状態を見分けるのに使う）
+    private static func macOutputDevices() -> [(id: AudioDeviceID, uid: String, name: String, bluetooth: Bool)] {
+        macDevices(scope: kAudioDevicePropertyScopeOutput)
+    }
+
     private static func macInputDevices() -> [(id: AudioDeviceID, uid: String, name: String, bluetooth: Bool)] {
+        macDevices(scope: kAudioDevicePropertyScopeInput)
+    }
+
+    private static func macDevices(scope: AudioObjectPropertyScope) -> [(id: AudioDeviceID, uid: String, name: String, bluetooth: Bool)] {
         var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
                                               mScope: kAudioObjectPropertyScopeGlobal,
                                               mElement: kAudioObjectPropertyElementMain)
@@ -129,9 +154,9 @@ enum Platform {
         var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
         guard AudioObjectGetPropertyData(sys, &addr, 0, nil, &size, &ids) == noErr else { return [] }
         return ids.compactMap { id in
-            // 入力チャンネルを持つものだけ
+            // その向き（入力／出力）のチャンネルを持つものだけ
             var cfg = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreamConfiguration,
-                                                 mScope: kAudioDevicePropertyScopeInput,
+                                                 mScope: scope,
                                                  mElement: kAudioObjectPropertyElementMain)
             var cfgSize: UInt32 = 0
             guard AudioObjectGetPropertyDataSize(id, &cfg, 0, nil, &cfgSize) == noErr, cfgSize > 0 else { return nil }
