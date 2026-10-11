@@ -2311,6 +2311,36 @@
           }
         }
       }
+    },
+    "つながっているイヤホンを優先": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefer connected earphones"
+          }
+        }
+      }
+    },
+    "「つながっているイヤホンを優先」は、そのとき Mac につながっている Bluetooth のイヤホン（XM4 でも XM6 でも）のマイクで録ります。ここで選んだマイクは、このアプリの録音中だけ使います。Mac の「サウンド」設定は変わりません。つながっていないときは、Mac の既定のマイクで録ります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Prefer connected earphones” records with whichever Bluetooth earphones are connected to the Mac at the time. The microphone chosen here is used only while this app records; the Mac’s Sound settings are not changed. When none is connected, the Mac’s default microphone is used."
+          }
+        }
+      }
+    },
+    "イヤホンなし（%@ で録ります）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No earphones (recording with %@)"
+          }
+        }
+      }
     }
   }
 }

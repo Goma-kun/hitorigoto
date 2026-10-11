@@ -196,10 +196,10 @@ final class Recorder: ObservableObject {
         // 設定で選んだマイクがつながっていれば、それを名指しで掴む。無ければ Mac の既定（iPhone は OS が選ぶ）
         var named = false
         #if os(macOS)
-        if let name = Platform.inputName(uid: micUID), let cap = DeviceCapture(uid: micUID, onBuffer: onBuffer) {
+        if let dev = Platform.resolveMic(micUID), let cap = DeviceCapture(uid: dev.uid, onBuffer: onBuffer) {
             cap.start()
             capture = cap
-            inputName = name
+            inputName = dev.name
             named = true
         }
         #endif

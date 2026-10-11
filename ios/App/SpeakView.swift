@@ -232,6 +232,9 @@ struct SpeakView: View {
             Label(Platform.inputDeviceName, systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
         } else if let name = Platform.inputName(uid: model.micUID) {
             Label(name, systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
+        } else if model.micUID == Platform.micAuto {
+            // イヤホンがつながっていないだけなので、警告にはしない
+            Label("イヤホンなし（\(Platform.inputDeviceName) で録ります）", systemImage: "mic").font(.caption2).foregroundStyle(Theme.faint)
         } else {
             Label("選んだマイクがつながっていません（\(Platform.inputDeviceName) で録ります）", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption2.weight(.bold)).foregroundStyle(Theme.warn)

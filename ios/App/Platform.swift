@@ -66,22 +66,37 @@ enum Platform {
     struct InputDevice: Identifiable, Hashable {
         let uid: String
         let name: String
+        /// Bluetooth のイヤホン・ヘッドセットか（「つながっているイヤホンを優先」の対象）
+        let bluetooth: Bool
         var id: String { uid }
     }
 
+    /// 設定値「つながっているイヤホンを優先」。XM4 と XM6 のように使う機種が日によって変わるので、
+    /// 機種を固定せず、そのとき Mac につながっている Bluetooth のマイクを掴む（2026-10-12 本人要望）
+    static let micAuto = "auto"
+
     static func inputDevices() -> [InputDevice] {
         #if os(macOS)
-        return macInputDevices().map { InputDevice(uid: $0.uid, name: $0.name) }
+        return macInputDevices().map { InputDevice(uid: $0.uid, name: $0.name, bluetooth: $0.bluetooth) }
         #else
         return []
         #endif
+    }
+
+    /// 設定のマイクを、今つながっている装置の uid に解決する。
+    /// "" は Mac の既定（nil）、"auto" はつながっている Bluetooth のマイク（無ければ nil）、それ以外は選んだ uid がつながっていればそれ
+    static func resolveMic(_ setting: String) -> InputDevice? {
+        if setting.isEmpty { return nil }
+        let devices = inputDevices()
+        if setting == micAuto { return devices.first { $0.bluetooth } }
+        return devices.first { $0.uid == setting }
     }
 
     /// 設定で選んだマイクの名前。選んでいない・今つながっていないときは nil（そのときは Mac の既定で録る）。
     /// 選んだマイクは Recorder が名指しで掴む。**Mac の既定の入力は変えない**
     /// （既定を Bluetooth イヤホンにすると、ほかのアプリがマイクを使うたびに通話モードに落ちて音楽の音が細くなるため）
     static func inputName(uid: String) -> String? {
-        uid.isEmpty ? nil : inputDevices().first { $0.uid == uid }?.name
+        resolveMic(uid)?.name
     }
 
     #if os(macOS)
@@ -94,7 +109,17 @@ enum Platform {
         return value.takeRetainedValue() as String
     }
 
-    private static func macInputDevices() -> [(id: AudioDeviceID, uid: String, name: String)] {
+    /// 装置のつなぎ方（Bluetooth かどうか）
+    private static func macIsBluetooth(_ id: AudioDeviceID) -> Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value) == noErr else { return false }
+        return value == kAudioDeviceTransportTypeBluetooth || value == kAudioDeviceTransportTypeBluetoothLE
+    }
+
+    private static func macInputDevices() -> [(id: AudioDeviceID, uid: String, name: String, bluetooth: Bool)] {
         var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
                                               mScope: kAudioObjectPropertyScopeGlobal,
                                               mElement: kAudioObjectPropertyElementMain)
@@ -117,7 +142,7 @@ enum Platform {
             guard list.reduce(0, { $0 + Int($1.mNumberChannels) }) > 0 else { return nil }
             let uid = macString(id, kAudioDevicePropertyDeviceUID)
             let name = macString(id, kAudioObjectPropertyName)
-            return uid.isEmpty || name.isEmpty ? nil : (id, uid, name)
+            return uid.isEmpty || name.isEmpty ? nil : (id, uid, name, macIsBluetooth(id))
         }
     }
     #endif

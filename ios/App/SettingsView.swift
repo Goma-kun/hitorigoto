@@ -75,10 +75,11 @@ struct SettingsView: View {
             if Platform.canChooseInput {
                 Section {
                     Picker("録音に使うマイク", selection: $model.micUID) {
+                        Text("つながっているイヤホンを優先").tag(Platform.micAuto)
                         Text("Mac の既定に合わせる").tag("")
                         ForEach(Platform.inputDevices()) { d in Text(d.name).tag(d.uid) }
                     }
-                    Text("ここで選んだマイクは、このアプリの録音中だけ使います。Mac の「サウンド」設定は変わりません。選んだマイクがつながっていないときは、Mac の既定のマイクで録ります。")
+                    Text("「つながっているイヤホンを優先」は、そのとき Mac につながっている Bluetooth のイヤホン（XM4 でも XM6 でも）のマイクで録ります。ここで選んだマイクは、このアプリの録音中だけ使います。Mac の「サウンド」設定は変わりません。つながっていないときは、Mac の既定のマイクで録ります。")
                         .font(.caption).foregroundStyle(Theme.muted)
                 } header: { Text("マイク") }
             }
