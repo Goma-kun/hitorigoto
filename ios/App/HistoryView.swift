@@ -3,29 +3,64 @@ import SwiftUI
 /// 履歴タブ。拡張機能の履歴パネルと同じ（繰り返し → セッションのカード）
 struct HistoryView: View {
     @EnvironmentObject var model: AppModel
+    /// 検索の文字。空白区切りで全部の語を含む記録だけ出す（本人要望 2026-10-12）
+    @State private var query = ""
+    @FocusState private var searching: Bool
+
+    private var words: [String] {
+        query.split(whereSeparator: { $0 == " " || $0 == "　" }).map { $0.lowercased() }.filter { !$0.isEmpty }
+    }
+    private var shown: [Session] {
+        words.isEmpty ? model.snapshot.sessions : model.snapshot.sessions.filter { $0.matches(words) }
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                let recurring = Logic.topRecurring(model.snapshot.recurring)
-                if !recurring.isEmpty {
-                    // 何の一覧かと、いつのことかが分かるようにする（唐突に見える・2026-09-28 本人指摘）
-                    Card(title: String(localized: "また出やがった点（2 回以上出た指摘）")) {
-                        ForEach(recurring, id: \.text) { r in
-                            RecurringRow(item: r)
-                        }
-                        Note(text: String(localized: "同じ直しが 2 回以上出たものです。話す前にも出しています。"))
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.faint)
+                    TextField(String(localized: "履歴を検索（話した内容・直し・英語ならこう）"), text: $query)
+                        .textFieldStyle(.plain)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
+                        .focused($searching)
+                    if !query.isEmpty {
+                        // 日本語入力の変換中（下線つき）の文字は、入力を終わらせてからでないと消えない
+                        Button { searching = false; DispatchQueue.main.async { query = "" } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.faint) }.buttonStyle(.borderless)
                     }
                 }
-                if model.snapshot.sessions.isEmpty {
-                    Note(text: String(localized: "独り言の記録はまだありません"))
+                .padding(.horizontal, 10).padding(.vertical, 8)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                // 文字選択は検索欄の外だけに付ける（ScrollView 全体に付けると ✕ が押せなかった・2026-10-12）
+                VStack(spacing: 8) {
+                    if !words.isEmpty {
+                        Text(String(localized: "\(shown.count) 件")).font(.caption).foregroundStyle(Theme.faint).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    let recurring = Logic.topRecurring(model.snapshot.recurring)
+                    if words.isEmpty, !recurring.isEmpty {
+                        // 何の一覧かと、いつのことかが分かるようにする（唐突に見える・2026-09-28 本人指摘）
+                        Card(title: String(localized: "また出やがった点（2 回以上出た指摘）")) {
+                            ForEach(recurring, id: \.text) { r in
+                                RecurringRow(item: r)
+                            }
+                            Note(text: String(localized: "同じ直しが 2 回以上出たものです。話す前にも出しています。"))
+                        }
+                    }
+                    if model.snapshot.sessions.isEmpty {
+                        Note(text: String(localized: "独り言の記録はまだありません"))
+                    } else if shown.isEmpty {
+                        Note(text: String(localized: "この言葉を含む記録はありません"))
+                    }
+                    LazyVStack(spacing: 8) {
+                        // 検索中は見つかった記録を開いた状態で出す（4 行に畳むと該当箇所が見えない）
+                        ForEach(shown, id: \.id) { s in SessionCard(session: s, expandedAtFirst: !words.isEmpty).id("\(s.id)-\(words.isEmpty)") }
+                    }
                 }
-                LazyVStack(spacing: 8) {
-                    ForEach(model.snapshot.sessions, id: \.id) { s in SessionCard(session: s) }
-                }
+                .textSelection(.enabled)
             }
             .padding(12)
-            .textSelection(.enabled)
         }
         .background(Theme.bg)
     }
@@ -34,7 +69,12 @@ struct HistoryView: View {
 struct SessionCard: View {
     @EnvironmentObject var model: AppModel
     let session: Session
-    @State private var expanded = false
+    @State private var expanded: Bool
+
+    init(session: Session, expandedAtFirst: Bool = false) {
+        self.session = session
+        _expanded = State(initialValue: expandedAtFirst)
+    }
 
     var body: some View {
         Card {
@@ -47,7 +87,7 @@ struct SessionCard: View {
                 let body = session.correctedText ?? session.transcript ?? ""
                 Text(body).font(.callout).foregroundStyle(Theme.text).lineLimit(expanded ? nil : 4).textSelection(.enabled)
                 if body.count > 120 {
-                    // ScrollView 全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
+                    // 一覧全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
                     Button(expanded ? String(localized: "たたむ") : String(localized: "全文")) { expanded.toggle() }
                         .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent)
                 }
@@ -128,5 +168,20 @@ struct RecurringRow: View {
         let p = ymd.split(separator: "-")
         guard p.count == 3, let m = Int(p[1]), let d = Int(p[2]) else { return ymd }
         return "\(m)/\(d)"
+    }
+}
+
+extension Session {
+    /// 検索の語（小文字）を全部含むか。話した内容・修正版・直し・ほめ言葉・英語ならこう・発音の欄を見る
+    func matches(_ words: [String]) -> Bool {
+        var parts: [String] = [transcript ?? "", asrTranscript ?? "", correctedText ?? "", good ?? ""]
+        for i in issues { parts += [i.original ?? "", i.suggestion, i.reason ?? ""] }
+        for a in asks ?? [] { parts += [a.said] + a.ways + [a.note] }
+        for p in pronunciation ?? [] { parts += [p.said, p.heardAs, p.note] }
+        for t in targets ?? [] { parts += [t.phrase, t.as] }
+        let hay = parts.joined(separator: "\n").lowercased()
+        // 日本語キーボードだと空白が入れにくく「worldcup」になりがちなので、空白を抜いた形でも当てる
+        let squeezed = hay.filter { !$0.isWhitespace }
+        return words.allSatisfy { hay.contains($0) || squeezed.contains($0) }
     }
 }

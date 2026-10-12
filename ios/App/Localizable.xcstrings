@@ -2351,6 +2351,36 @@
           }
         }
       }
+    },
+    "履歴を検索（話した内容・直し・英語ならこう）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search history (what you said, fixes, in English)"
+          }
+        }
+      }
+    },
+    "%lld 件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld found"
+          }
+        }
+      }
+    },
+    "この言葉を含む記録はありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No records contain these words"
+          }
+        }
+      }
     }
   }
 }
