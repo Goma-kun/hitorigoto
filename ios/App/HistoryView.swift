@@ -55,7 +55,7 @@ struct HistoryView: View {
                     }
                     LazyVStack(spacing: 8) {
                         // 検索中は見つかった記録を開いた状態で出す（4 行に畳むと該当箇所が見えない）
-                        ForEach(shown, id: \.id) { s in SessionCard(session: s, expandedAtFirst: !words.isEmpty).id("\(s.id)-\(words.isEmpty)") }
+                        ForEach(shown, id: \.id) { s in SessionCard(session: s, words: words).id("\(s.id)-\(words.isEmpty)") }
                     }
                 }
                 .textSelection(.enabled)
@@ -63,29 +63,44 @@ struct HistoryView: View {
             .padding(12)
         }
         .background(Theme.bg)
+        // スクショ・確認用: -HGShotSearch <語> で検索した状態から開く
+        .onAppear { if query.isEmpty, let q = UserDefaults.standard.string(forKey: "HGShotSearch") { query = q } }
     }
 }
 
 struct SessionCard: View {
     @EnvironmentObject var model: AppModel
     let session: Session
+    /// 検索中の語。空でなければ、見つかった箇所を蛍光ペンの色で塗る（本人要望 2026-10-13）
+    var words: [String] = []
     @State private var expanded: Bool
 
-    init(session: Session, expandedAtFirst: Bool = false) {
+    init(session: Session, words: [String] = []) {
         self.session = session
-        _expanded = State(initialValue: expandedAtFirst)
+        self.words = words
+        // 検索中は開いた状態で出す（4 行に畳むと該当箇所が見えない）
+        _expanded = State(initialValue: !words.isEmpty)
     }
+
+    private func hl(_ s: String) -> AttributedString { Highlight.text(s, words) }
 
     var body: some View {
         Card {
             Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
-                Text(lines.isEmpty ? String(localized: "古い記録（指摘だけ残しています）") : lines.joined(separator: " / "))
+                Text(lines.isEmpty ? AttributedString(String(localized: "古い記録（指摘だけ残しています）")) : hl(lines.joined(separator: " / ")))
                     .font(.callout).foregroundStyle(Theme.muted)
             } else {
                 let body = session.correctedText ?? session.transcript ?? ""
-                Text(body).font(.callout).foregroundStyle(Theme.text).lineLimit(expanded ? nil : 4).textSelection(.enabled)
+                Text(hl(body)).font(.callout).foregroundStyle(Theme.text).lineLimit(expanded ? nil : 4).textSelection(.enabled)
+                // 当たったのが表示していない欄（添削前の書き起こし・ほめ言葉など）だけのときは、その欄も出して塗る
+                if !words.isEmpty {
+                    ForEach(hiddenHits, id: \.label) { h in
+                        Text(h.label).font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                        Text(hl(h.text)).font(.caption).foregroundStyle(Theme.text)
+                    }
+                }
                 if body.count > 120 {
                     // 一覧全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
                     Button(expanded ? String(localized: "たたむ") : String(localized: "全文")) { expanded.toggle() }
@@ -95,7 +110,7 @@ struct SessionCard: View {
                     Text("直すべし").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(session.issues.enumerated()), id: \.offset) { _, it in
                         HStack(alignment: .top, spacing: 6) {
-                            Text("• \(it.original ?? "") → \(it.suggestion)" + ((it.reason?.isEmpty == false) ? " — \(it.reason!)" : ""))
+                            Text(hl("• \(it.original ?? "") → \(it.suggestion)" + ((it.reason?.isEmpty == false) ? " — \(it.reason!)" : "")))
                                 .font(.caption).foregroundStyle(Theme.text)
                             Spacer(minLength: 0)
                             AddIssueButton(issue: it)
@@ -106,25 +121,25 @@ struct SessionCard: View {
                 if !silent.isEmpty {
                     Text("ほかに、添削文で直っていたところ").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(silent) { f in
-                        Text("• \(f.from) → \(f.to)").font(.caption).foregroundStyle(Theme.text)
+                        Text(hl("• \(f.from) → \(f.to)")).font(.caption).foregroundStyle(Theme.text)
                     }
                 }
                 if let pron = session.pronunciation, !pron.isEmpty {
                     Text("発音で伝わらなかった箇所").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(pron.enumerated()), id: \.offset) { _, p in
-                        Text("• \(p.said) → \(p.heardAs)" + (p.note.isEmpty ? "" : " — \(p.note)")).font(.caption).foregroundStyle(Theme.text)
+                        Text(hl("• \(p.said) → \(p.heardAs)" + (p.note.isEmpty ? "" : " — \(p.note)"))).font(.caption).foregroundStyle(Theme.text)
                     }
                 }
                 if let asks = session.asks, !asks.isEmpty {
                     Text("日本語で言った分、英語ならこう").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(asks.enumerated()), id: \.offset) { _, a in
-                        Text("• \(a.said) → \(a.ways.joined(separator: " / "))").font(.caption).foregroundStyle(Theme.text)
+                        Text(hl("• \(a.said) → \(a.ways.joined(separator: " / "))" + (a.note.isEmpty || !Highlight.hits(a.note, words) ? "" : " — \(a.note)"))).font(.caption).foregroundStyle(Theme.text)
                     }
                 }
                 if let t = session.targets, !t.isEmpty {
                     Text("今日の表現の結果").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(t.enumerated()), id: \.offset) { _, x in
-                        Text("\(Mark.symbol(x.r)) \(x.phrase)" + ((!x.as.isEmpty && x.r != "hit") ? "（\(x.as)）" : "")).font(.caption).foregroundStyle(Theme.text)
+                        Text(hl("\(Mark.symbol(x.r)) \(x.phrase)" + ((!x.as.isEmpty && x.r != "hit") ? "（\(x.as)）" : ""))).font(.caption).foregroundStyle(Theme.text)
                     }
                 }
             }
@@ -134,6 +149,16 @@ struct SessionCard: View {
 
     static let labels = Logic.Labels(corrected: String(localized: "修正版"), issues: String(localized: "直すべし"), good: String(localized: "わしが買ってやる点"), said: String(localized: "話した内容（音声から書き起こし）"),
                                      pron: String(localized: "発音で伝わらなかった箇所"), asks: String(localized: "日本語で言った分、英語ならこう"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
+
+    /// 画面に出していない欄のうち、検索語が当たったもの
+    private var hiddenHits: [(label: String, text: String)] {
+        let shownBody = session.correctedText ?? session.transcript ?? ""
+        var out: [(label: String, text: String)] = []
+        if let t = session.transcript, t != shownBody, Highlight.hits(t, words) { out.append((String(localized: "話した内容（音声から書き起こし）"), t)) }
+        if let t = session.asrTranscript, !t.isEmpty, Highlight.hits(t, words) { out.append((String(localized: "字幕"), t)) }
+        if let t = session.good, !t.isEmpty, Highlight.hits(t, words) { out.append((String(localized: "わしが買ってやる点"), t)) }
+        return out
+    }
 
     private var dateLabel: String {
         guard let d = ISO8601DateFormatter.withMillis.date(from: session.id) ?? ISO8601DateFormatter().date(from: session.id) else { return session.id }
@@ -179,9 +204,40 @@ extension Session {
         for a in asks ?? [] { parts += [a.said] + a.ways + [a.note] }
         for p in pronunciation ?? [] { parts += [p.said, p.heardAs, p.note] }
         for t in targets ?? [] { parts += [t.phrase, t.as] }
-        let hay = parts.joined(separator: "\n").lowercased()
-        // 日本語キーボードだと空白が入れにくく「worldcup」になりがちなので、空白を抜いた形でも当てる
-        let squeezed = hay.filter { !$0.isWhitespace }
-        return words.allSatisfy { hay.contains($0) || squeezed.contains($0) }
+        let hay = parts.joined(separator: "\n")
+        // 塗る側と同じ当て方にする（日本語キーボードだと空白が入れにくく「worldcup」になりがちなので、空白を挟んでも当てる）
+        return words.allSatisfy { Highlight.hits(hay, [$0]) }
+    }
+}
+
+/// 検索語を蛍光ペンの色で塗る。大文字小文字を区別せず、空白を挟んでも当てる（「worldcup」で「World Cup」も塗る）
+enum Highlight {
+    static func patterns(_ words: [String]) -> [NSRegularExpression] {
+        words.compactMap { w in
+            let chars = w.filter { !$0.isWhitespace }.map { NSRegularExpression.escapedPattern(for: String($0)) }
+            guard !chars.isEmpty else { return nil }
+            return try? NSRegularExpression(pattern: chars.joined(separator: "\\s*"), options: [.caseInsensitive])
+        }
+    }
+
+    static func hits(_ s: String, _ words: [String]) -> Bool {
+        let ns = NSRange(s.startIndex..., in: s)
+        return patterns(words).contains { $0.firstMatch(in: s, range: ns) != nil }
+    }
+
+    static func text(_ s: String, _ words: [String]) -> AttributedString {
+        var out = AttributedString(s)
+        guard !words.isEmpty else { return out }
+        let ns = NSRange(s.startIndex..., in: s)
+        for re in patterns(words) {
+            for m in re.matches(in: s, range: ns) {
+                guard let r = Range(m.range, in: s),
+                      let lo = AttributedString.Index(r.lowerBound, within: out),
+                      let hi = AttributedString.Index(r.upperBound, within: out) else { continue }
+                out[lo..<hi].backgroundColor = Theme.mark
+                out[lo..<hi].foregroundColor = Theme.markText
+            }
+        }
+        return out
     }
 }

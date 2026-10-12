@@ -14,7 +14,7 @@ struct HitorigotoApp: App {
         WindowGroup {
             RootTabs(tab: $tab)
                 #if DEBUG
-                // スクショ用: -HGShotTab <0-3> で開くタブ、-HGShot result で結果画面
+                // スクショ用: -HGShotTab <0-3> で開くタブ、-HGShot result で結果画面、-HGShotSearch <語> で履歴の検索（HistoryView）
                 .onAppear {
                     let d = UserDefaults.standard
                     if d.object(forKey: "HGShotTab") != nil { tab = d.integer(forKey: "HGShotTab") }
