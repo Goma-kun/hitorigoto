@@ -10,6 +10,15 @@
 //   - 全体で 1 日 GLOBAL_PER_DAY 回まで（原価の天井）
 //   - 本文は MAX_BODY_BYTES まで
 //
+// 入口:
+//   /v1/review  添削（音声つき）。端末ごと FREE_PER_DAY 回
+//   /v1/explain 直し 1 件を詳しく聞く（文字だけ・2026-10-13）。添削とは別に端末ごと EXPLAIN_PER_DAY 回・全体 EXPLAIN_GLOBAL_PER_DAY 回
+//   /v1/quota   今日の回数（explain の分は "explain" に入れて返す）
+//
+// 月の予算（2026-10-13 本人「月に最大 1 万円程度に抑える」）:
+//   1 回ごとに見込みの原価（REVIEW_COST_YEN / EXPLAIN_COST_YEN）を月の帳簿 m:YYYYMM に足し、MONTHLY_BUDGET_YEN に達したら止める。
+//   日の上限（GLOBAL_PER_DAY・EXPLAIN_GLOBAL_PER_DAY）は、ある日に使い切られて月末まで止まるのを防ぐための分割
+//
 // 返事: Gemini の JSON そのまま＋ヘッダー X-Quota-Used / X-Quota-Limit
 // 上限超え: 429 { "error": { "code": "quota", "used", "limit", "resetsAt" } }
 
@@ -27,6 +36,9 @@ function secondsToJstMidnight(now = new Date()) {
   const next = Math.floor(t / 86400000 + 1) * 86400000;
   return Math.ceil((next - t) / 1000);
 }
+
+// 日本時間の年月（YYYYMM）。月の予算の帳簿に使う
+function jstMonth(now = new Date()) { return jstDay(now).slice(0, 6); }
 
 function json(obj, status = 200, headers = {}) {
   return new Response(JSON.stringify(obj), {
@@ -68,23 +80,52 @@ export default {
     const dKey = `d:${device}:${day}`;
     const gKey = `g:${day}`;
 
+    const eLimit = Number(env.EXPLAIN_PER_DAY || '10');
+    const eGlobalLimit = Number(env.EXPLAIN_GLOBAL_PER_DAY || '300');
+    const eKey = `e:${device}:${day}`;
+    const egKey = `ge:${day}`;
+
     if (url.pathname === '/v1/quota' && request.method === 'GET') {
       const used = await count(env, dKey, ttl);
-      return json({ used, limit, remaining: Math.max(0, limit - used), resetsInSeconds: ttl });
+      const eUsed = await count(env, eKey, ttl);
+      return json({ used, limit, remaining: Math.max(0, limit - used), resetsInSeconds: ttl,
+        explain: { used: eUsed, limit: eLimit, remaining: Math.max(0, eLimit - eUsed) } });
     }
 
-    if (url.pathname !== '/v1/review' || request.method !== 'POST') {
+    const isExplain = url.pathname === '/v1/explain';
+    if ((url.pathname !== '/v1/review' && !isExplain) || request.method !== 'POST') {
       return json({ error: { code: 'not_found', message: 'そのような入口はありません' } }, 404);
     }
+    // 詳しく聞くは別の財布で数える（添削の 3 回を食わない）
+    if (isExplain) {
+      return relay(request, env, { dKey: eKey, gKey: egKey, ttl, limit: eLimit, globalLimit: eGlobalLimit,
+        costYen: Number(env.EXPLAIN_COST_YEN || '1'),
+        maxBody: Number(env.EXPLAIN_MAX_BODY_BYTES || '65536'), textOnly: true,
+        quotaMessage: '今日の「詳しく聞く」の回数を使い切りました' });
+    }
+    return relay(request, env, { dKey, gKey, ttl, limit, globalLimit,
+      costYen: Number(env.REVIEW_COST_YEN || '10'),
+      maxBody: Number(env.MAX_BODY_BYTES || '8000000'), textOnly: false,
+      quotaMessage: '今日の無料の回数を使い切りました' });
+  },
+};
 
+// 回数を数えて Gemini に転送する（添削と詳しく聞くで共通）
+async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYen, maxBody, textOnly, quotaMessage }) {
     const len = Number(request.headers.get('content-length') || '0');
-    const maxBody = Number(env.MAX_BODY_BYTES || '8000000');
     if (len > maxBody) return json({ error: { code: 'too_large', message: '音声が大きすぎます' } }, 413);
 
     const used = await count(env, dKey, ttl);
     if (used >= limit) {
-      return json({ error: { code: 'quota', message: '今日の無料の回数を使い切りました', used, limit, resetsInSeconds: ttl } }, 429,
+      return json({ error: { code: 'quota', message: quotaMessage, used, limit, resetsInSeconds: ttl } }, 429,
         { 'x-quota-used': String(used), 'x-quota-limit': String(limit) });
+    }
+    // 月の予算。超えていたら全員止める（日付ではなく月が変わると戻る）
+    const mKey = `m:${jstMonth()}`;
+    const budget = Number(env.MONTHLY_BUDGET_YEN || '10000');
+    const spent = Number((await env.QUOTA.get(mKey)) || '0');
+    if (spent + costYen > budget) {
+      return json({ error: { code: 'busy', message: '今月の無料の枠がいっぱいになりました。来月またどうぞ', resetsInSeconds: ttl } }, 503);
     }
     const g = await count(env, gKey, ttl);
     if (g >= globalLimit) {
@@ -100,10 +141,15 @@ export default {
     const allowed = new Set(['systemInstruction', 'contents', 'generationConfig', 'tools']);
     for (const k of Object.keys(parsed)) if (!allowed.has(k)) delete parsed[k];
     if (!Array.isArray(parsed.contents)) return json({ error: { code: 'bad_request', message: 'contents がありません' } }, 400);
+    // 詳しく聞くは文字だけ。音声や画像（inlineData / fileData）は通さない
+    if (textOnly && JSON.stringify(parsed.contents).match(/"(inlineData|fileData)"/)) {
+      return json({ error: { code: 'bad_request', message: '文字だけを送ってください' } }, 400);
+    }
 
     // 先に数える（失敗しても 1 回と数える。同じ音声の送り直しは Gemini 側が落ちたときだけ戻す）
     const nowUsed = await bump(env, dKey, ttl);
     await bump(env, gKey, ttl);
+    await env.QUOTA.put(mKey, String(spent + costYen), { expirationTtl: 40 * 86400 });
 
     let res;
     try {
@@ -129,5 +175,4 @@ export default {
         'x-quota-limit': String(limit),
       },
     });
-  },
-};
+}

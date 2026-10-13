@@ -101,7 +101,7 @@ struct SpeakView: View {
                 } else {
                     ForEach(Array(fb.issues.enumerated()), id: \.offset) { i, it in
                         if i > 0 { Divider().overlay(Theme.line) }
-                        IssueRow(issue: it)
+                        IssueRow(issue: it, sessionId: model.latestSession?.id)
                     }
                 }
             }
@@ -126,7 +126,7 @@ struct SpeakView: View {
                 Card(title: String(localized: "日本語で言った分、英語ならこう")) {
                     ForEach(Array(fb.asks.enumerated()), id: \.offset) { i, a in
                         if i > 0 { Divider().overlay(Theme.line) }
-                        AskRow(ask: a)
+                        AskRow(ask: a, sessionId: model.latestSession?.id)
                     }
                     Note(text: String(localized: "英語が出てこなくて日本語で言ったところです。友だちに聞いたつもりで、いちばん上の言い方から口に出してみてください。"))
                 }
@@ -447,6 +447,7 @@ struct TodayResultCard: View {
 struct AskRow: View {
     @EnvironmentObject var model: AppModel
     let ask: Ask
+    var sessionId: String? = nil
     @State private var added: Set<String> = []
 
     var body: some View {
@@ -472,6 +473,7 @@ struct AskRow: View {
                 }
             }
             if !ask.note.isEmpty { Text(ask.note).font(.caption).foregroundStyle(Theme.muted) }
+            if let sessionId { ExplainButton(sessionId: sessionId, topic: ExplainTopic(ask: ask)) }
         }
     }
 }
@@ -480,6 +482,7 @@ struct AskRow: View {
 struct IssueRow: View {
     @EnvironmentObject var model: AppModel
     let issue: Issue
+    var sessionId: String? = nil
     @State private var added = false
 
     var body: some View {
@@ -495,11 +498,15 @@ struct IssueRow: View {
                 SpeakButton(text: issue.suggestion)
             }
             if let r = issue.reason, !r.isEmpty { Text(r).font(.caption).foregroundStyle(Theme.muted) }
-            let exists = added || model.hasPhrase(issue.suggestion)
-            Button(exists ? String(localized: "✓ 入れた") : String(localized: "＋ 表現集へ")) {
-                if model.addFromIssue(issue) { added = true }
+            HStack(spacing: 8) {
+                let exists = added || model.hasPhrase(issue.suggestion)
+                Button(exists ? String(localized: "✓ 入れた") : String(localized: "＋ 表現集へ")) {
+                    if model.addFromIssue(issue) { added = true }
+                }
+                .buttonStyle(.bordered).controlSize(.small).tint(exists ? Theme.good : Theme.accent).disabled(exists)
+                // もっと知りたいときに、この直しについてだけ追加で聞く（添削とは別の回数）
+                if let sessionId { ExplainButton(sessionId: sessionId, topic: ExplainTopic(issue: issue)) }
             }
-            .buttonStyle(.bordered).controlSize(.small).tint(exists ? Theme.good : Theme.accent).disabled(exists)
         }
     }
 

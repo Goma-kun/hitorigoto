@@ -38,6 +38,8 @@ final class AppModel: ObservableObject {
     @Published var engine: String { didSet { UserDefaults.standard.set(engine, forKey: "engine") } }
     /// 中継サーバーの今日の回数（設定画面と話す画面に出す）
     @Published var quota: GeminiClient.Quota?
+    /// 「トラさんに詳しく聞く」の今日の回数（添削とは別枠）
+    @Published var explainQuota: GeminiClient.Quota?
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -82,6 +84,56 @@ final class AppModel: ObservableObject {
     }
 
     private func save() { try? store?.save(snapshot) }
+
+    // MARK: - トラさんに詳しく聞く
+
+    /// その直しについて、これまでのやり取り（無ければ空）
+    func explainTurns(sessionId: String, topic: ExplainTopic) -> [ExplainTurn] {
+        snapshot.sessions.first { $0.id == sessionId }?.explains?.first { $0.key == topic.key }?.turns ?? []
+    }
+
+    func refreshExplainQuota() async {
+        guard usesRelay else { explainQuota = nil; return }
+        explainQuota = await GeminiClient(transport: Relay.transport).explainQuota()
+    }
+
+    /// 1 回聞く。答えはセッションに残す（履歴から開き直しても回数を使わない）。失敗したら利用者向けの文を返す
+    func askExplain(sessionId: String, topic: ExplainTopic, question: String, preset: Explain.Preset? = nil) async -> String? {
+        let client: GeminiClient
+        if usesRelay {
+            client = GeminiClient(transport: Relay.transport)
+        } else if let key = KeychainStore.apiKey {
+            client = GeminiClient(key: key)
+        } else {
+            return String(localized: "詳しく聞くには、「設定」で「おまかせ（キー不要）」を選ぶか、Gemini の API キーを登録してください。")
+        }
+        guard let idx = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) else { return String(localized: "この記録が見つかりませんでした。") }
+        let session = snapshot.sessions[idx]
+        let history = explainTurns(sessionId: sessionId, topic: topic)
+        do {
+            let turn = try await client.explain(topic: topic, context: session.correctedText ?? session.transcript ?? "",
+                                                history: history, question: question, request: preset?.request,
+                                                system: Explain.system(language: targetLanguage))
+            // 待っているあいだに記録が動いていることがあるので、id で引き直してから書く
+            guard let i = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) else { return nil }
+            var threads = snapshot.sessions[i].explains ?? []
+            if let k = threads.firstIndex(where: { $0.key == topic.key }) { threads[k].turns.append(turn) }
+            else { threads.append(ExplainThread(key: topic.key, turns: [turn])) }
+            snapshot.sessions[i].explains = threads
+            if latestSession?.id == sessionId { latestSession = snapshot.sessions[i] }
+            save()
+            if usesRelay { await refreshExplainQuota() }
+            return nil
+        } catch let f as GeminiClient.Failure {
+            if usesRelay { await refreshExplainQuota() }
+            if case .quota(_, let limit) = f {
+                return String(localized: "今日の「詳しく聞く」（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。")
+            }
+            return Self.message(for: f)
+        } catch {
+            return error.localizedDescription
+        }
+    }
 
     var today: String { Logic.todayStamp() }
 

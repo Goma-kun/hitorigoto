@@ -116,10 +116,12 @@ public struct Session: Codable, Equatable, Sendable {
     public var asks: [Ask]?
     /// アプリ版だけ: どのエンジンで添削したか（gemini / apple）。拡張の記録には無い
     public var engine: String?
+    /// アプリ版だけ: 「トラさんに詳しく聞く」のやり取り（直しごと）
+    public var explains: [ExplainThread]?
 
     enum CodingKeys: String, CodingKey {
         case id, folded, transcript, asrTranscript = "asr_transcript", correctedText = "corrected_text"
-        case issues, good, pronunciation, targets, asks, engine
+        case issues, good, pronunciation, targets, asks, engine, explains
     }
 
     public init(id: String, folded: Bool? = nil, transcript: String? = nil, asrTranscript: String? = nil,
@@ -144,6 +146,7 @@ public struct Session: Codable, Equatable, Sendable {
         targets = try c.decodeIfPresent([SessionTarget].self, forKey: .targets)
         asks = try c.decodeIfPresent([Ask].self, forKey: .asks)
         engine = try c.decodeIfPresent(String.self, forKey: .engine)
+        explains = try c.decodeIfPresent([ExplainThread].self, forKey: .explains)
     }
 }
 

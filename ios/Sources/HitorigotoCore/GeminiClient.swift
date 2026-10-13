@@ -39,15 +39,16 @@ public struct GeminiClient: Sendable {
         case relayBusy         // 中継サーバーの全体の上限
     }
 
-    private var endpoint: URL {
+    /// relayPath: 中継サーバーの入口。添削は v1/review、詳しく聞くは v1/explain（回数を別に数える）
+    private func endpoint(_ relayPath: String) -> URL {
         switch transport {
         case .direct: return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent")!
-        case .relay(let url, _, _): return url.appendingPathComponent("v1/review")
+        case .relay(let url, _, _): return url.appendingPathComponent(relayPath)
         }
     }
 
-    func call(_ body: [String: Any]) async throws -> String {
-        var req = URLRequest(url: endpoint)
+    func call(_ body: [String: Any], relayPath: String = "v1/review") async throws -> String {
+        var req = URLRequest(url: endpoint(relayPath))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         switch transport {
@@ -133,6 +134,20 @@ public struct GeminiClient: Sendable {
         return fb
     }
 
+    /// 直し 1 件について詳しく聞く（文字だけ）。history はこれまでのやり取り
+    public func explain(topic: ExplainTopic, context: String, history: [ExplainTurn], question: String, request: String? = nil,
+                        system: String) async throws -> ExplainTurn {
+        let raw = try await call([
+            "systemInstruction": ["parts": [["text": system]]],
+            "contents": [["role": "user", "parts": [["text": Explain.userMessage(topic: topic, context: context, history: history,
+                                                                                 question: request ?? question)]]]],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/explain")
+        guard let turn = Explain.parse(raw, question: question) else { throw Failure.parse }
+        return turn
+    }
+
     /// 中継サーバーの今日の残り回数を聞く（direct のときは nil）
     public func quota() async -> Quota? {
         guard case .relay(let url, let deviceId, let appKey) = transport else { return nil }
@@ -143,6 +158,20 @@ public struct GeminiClient: Sendable {
         guard let (data, _) = try? await session.data(for: req),
               let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let used = j["used"] as? Int, let limit = j["limit"] as? Int else { return nil }
+        return Quota(used: used, limit: limit)
+    }
+
+    /// 「詳しく聞く」の今日の残り回数（中継サーバーが古くて答えないときは nil）
+    public func explainQuota() async -> Quota? {
+        guard case .relay(let url, let deviceId, let appKey) = transport else { return nil }
+        var req = URLRequest(url: url.appendingPathComponent("v1/quota"))
+        req.setValue(deviceId, forHTTPHeaderField: "x-device-id")
+        req.setValue(appKey, forHTTPHeaderField: "x-app-key")
+        req.timeoutInterval = 15
+        guard let (data, _) = try? await session.data(for: req),
+              let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let e = j["explain"] as? [String: Any],
+              let used = e["used"] as? Int, let limit = e["limit"] as? Int else { return nil }
         return Quota(used: used, limit: limit)
     }
 

@@ -101,6 +101,43 @@ func run(_ c: [String: Any]) -> Any {
     }
 }
 
+// ---- 実 API（explain）----
+// `hg-probe explain --original "..." --suggestion "..." [--reason "..."] [--question "..."] [--preset deeper|examples|grammar|compare]`
+// HG_RELAY=1 なら中継サーバーの /v1/explain を通る
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "explain" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func opt(_ name: String) -> String? {
+        guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let topic = ExplainTopic(kind: opt("--kind") ?? "issue", original: opt("--original") ?? "", suggestion: opt("--suggestion") ?? "", reason: opt("--reason") ?? "")
+    let preset = Explain.Preset(rawValue: opt("--preset") ?? "")
+    let question = opt("--question") ?? preset?.label ?? Explain.Preset.deeper.label
+    let context = opt("--context") ?? ""
+    let env = ProcessInfo.processInfo.environment
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let sem = DispatchSemaphore(value: 0)
+    var exitCode: Int32 = 0
+    Task {
+        do {
+            let t = try await client.explain(topic: topic, context: context, history: [], question: question,
+                                             request: preset?.request, system: Explain.system(language: .enUS, explanation: .ja))
+            print("Q: \(t.q)\n\n\(t.a)\n")
+            for e in t.examples { print("・\(e.text)\n  \(e.ja)") }
+            if case .relay = client.transport { print("\nquota:", await client.explainQuota().map { "\($0.used)/\($0.limit)" } ?? "?") }
+        } catch { print("NG: \(error)"); exitCode = 1 }
+        sem.signal()
+    }
+    sem.wait()
+    exit(exitCode)
+}
+
 // ---- 実 API（review）----
 if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     var args = Array(CommandLine.arguments.dropFirst(2))

@@ -113,6 +113,7 @@ struct SessionCard: View {
                             Text(hl("• \(it.original ?? "") → \(it.suggestion)" + ((it.reason?.isEmpty == false) ? " — \(it.reason!)" : "")))
                                 .font(.caption).foregroundStyle(Theme.text)
                             Spacer(minLength: 0)
+                            if session.folded != true { ExplainButton(sessionId: session.id, topic: ExplainTopic(issue: it), mini: true) }
                             AddIssueButton(issue: it)
                         }
                     }
