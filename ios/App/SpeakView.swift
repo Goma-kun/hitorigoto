@@ -61,6 +61,7 @@ struct SpeakView: View {
             }
             // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
             Welcome()
+            CandidatesCard()
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
             if !recurring.isEmpty {
@@ -352,10 +353,87 @@ struct LevelBar: View {
     }
 }
 
+/// 話す前の「前に言えなかった表現」。過去の直しから数個出し、選んだものだけ今日の表現に足す（2026-10-15 本人要望）
+struct CandidatesCard: View {
+    @EnvironmentObject var model: AppModel
+    @State private var chosen: Set<String> = []
+
+    var body: some View {
+        let items = model.candidateItems()
+        if !items.isEmpty {
+            Card(title: String(localized: "前に言えなかった表現（今日使ってみる？）")) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, it in
+                    if i > 0 { Divider().overlay(Theme.line) }
+                    row(it)
+                }
+                HStack(spacing: 8) {
+                    Button(chosen.isEmpty ? String(localized: "選んで今日使う") : String(localized: "選んだ \(chosen.count) 個を今日使う")) {
+                        model.useCandidates(items.filter { chosen.contains($0.key) })
+                        chosen = []
+                    }
+                    .buttonStyle(.borderedProminent).tint(Theme.accent)
+                    .disabled(chosen.isEmpty)
+                    Button("今日は使わない") {
+                        model.snoozeCandidates(items.filter { !chosen.contains($0.key) })
+                        chosen = []
+                    }
+                    .buttonStyle(.bordered).tint(Theme.muted)
+                    .help("選んでいない表現をしばらく寝かせます（3 日 → 7 日 → 21 日。責めません）")
+                }
+                Note(text: String(localized: "選んだ表現は表現集に入り、今日の表現に並びます。話し終えると出たかどうかを判定し、言えるまで間をあけて戻ってきます。"))
+            }
+        }
+    }
+
+    private func row(_ it: Candidates.Item) -> some View {
+        let on = chosen.contains(it.key)
+        return HStack(alignment: .center, spacing: 8) {
+            Button {
+                if on { chosen.remove(it.key) } else { chosen.insert(it.key) }
+            } label: {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                        .font(.title3).foregroundStyle(on ? Theme.accent : Theme.faint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(it.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                        Text(it.origin == "ask" ? String(localized: "日本語で「\(it.said)」と言っていた") : "✗ \(it.said)")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                        HStack(spacing: 6) {
+                            Text(String(localized: "\(Self.dayLabel(it.date)) の独り言")).font(.caption2).foregroundStyle(Theme.faint)
+                            if it.count >= 2 { Tag(text: String(localized: "\(it.count) 回直された"), fg: Theme.warn, bg: Theme.warnBg) }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            SpeakButton(text: it.phrase)
+            Button {
+                chosen.remove(it.key)
+                model.dismissCandidate(it)
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 12)).foregroundStyle(Theme.faint)
+                    .frame(width: 28, height: 28).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("この表現はもう出さない")
+        }
+    }
+
+    /// "2026-10-08" → "10/8"
+    static func dayLabel(_ ymd: String) -> String {
+        let p = ymd.split(separator: "-").compactMap { Int($0) }
+        return p.count == 3 ? "\(p[1])/\(p[2])" : ymd
+    }
+}
+
 /// 話す前の「今日の表現」
 struct TodayCard: View {
     @EnvironmentObject var model: AppModel
     var goPhrases: () -> Void
+    /// 「覚えてますか？」で答えを開いた表現
+    @State private var revealed: Set<String> = []
 
     var body: some View {
         let cards = model.todayCards()
@@ -376,16 +454,26 @@ struct TodayCard: View {
                     if i > 0 { Divider().overlay(Theme.line) }
                     HStack(alignment: .center, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(c.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
-                            if !c.meaning.isEmpty || !c.note.isEmpty {
-                                Text(c.meaning.isEmpty ? "✗ \(c.note)" : c.meaning).font(.caption).foregroundStyle(Theme.muted)
+                            let cue = c.meaning.isEmpty ? (c.note.isEmpty ? "" : "✗ \(c.note)") : c.meaning
+                            // 2 回目以降は答えを隠して「覚えてますか？」から入る（思い出す手間が定着になる）
+                            if !PhraseLogic.isNew(c), !cue.isEmpty, !revealed.contains(c.id) {
+                                Text(String(localized: "覚えてますか？")).font(.caption.weight(.bold)).foregroundStyle(Theme.accent)
+                                Text(cue).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                                Button("答えを見る") { revealed.insert(c.id) }
+                                    .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent)
+                            } else {
+                                Text(c.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                                if !cue.isEmpty { Text(cue).font(.caption).foregroundStyle(Theme.muted) }
                             }
                             let marks = PhraseLogic.marks(c)
                             if !marks.isEmpty { Text(marks).font(.caption).foregroundStyle(Theme.muted).kerning(2) }
                         }
                         Spacer(minLength: 4)
                         // 真似して口に出すための読み上げ（端末の声。通信もお金もかからない）
-                        SpeakButton(text: c.phrase)
+                        // 答えを隠している間は読み上げも出さない（音で答えが分かってしまうため）
+                        if PhraseLogic.isNew(c) || revealed.contains(c.id) || (c.meaning.isEmpty && c.note.isEmpty) {
+                            SpeakButton(text: c.phrase)
+                        }
                         todayTag(c)
                         Button("見送り") { model.skipToday(c.id) }
                             .buttonStyle(.bordered).controlSize(.small).tint(Theme.muted)

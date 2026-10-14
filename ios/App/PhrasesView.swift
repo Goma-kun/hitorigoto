@@ -147,6 +147,19 @@ struct AddPhraseSheet: View {
     @State private var kind = "phrase"
     @State private var bulk = ""
     @State private var status = ""
+    @State private var confirmDiscard = false
+
+    /// 入れていない入力があるか（「閉じる」で消えた、の再発防止。2026-10-15 本人指摘）
+    private var hasInput: Bool {
+        !phrase.trimmingCharacters(in: .whitespaces).isEmpty || !bulk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// 入力中の分を入れてから閉じる
+    private func saveAndClose() {
+        if !phrase.trimmingCharacters(in: .whitespaces).isEmpty { model.addPhrase(phrase, meaning: meaning, kind: kind) }
+        if !bulk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { _ = model.addBulk(bulk, kind: kind) }
+        dismiss()
+    }
 
     var body: some View {
         NavigationStack {
@@ -180,8 +193,20 @@ struct AddPhraseSheet: View {
                 if !status.isEmpty { Text(status).font(.callout).foregroundStyle(Theme.accent) }
             }
             .navigationTitle("表現を追加").compactNavigationTitle()
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } } }
+            .toolbar {
+                if hasInput {
+                    ToolbarItem(placement: .cancellationAction) { Button("やめる") { confirmDiscard = true } }
+                    ToolbarItem(placement: .confirmationAction) { Button("保存して閉じる", action: saveAndClose) }
+                } else {
+                    ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } }
+                }
+            }
+            .confirmationDialog("入力した表現を入れずに閉じますか？", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("入れずに閉じる", role: .destructive) { dismiss() }
+                Button("戻る", role: .cancel) {}
+            }
         }
+        .interactiveDismissDisabled(hasInput)
         #if os(macOS)
         .frame(minWidth: 400, idealWidth: 420, minHeight: 520)
         #endif

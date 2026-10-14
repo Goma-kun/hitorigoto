@@ -70,4 +70,50 @@ final class CoreTests: XCTestCase {
         let d = PhraseLogic.detect("connect the dots", in: "and then it connected it's a dot")
         XCTAssertEqual([d.used, d.exact], [true, false])
     }
+
+    // MARK: - 前に言えなかった表現の候補
+
+    private func sess(_ id: String, _ issues: [Issue], asks: [Ask]? = nil) -> Session {
+        Session(id: id, issues: issues, asks: asks)
+    }
+
+    func testCandidatesCollectAndPick() {
+        let sessions = [
+            sess("2026-10-15T00:30:00.000Z", [Issue(type: "grammar", original: "I drink a night", suggestion: "I drink at night")]),
+            sess("2026-10-08T01:00:00.000Z", [Issue(type: "phrasing", original: "provide him that information", suggestion: "provided him with that information", reason: "r1"),
+                                              Issue(type: "grammar", original: "him", suggestion: "him")]),
+            sess("2026-10-12T01:00:00.000Z", [Issue(type: "vocabulary", original: "function", suggestion: "feature")],
+                 asks: [Ask(said: "その気力がなかった", ways: ["I didn't have it in me", "x"])]),
+            sess("2026-10-10T01:00:00.000Z", [Issue(type: "vocabulary", original: "function", suggestion: "feature.")]),
+            sess("2026-09-01T01:00:00.000Z", [Issue(type: "grammar", suggestion: "went")]),   // original の無い古い記録
+        ]
+        let phrases = [PhraseCard(id: "p", phrase: "I drink at night", added: "2026-10-15", due: "2026-10-15")]
+        let items = Candidates.collect(sessions, phrases: phrases)
+        let keys = Set(items.map(\.key))
+        XCTAssertFalse(keys.contains("i drink at night"), "表現集にあるものは出さない")
+        XCTAssertFalse(keys.contains("him"), "直す前と同じものは出さない")
+        XCTAssertFalse(keys.contains("went"), "original の無い記録は出さない")
+        XCTAssertEqual(items.first { $0.key == "feature" }?.count, 2, "末尾の句点を無視してまとめる")
+        XCTAssertEqual(items.first { $0.key == "feature" }?.date, "2026-10-12", "新しい日の文脈を残す")
+        XCTAssertEqual(items.first { $0.origin == "ask" }?.said, "その気力がなかった")
+
+        let picked = Candidates.pick(items, today: "2026-10-15", states: [:], limit: 2)
+        XCTAssertEqual(picked.map(\.key), ["feature", "i didn't have it in me"],
+                       "何度も直されたもの → ちょうど 3・7 日前の話（同点なら新しい順）")
+
+        var states: [String: CandidateState] = [:]
+        states["feature"] = Candidates.snooze(nil, today: "2026-10-15")
+        XCTAssertEqual(states["feature"]?.until, "2026-10-18")
+        XCTAssertEqual(Candidates.snooze(states["feature"], today: "2026-10-18").until, "2026-10-25", "2 回目は 7 日")
+        states["provided him with that information"] = Candidates.dismiss(nil)
+        let after = Candidates.pick(items, today: "2026-10-15", states: states, limit: 5).map(\.key)
+        XCTAssertFalse(after.contains("feature"))
+        XCTAssertFalse(after.contains("provided him with that information"))
+        XCTAssertTrue(Candidates.pick(items, today: "2026-10-18", states: states, limit: 5).map(\.key).contains("feature"), "寝かせ明けで戻る")
+    }
+
+    func testSnapshotWithoutCandidatesDecodes() throws {
+        let s = try JSONDecoder().decode(Snapshot.self, from: Data(#"{"sessions":[],"recurring":[],"phrases":[]}"#.utf8))
+        XCTAssertTrue(s.candidates.isEmpty)
+    }
 }

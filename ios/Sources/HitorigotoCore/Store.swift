@@ -7,9 +7,13 @@ public struct Snapshot: Codable, Equatable, Sendable {
     public var recurring: [Recurring]
     public var phrases: [PhraseCard]
     public var today: Today?
+    /// アプリ版だけ: 「前に言えなかった表現」の候補を寝かせた・もう出さない記録（キーは phraseKey）。書き出しには含めない
+    public var candidates: [String: CandidateState]
 
-    public init(sessions: [Session] = [], recurring: [Recurring] = [], phrases: [PhraseCard] = [], today: Today? = nil) {
+    public init(sessions: [Session] = [], recurring: [Recurring] = [], phrases: [PhraseCard] = [], today: Today? = nil,
+                candidates: [String: CandidateState] = [:]) {
         self.sessions = sessions; self.recurring = recurring; self.phrases = phrases; self.today = today
+        self.candidates = candidates
     }
 
     public init(from decoder: Decoder) throws {
@@ -18,6 +22,7 @@ public struct Snapshot: Codable, Equatable, Sendable {
         recurring = try c.decodeIfPresent([Recurring].self, forKey: .recurring) ?? []
         phrases = try c.decodeIfPresent([PhraseCard].self, forKey: .phrases) ?? []
         today = try c.decodeIfPresent(Today.self, forKey: .today)
+        candidates = try c.decodeIfPresent([String: CandidateState].self, forKey: .candidates) ?? [:]
     }
 }
 

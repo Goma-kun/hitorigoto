@@ -205,6 +205,41 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    // MARK: - 前に言えなかった表現（候補）
+
+    /// 話す前に出す候補。表現集に入っていない過去の直しから数個
+    func candidateItems() -> [Candidates.Item] {
+        Candidates.pick(Candidates.collect(snapshot.sessions, phrases: snapshot.phrases), today: today, states: snapshot.candidates)
+    }
+
+    /// 選んだ候補を表現集に入れ、今日の表現にも足す（あとは表現集の間隔反復で戻ってくる）
+    func useCandidates(_ items: [Candidates.Item]) {
+        _ = todayCards()   // 日をまたいでいたら今日の分を先に決めておく（足した分が選び直しで消えないように）
+        for it in items {
+            let meaning = it.origin == "ask" ? it.said : ""
+            let note = it.origin == "ask" ? "" : it.said
+            addPhrase(it.phrase, meaning: meaning, kind: it.kind, source: "issue", note: note)
+            if let card = PhraseLogic.findPhrase(snapshot.phrases, it.phrase), snapshot.today?.ids.contains(card.id) == false {
+                snapshot.today?.ids.append(card.id)
+            }
+        }
+        save()
+        objectWillChange.send()
+    }
+
+    /// 「今日は使わない」: 責めずにしばらく寝かせる（3 日 → 7 日 → 21 日）
+    func snoozeCandidates(_ items: [Candidates.Item]) {
+        for it in items { snapshot.candidates[it.key] = Candidates.snooze(snapshot.candidates[it.key], today: today) }
+        save()
+        objectWillChange.send()
+    }
+
+    func dismissCandidate(_ item: Candidates.Item) {
+        snapshot.candidates[item.key] = Candidates.dismiss(snapshot.candidates[item.key])
+        save()
+        objectWillChange.send()
+    }
+
     #if DEBUG
     /// スクショ用: 記録の先頭を「いま添削が終わった」ように見せる（-HGShot result）
     func showLatestSessionAsResult() {
