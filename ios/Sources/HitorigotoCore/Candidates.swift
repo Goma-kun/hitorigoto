@@ -128,3 +128,47 @@ public struct CandidateState: Codable, Equatable, Sendable {
         self.until = until; self.snoozes = snoozes; self.dismissed = dismissed
     }
 }
+
+/// 「覚えてますか？」クイズの出題日（アプリ版だけ。2026-10-15 本人要望「暗記アプリのように何日か後にまた出す」）。
+/// 表現集の間隔（独り言で使えたか）とは別に、カードで言えたか（rok / rng）だけで決める。
+/// rebuild（拡張と突き合わせる層）には手を入れず、履歴から読み取るだけ
+public enum Quiz {
+
+    /// 続けて言えた回数ごとの間隔（日）
+    public static let ladder = [1, 3, 7, 14, 30, 60]
+
+    /// 問題文。意味があれば意味、無ければ言ってしまった形。どちらも無い表現は出題しない
+    public static func cue(_ c: PhraseCard) -> String? {
+        if !c.meaning.isEmpty { return c.meaning }
+        if !c.note.isEmpty { return "✗ \(c.note)" }
+        return nil
+    }
+
+    /// 次に出す日。まだ一度も答えていなければ入れた翌日（入れたばかりで答えを見た直後には問わない）
+    public static func due(_ c: PhraseCard) -> String {
+        let answers = c.history.filter { $0.r == "rok" || $0.r == "rng" }.sorted { $0.d < $1.d }
+        guard let last = answers.last else { return PhraseLogic.addDays(c.added, 1) }
+        if last.r == "rng" { return PhraseLogic.addDays(last.d, 1) }
+        var streak = 0
+        for a in answers.reversed() { if a.r == "rok" { streak += 1 } else { break } }
+        return PhraseLogic.addDays(last.d, ladder[min(streak - 1, ladder.count - 1)])
+    }
+
+    /// 出題できる表現（しまったものは出さない）
+    public static func pool(_ list: [PhraseCard]) -> [PhraseCard] {
+        list.filter { $0.status != "archived" && cue($0) != nil }
+    }
+
+    /// 今日の問題（期日の古い順）
+    public static func dueToday(_ list: [PhraseCard], today: String) -> [PhraseCard] {
+        pool(list).filter { due($0) <= today }.sorted { a, b in
+            let da = due(a), db = due(b)
+            return da != db ? da < db : a.added < b.added
+        }
+    }
+
+    /// 今日の分が無いとき、次に出る日
+    public static func nextDue(_ list: [PhraseCard], today: String) -> String? {
+        pool(list).map(due).filter { $0 > today }.min()
+    }
+}

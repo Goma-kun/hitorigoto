@@ -116,4 +116,20 @@ final class CoreTests: XCTestCase {
         let s = try JSONDecoder().decode(Snapshot.self, from: Data(#"{"sessions":[],"recurring":[],"phrases":[]}"#.utf8))
         XCTAssertTrue(s.candidates.isEmpty)
     }
+
+    func testQuizSchedule() {
+        var c = PhraseCard(id: "q", phrase: "I didn't have it in me", meaning: "その気力がなかった", added: "2026-10-15", due: "2026-10-15")
+        XCTAssertEqual(Quiz.due(c), "2026-10-16", "答えるまでは入れた翌日から出る")
+        c = PhraseLogic.setRecallResult(c, today: "2026-10-15", ok: true)
+        XCTAssertEqual(Quiz.due(c), "2026-10-16")
+        c = PhraseLogic.setRecallResult(c, today: "2026-10-16", ok: true)
+        XCTAssertEqual(Quiz.due(c), "2026-10-19", "2 回続けて言えたら 3 日後")
+        c = PhraseLogic.setRecallResult(c, today: "2026-10-19", ok: false)
+        XCTAssertEqual(Quiz.due(c), "2026-10-20", "言えなかったら翌日")
+        c = PhraseLogic.setRecallResult(c, today: "2026-10-20", ok: true)
+        XCTAssertEqual(Quiz.due(c), "2026-10-21", "言えなかったあとは数え直し")
+        let noCue = PhraseCard(id: "n", phrase: "x", added: "2026-10-15", due: "2026-10-15")
+        XCTAssertTrue(Quiz.dueToday([c, noCue], today: "2026-10-30").map(\.id) == ["q"], "手がかりの無い表現は出さない")
+        XCTAssertEqual(Quiz.nextDue([c], today: "2026-10-20"), "2026-10-21")
+    }
 }

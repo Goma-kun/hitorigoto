@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 表現タブ。覚えたい表現・単語の一覧と、追加・カードで復習
+/// 表現タブ。覚えたい表現・単語の一覧と、追加・「覚えてますか？」クイズ
 struct PhrasesView: View {
     @EnvironmentObject var model: AppModel
     @State private var filter = "all"
@@ -21,7 +21,7 @@ struct PhrasesView: View {
                 }
                 HStack(spacing: 8) {
                     Button("＋ 追加") { adding = true }.buttonStyle(.borderedProminent).tint(Theme.accent)
-                    Button("🃏 カードで復習") { flashing = true }.buttonStyle(.bordered).tint(Theme.accent)
+                    Button(String(localized: "🃏 覚えてますか？（今日 \(Quiz.dueToday(model.snapshot.phrases, today: model.today).count) 問）")) { flashing = true }.buttonStyle(.bordered).tint(Theme.accent)
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -213,7 +213,8 @@ struct AddPhraseSheet: View {
     }
 }
 
-/// カードで復習（意味を見て、英語で言えるか自分で確かめる）
+/// 「覚えてますか？」クイズ（意味か、前に言ってしまった形を見て、英語で言えるか自分で確かめる）。
+/// 言えたら 1 → 3 → 7 → 14 → 30 → 60 日と間をあけ、言えなかったら翌日にまた出す（Quiz.due）
 struct FlashSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -222,27 +223,47 @@ struct FlashSheet: View {
     @State private var open = false
     @State private var ok = 0
     @State private var ng = 0
+    @State private var started = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
                 if cards.isEmpty {
-                    Text("カードで復習できる表現（意味つき・稽古中）がありません").font(.callout).foregroundStyle(Theme.muted)
+                    face {
+                        if Quiz.pool(model.snapshot.phrases).isEmpty {
+                            Text("クイズにできる表現（意味か、前に言ってしまった形つき）がありません").font(.callout).foregroundStyle(Theme.muted)
+                                .multilineTextAlignment(.center)
+                        } else {
+                            Text("今日の分はおしまいです").font(.headline).foregroundStyle(Theme.text)
+                            if let next = Quiz.nextDue(model.snapshot.phrases, today: model.today) {
+                                Text(String(localized: "次は \(CandidatesCard.dayLabel(next)) に出ます")).font(.caption).foregroundStyle(Theme.muted)
+                            }
+                        }
+                    }
+                    if !Quiz.pool(model.snapshot.phrases).isEmpty {
+                        Button("全部をもう一度") { start(all: true) }.buttonStyle(.bordered).tint(Theme.accent)
+                    }
                 } else if i >= cards.count {
                     face {
                         Text("おしまい。言えた \(ok)・言えなかった \(ng)").font(.headline).foregroundStyle(Theme.text)
-                        Text("言えなかったものは明日の「今日の表現」に戻ります").font(.caption).foregroundStyle(Theme.muted)
+                        Text("言えなかったものは明日、言えたものは間をあけてまた出ます").font(.caption).foregroundStyle(Theme.muted)
                     }
-                    Button("一覧に戻る") { dismiss() }.buttonStyle(.borderedProminent).tint(Theme.accent)
+                    Button("閉じる") { dismiss() }.buttonStyle(.borderedProminent).tint(Theme.accent)
                 } else {
                     let c = cards[i]
                     Text("\(i + 1) / \(cards.count)").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     face {
-                        Text(c.meaning).font(.title3.weight(.bold)).foregroundStyle(Theme.text).multilineTextAlignment(.center)
+                        Text(c.meaning.isEmpty ? String(localized: "前はこう言っていました。自然な\(model.targetLanguage.name)では？")
+                                               : String(localized: "\(model.targetLanguage.name)で何と言いますか？"))
+                            .font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                        Text(Quiz.cue(c) ?? "").font(.title3.weight(.bold)).foregroundStyle(Theme.text).multilineTextAlignment(.center)
                         if open {
-                            Text(c.phrase).font(.title2.weight(.heavy)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
+                            HStack(spacing: 4) {
+                                Text(c.phrase).font(.title2.weight(.heavy)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
+                                SpeakButton(text: c.phrase)
+                            }
                         } else {
-                            Text("\(model.targetLanguage.name)で言ってみてから、答えを見てください").font(.caption).foregroundStyle(Theme.faint)
+                            Text("声に出して言ってみてから、答えを見てください").font(.caption).foregroundStyle(Theme.faint)
                         }
                     }
                     if open {
@@ -258,16 +279,19 @@ struct FlashSheet: View {
             }
             .padding(16)
             .background(Theme.bg)
-            .navigationTitle("カードで復習").compactNavigationTitle()
+            .navigationTitle("覚えてますか？").compactNavigationTitle()
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("やめる") { dismiss() } } }
-            .onAppear {
-                cards = model.snapshot.phrases.filter { $0.status == "active" && !$0.meaning.isEmpty }
-                    .sorted { ($0.due ?? "") < ($1.due ?? "") }
-            }
+            .onAppear { if !started { start(all: false) } }
         }
         #if os(macOS)
         .frame(minWidth: 380, minHeight: 360)
         #endif
+    }
+
+    private func start(all: Bool) {
+        started = true
+        cards = all ? Quiz.pool(model.snapshot.phrases).shuffled() : Quiz.dueToday(model.snapshot.phrases, today: model.today)
+        i = 0; ok = 0; ng = 0; open = false
     }
 
     private func face<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

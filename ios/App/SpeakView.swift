@@ -61,6 +61,7 @@ struct SpeakView: View {
             }
             // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
             Welcome()
+            QuizCard()
             CandidatesCard()
             TodayCard(goPhrases: goPhrases)
             let recurring = Logic.topRecurring(model.snapshot.recurring, limit: 3)
@@ -350,6 +351,35 @@ struct LevelBar: View {
         }
         .frame(height: 6)
         .animation(.linear(duration: 0.1), value: level)
+    }
+}
+
+/// 話す画面の「覚えてますか？」の入口。独り言をしない日でもクイズだけ解ける（2026-10-15 本人要望）
+struct QuizCard: View {
+    @EnvironmentObject var model: AppModel
+    @State private var quizzing = false
+
+    var body: some View {
+        let n = Quiz.dueToday(model.snapshot.phrases, today: model.today).count
+        // シートはカードの外に付ける（最後の 1 問に答えて 0 問になった瞬間に、終わりの画面ごと閉じないように）
+        Group {
+          if n > 0 {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: "brain.head.profile").font(.title2).foregroundStyle(Theme.accent)
+                        .frame(width: 44, height: 44).background(Theme.accentBg, in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("覚えてますか？").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                        Text(String(localized: "今日の問題 \(n) 問（言えたら間をあけて、言えなかったら明日また出ます）"))
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer(minLength: 4)
+                    Button("解く") { quizzing = true }.buttonStyle(.borderedProminent).tint(Theme.accent)
+                }
+            }
+          }
+        }
+        .sheet(isPresented: $quizzing) { FlashSheet().environmentObject(model) }
     }
 }
 
