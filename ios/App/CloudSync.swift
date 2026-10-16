@@ -79,8 +79,29 @@ final class CloudSync: CKSyncEngineDelegate, @unchecked Sendable {
     /// アプリが前に出たとき。相手の端末の変更を取りに行き、溜まっている分を送る
     func syncNow() {
         Task {
-            try? await engine.fetchChanges()
-            try? await engine.sendChanges()
+            do {
+                try await engine.fetchChanges()
+                try await engine.sendChanges()
+                await MainActor.run { if model?.syncStatus != .noAccount { model?.syncStatus = .synced(Date()) } }
+            } catch {
+                await MainActor.run { report(error) }
+            }
+        }
+    }
+
+    /// 揃えられなかった理由を設定画面に出す。通信の切れ目などは CKSyncEngine がまた試すので出さない
+    @MainActor
+    private func report(_ error: Error) {
+        guard let ck = error as? CKError else { model?.syncStatus = .failed(error.localizedDescription); return }
+        switch ck.code {
+        case .networkFailure, .networkUnavailable, .serviceUnavailable, .requestRateLimited, .zoneBusy, .operationCancelled:
+            return
+        case .notAuthenticated:
+            model?.syncStatus = .noAccount
+        case .quotaExceeded:
+            model?.syncStatus = .failed(String(localized: "iCloud の容量がいっぱいで同期できません。記録はこの端末に残っています。"))
+        default:
+            model?.syncStatus = .failed(String(localized: "iCloud とつながりませんでした。記録はこの端末に残っています。（\(ck.code.rawValue)）"))
         }
     }
 
@@ -121,14 +142,15 @@ final class CloudSync: CKSyncEngineDelegate, @unchecked Sendable {
             await MainActor.run { handleSent(e) }
 
         case .willFetchChanges, .willSendChanges:
-            await MainActor.run { if model?.syncStatus != .noAccount { model?.syncStatus = .syncing } }
-
-        case .didFetchChanges, .didSendChanges:
             await MainActor.run {
                 guard let m = model else { return }
                 if case .failed = m.syncStatus { return }
-                if m.syncStatus != .noAccount { m.syncStatus = .synced(Date()) }
+                if m.syncStatus != .noAccount { m.syncStatus = .syncing }
             }
+
+        case .didFetchChanges, .didSendChanges:
+            // 自動の同期が終わった。失敗していたら（syncNow が理由を出す）上書きしない
+            await MainActor.run { if model?.syncStatus == .syncing { model?.syncStatus = .synced(Date()) } }
 
         case .sentDatabaseChanges, .willFetchRecordZoneChanges, .didFetchRecordZoneChanges:
             break

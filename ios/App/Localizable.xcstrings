@@ -2451,6 +2451,16 @@
           }
         }
       }
+    },
+    "iCloud とつながりませんでした。記録はこの端末に残っています。（%lld）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t connect to iCloud. Your history is still saved on this device. (%lld)"
+          }
+        }
+      }
     }
   }
 }
