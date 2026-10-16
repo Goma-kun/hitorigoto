@@ -40,6 +40,12 @@ final class AppModel: ObservableObject {
     @Published var quota: GeminiClient.Quota?
     /// 「トラさんに詳しく聞く」の今日の回数（添削とは別枠）
     @Published var explainQuota: GeminiClient.Quota?
+    /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
+    @Published var syncEnabled: Bool {
+        didSet { UserDefaults.standard.set(syncEnabled, forKey: "iCloudSync"); updateSync() }
+    }
+    @Published var syncStatus: SyncStatus = .off
+    private var sync: CloudSync?
 
     let recorder = Recorder()
     private let store: SnapshotStore?
@@ -56,7 +62,34 @@ final class AppModel: ObservableObject {
         micUID = d.string(forKey: "micUID") ?? ""
         let saved = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
         engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
+        syncEnabled = d.object(forKey: "iCloudSync") as? Bool ?? true
         Speaker.shared.language = language
+        updateSync()
+    }
+
+    // MARK: - iCloud 同期
+
+    private func updateSync() {
+        if syncEnabled && !DevHooks.noSync {
+            if sync == nil { sync = CloudSync(model: self) }
+        } else if sync != nil || syncStatus != .off {
+            sync = nil
+            CloudSync.forget()
+            syncStatus = .off
+        }
+    }
+
+    /// アプリが前に出たとき
+    func syncNow() { sync?.syncNow() }
+
+    /// 相手の端末から届いた分を混ぜた記録に差し替える（CloudSync から呼ぶ）
+    func applySynced(_ s: Snapshot) {
+        if s != snapshot {
+            snapshot = s
+            if let id = latestSession?.id { latestSession = snapshot.sessions.first { $0.id == id } ?? latestSession }
+            try? store?.save(snapshot)
+        }
+        sync?.localChanged(snapshot)
     }
 
     /// 話す言語（設定）。知らない値が入っていたら既定に
@@ -83,7 +116,10 @@ final class AppModel: ObservableObject {
         quota = await GeminiClient(transport: Relay.transport).quota()
     }
 
-    private func save() { try? store?.save(snapshot) }
+    private func save() {
+        try? store?.save(snapshot)
+        sync?.localChanged(snapshot)
+    }
 
     // MARK: - トラさんに詳しく聞く
 

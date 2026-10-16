@@ -4,6 +4,7 @@ import SwiftUI
 struct HitorigotoApp: App {
     @StateObject private var model: AppModel
     @State private var tab = 0
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         DevHooks.apply()
@@ -25,6 +26,8 @@ struct HitorigotoApp: App {
                 #endif
             .environmentObject(model)
             .tint(Theme.tint)
+            // 前に出るたびに、もう一方の端末の変更を取りに行く
+            .onChange(of: scenePhase) { _, phase in if phase == .active { model.syncNow() } }
             #if os(macOS)
             .frame(minWidth: 400, minHeight: 600)
             #endif
@@ -114,7 +117,17 @@ struct RootTabs: View {
 /// 検証用のフック。**Release では何もしない。**
 ///   -HGKeyFile <path>   そのファイルの中身を Gemini キーとして Keychain に入れる（キーをチャットや引数に出さないため）
 ///   -HGSeed <path>      記録がまだ無ければ、その JSON（書き出しファイルと同じ形）を最初の記録にする
+///   -HGNoSync 1         iCloud 同期を使わない。**-HGSeed を付けたときも使わない**（試しの記録を本人の iCloud に混ぜないため）
 enum DevHooks {
+    static var noSync: Bool {
+        #if DEBUG
+        let d = UserDefaults.standard
+        return d.bool(forKey: "HGNoSync") || d.string(forKey: "HGSeed") != nil
+        #else
+        return false
+        #endif
+    }
+
     static func apply() {
         #if DEBUG
         let d = UserDefaults.standard

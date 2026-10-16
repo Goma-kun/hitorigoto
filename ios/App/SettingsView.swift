@@ -106,6 +106,13 @@ struct SettingsView: View {
             } header: { Text("毎日の表現") }
 
             Section {
+                Toggle("iCloud で同期する", isOn: $model.syncEnabled)
+                if model.syncEnabled { SyncStatusLabel(status: model.syncStatus) }
+                Text("同じ Apple アカウントでサインインしている iPhone と Mac で、練習の記録・表現集・今日の表現が揃います。記録はあなたの iCloud に入り、開発者からは見えません。切っても、この端末の記録は消えません。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("iCloud 同期") }
+
+            Section {
                 HStack {
                     Button("書き出す") { exporting = true }
                     Button("読み込む") { importing = true }
@@ -138,6 +145,28 @@ struct SettingsView: View {
             } catch {
                 dataStatus = String(localized: "✗ 読み込めませんでした（独り言の書き出しファイルではないようです）")
             }
+        }
+    }
+}
+
+/// 同期の今の様子。最後に揃った時刻か、揃えられない理由
+struct SyncStatusLabel: View {
+    let status: SyncStatus
+
+    var body: some View {
+        switch status {
+        case .off:
+            EmptyView()
+        case .starting, .syncing:
+            Label("同期しています…", systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Theme.muted)
+        case .synced(let at):
+            Label(String(localized: "同期済み（\(at.formatted(date: .omitted, time: .shortened))）"), systemImage: "checkmark.icloud.fill")
+                .foregroundStyle(Theme.good)
+        case .noAccount:
+            Label("iCloud にサインインしていません。端末の設定で Apple アカウントにサインインすると同期できます。", systemImage: "icloud.slash")
+                .foregroundStyle(Theme.warn)
+        case .failed(let why):
+            Label(why, systemImage: "exclamationmark.icloud").foregroundStyle(Theme.warn)
         }
     }
 }

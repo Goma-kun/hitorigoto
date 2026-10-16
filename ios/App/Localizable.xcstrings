@@ -2381,6 +2381,76 @@
           }
         }
       }
+    },
+    "iCloud で同期する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync with iCloud"
+          }
+        }
+      }
+    },
+    "同じ Apple アカウントでサインインしている iPhone と Mac で、練習の記録・表現集・今日の表現が揃います。記録はあなたの iCloud に入り、開発者からは見えません。切っても、この端末の記録は消えません。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your practice history, phrase book, and today’s phrases stay the same on every iPhone and Mac signed in to the same Apple Account. Your data is stored in your own iCloud and is never visible to the developer. Turning this off doesn’t delete anything on this device."
+          }
+        }
+      }
+    },
+    "iCloud 同期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud Sync"
+          }
+        }
+      }
+    },
+    "同期しています…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syncing…"
+          }
+        }
+      }
+    },
+    "同期済み（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synced (%@)"
+          }
+        }
+      }
+    },
+    "iCloud にサインインしていません。端末の設定で Apple アカウントにサインインすると同期できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’re not signed in to iCloud. Sign in to your Apple Account in Settings to sync."
+          }
+        }
+      }
+    },
+    "iCloud の容量がいっぱいで同期できません。記録はこの端末に残っています。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your iCloud storage is full, so syncing has stopped. Your history is still saved on this device."
+          }
+        }
+      }
     }
   }
 }
