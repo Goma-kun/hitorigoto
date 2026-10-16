@@ -2481,6 +2481,46 @@
           }
         }
       }
+    },
+    "流れ: 話す、AI が聞く、直しが届く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How it works: you talk, the AI listens, you get feedback"
+          }
+        }
+      }
+    },
+    "いま録音しています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording now"
+          }
+        }
+      }
+    },
+    "AI が聞いて添削しています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI is listening and reviewing"
+          }
+        }
+      }
+    },
+    "直しが届きました": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your feedback is ready"
+          }
+        }
+      }
     }
   }
 }

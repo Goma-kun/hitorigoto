@@ -13,6 +13,8 @@ struct SpeakView: View {
                     if let e = model.errorMessage {
                         Card { Text(e).font(.callout).foregroundStyle(Theme.bad) }
                     }
+                    // 録音を始めたら「話す → AI が聞く → 直しが届く」が進み具合の表示になる（押すものではないと伝わる形）
+                    if model.phase != .idle { FlowStrip(stage: stage) }
                     switch model.phase {
                     case .idle: idleBody
                     case .recording: RecordingBody(recorder: model.recorder)
@@ -29,6 +31,14 @@ struct SpeakView: View {
         }
         .background(Theme.bg)
         .navigationTitle("独り言")
+    }
+
+    private var stage: Int {
+        switch model.phase {
+        case .recording: return 0
+        case .reviewing: return 1
+        default: return 2
+        }
     }
 
     // MARK: - 話す前
@@ -310,13 +320,9 @@ struct Welcome: View {
                     Text(sub).font(.subheadline).foregroundStyle(Theme.muted)
                 }
             }
-            HStack(alignment: .top, spacing: 4) {
-                step("mic.fill", String(localized: "話す"), Theme.accent, Theme.accentBg)
-                arrow
-                step("sparkles", String(localized: "AI が聞く"), Theme.warn, Theme.warnBg)
-                arrow
-                step("checkmark.bubble.fill", String(localized: "直しが届く"), Theme.good, Theme.goodBg)
-            }
+            // 流れの説明は、使い始めの数回だけ控えめな 1 行で出す。
+            // 丸い背景つきの大きな絵はボタンに見えて押されてしまう（2026-10-17 本人指摘）ので、押せそうな形にしない
+            if model.snapshot.sessions.count < FlowStrip.introSessions { FlowStrip(stage: nil) }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
@@ -339,18 +345,66 @@ struct Welcome: View {
         return n == 0 ? String(localized: "\(model.targetLanguage.name)でひとりごと、はじめましょう") : String(localized: "これまで \(n) 回。今日も聞かせてくれ")
     }
 
-    private func step(_ icon: String, _ label: String, _ fg: Color, _ bg: Color) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 22, weight: .semibold)).foregroundStyle(fg)
-                .frame(width: 56, height: 56).background(bg, in: Circle())
-            Text(label).font(.caption.weight(.bold)).foregroundStyle(Theme.text)
-        }
-        .frame(maxWidth: .infinity)
+}
+
+/// 「話す → AI が聞く → 直しが届く」。押すものではなく、流れと今いる場所を見せる帯。
+/// - stage が nil：使い始めの説明。小さな絵と文字を 1 行に、控えめな色で並べる
+/// - stage が 0〜2：録音中・添削中・結果。今の段だけ色を付け、済んだ段にはチェック、添削中は回る印
+struct FlowStrip: View {
+    let stage: Int?
+    /// 説明として出すのは、記録がこの回数に届くまで
+    static let introSessions = 3
+
+    private struct Step { let icon: String; let label: String; let color: Color }
+    private var steps: [Step] {
+        [Step(icon: "mic.fill", label: String(localized: "話す"), color: Theme.accent),
+         Step(icon: "sparkles", label: String(localized: "AI が聞く"), color: Theme.warn),
+         Step(icon: "checkmark.bubble.fill", label: String(localized: "直しが届く"), color: Theme.good)]
     }
 
-    private var arrow: some View {
-        Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
-            .frame(height: 56)
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { i, st in
+                if i > 0 {
+                    Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
+                }
+                item(i, st)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, stage == nil ? 2 : 6)
+        .animation(.easeInOut(duration: 0.25), value: stage)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    @ViewBuilder
+    private func item(_ i: Int, _ st: Step) -> some View {
+        let current = stage == i
+        let done = (stage ?? -1) > i || (stage == 2 && i == 2)
+        HStack(spacing: 4) {
+            if current && i == 1 {
+                ProgressView().controlSize(.mini)
+            } else {
+                Image(systemName: done && i < 2 ? "checkmark.circle.fill" : st.icon)
+                    .font(.caption.weight(.semibold))
+                    .symbolEffect(.pulse, isActive: current && i == 0)
+            }
+            Text(st.label).font(.caption.weight(current ? .bold : .regular))
+        }
+        .foregroundStyle(color(i, st, current: current, done: done))
+    }
+
+    private func color(_ i: Int, _ st: Step, current: Bool, done: Bool) -> Color {
+        guard let stage else { return Theme.muted }        // 説明のときは全部控えめ
+        if current { return st.color }
+        if done || i < stage { return Theme.good.opacity(0.8) }
+        return Theme.faint
+    }
+
+    private var accessibilityText: String {
+        guard let stage else { return String(localized: "流れ: 話す、AI が聞く、直しが届く") }
+        return [String(localized: "いま録音しています"), String(localized: "AI が聞いて添削しています"), String(localized: "直しが届きました")][stage]
     }
 }
 
