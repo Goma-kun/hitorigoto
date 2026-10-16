@@ -73,6 +73,12 @@ public enum Logic {
             return Issue(type: types.contains(type) ? type : "phrasing", original: original,
                          suggestion: suggestion, reason: asText(it?["reason"]))
         }
+        let fixes = ((d["more_fixes"] as? [Any]) ?? []).compactMap { raw -> Fix? in
+            let it = raw as? [String: Any]
+            let original = asText(it?["original"]), suggestion = asText(it?["suggestion"])
+            guard !original.isEmpty, !suggestion.isEmpty, original != suggestion else { return nil }
+            return Fix(original: original, suggestion: suggestion, note: asText(it?["note"]))
+        }
         let pron = ((d["pronunciation"] as? [Any]) ?? []).compactMap { raw -> Pronunciation? in
             let it = raw as? [String: Any]
             let said = asText(it?["said"]), heard = asText(it?["heard_as"])
@@ -98,6 +104,7 @@ public enum Logic {
         return Feedback(
             correctedText: asText(d["corrected_text"]),
             issues: issues,
+            moreFixes: Array(fixes.prefix(20)),
             recurring: asStringArray(d["recurring"]),
             recognitionDoubt: asStringArray(d["recognition_doubt"]),
             good: asText(d["good"]),
@@ -170,9 +177,11 @@ public enum Logic {
         public var corrected: String, issues: String, good: String, said: String, pron: String
         /// 「日本語で言った分 → 英語ならこう」の見出し。空なら出さない（JS の L.asks が無いときと同じ）
         public var asks: String
+        /// 「直すべし」に入りきらなかった直しの見出し。空なら出さない（JS の L.more が無いときと同じ）
+        public var more: String
         public var types: [String: String]
-        public init(corrected: String, issues: String, good: String, said: String, pron: String, asks: String = "", types: [String: String]) {
-            self.corrected = corrected; self.issues = issues; self.good = good; self.said = said; self.pron = pron; self.asks = asks; self.types = types
+        public init(corrected: String, issues: String, good: String, said: String, pron: String, asks: String = "", more: String = "", types: [String: String]) {
+            self.corrected = corrected; self.issues = issues; self.good = good; self.said = said; self.pron = pron; self.asks = asks; self.more = more; self.types = types
         }
     }
 
@@ -188,6 +197,12 @@ public enum Logic {
                 return "\(i + 1). \(type)\(head)\(reason)"
             }
             out.append("【\(L.issues)】\n\(lines.joined(separator: "\n\n"))")
+        }
+        if let more = s.moreFixes, !more.isEmpty, !L.more.isEmpty {
+            let lines = more.enumerated().map { i, it in
+                "\(i + 1). \(it.original)\n   → \(it.suggestion)" + (it.note.isEmpty ? "" : "\n   \(it.note)")
+            }
+            out.append("【\(L.more)】\n\(lines.joined(separator: "\n\n"))")
         }
         if let pron = s.pronunciation, !pron.isEmpty {
             let lines = pron.enumerated().map { i, it in

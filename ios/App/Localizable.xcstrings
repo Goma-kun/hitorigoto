@@ -2461,6 +2461,26 @@
           }
         }
       }
+    },
+    "ほかに直したところ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other fixes"
+          }
+        }
+      }
+    },
+    "「直すべし」は大事なものから 5 件までです。修正版で直した残りを、理由つきで並べています。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Fix these” shows only the five most important points. Here are the rest of the changes in the corrected version, each with a reason."
+          }
+        }
+      }
     }
   }
 }

@@ -66,10 +66,22 @@ public struct Target: Codable, Equatable, Sendable {
     }
 }
 
+/// 「直すべし」に入りきらなかった直し（コーチが理由を一言つける）
+public struct Fix: Codable, Equatable, Sendable {
+    public var original: String
+    public var suggestion: String
+    public var note: String
+
+    public init(original: String, suggestion: String, note: String = "") {
+        self.original = original; self.suggestion = suggestion; self.note = note
+    }
+}
+
 /// AI の応答を、表示と保存が前提にできる形に揃えたもの（JS の parseFeedback の結果）
 public struct Feedback: Codable, Equatable, Sendable {
     public var correctedText: String
     public var issues: [Issue]
+    public var moreFixes: [Fix]
     public var recurring: [String]
     public var recognitionDoubt: [String]
     public var good: String
@@ -79,14 +91,14 @@ public struct Feedback: Codable, Equatable, Sendable {
     public var asks: [Ask]
 
     enum CodingKeys: String, CodingKey {
-        case correctedText = "corrected_text", issues, recurring
+        case correctedText = "corrected_text", issues, moreFixes = "more_fixes", recurring
         case recognitionDoubt = "recognition_doubt", good, transcript, pronunciation, targets, asks
     }
 
-    public init(correctedText: String = "", issues: [Issue] = [], recurring: [String] = [],
+    public init(correctedText: String = "", issues: [Issue] = [], moreFixes: [Fix] = [], recurring: [String] = [],
                 recognitionDoubt: [String] = [], good: String = "", transcript: String = "",
                 pronunciation: [Pronunciation] = [], targets: [Target] = [], asks: [Ask] = []) {
-        self.correctedText = correctedText; self.issues = issues; self.recurring = recurring
+        self.correctedText = correctedText; self.issues = issues; self.moreFixes = moreFixes; self.recurring = recurring
         self.recognitionDoubt = recognitionDoubt; self.good = good; self.transcript = transcript
         self.pronunciation = pronunciation; self.targets = targets; self.asks = asks
     }
@@ -109,6 +121,8 @@ public struct Session: Codable, Equatable, Sendable {
     public var asrTranscript: String?
     public var correctedText: String?
     public var issues: [Issue]
+    /// 「直すべし」に入りきらなかった直し（理由つき）。2026-10-17 から。それより前の記録には無い
+    public var moreFixes: [Fix]?
     public var good: String?
     public var pronunciation: [Pronunciation]?
     public var targets: [SessionTarget]?
@@ -121,7 +135,7 @@ public struct Session: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, folded, transcript, asrTranscript = "asr_transcript", correctedText = "corrected_text"
-        case issues, good, pronunciation, targets, asks, engine, explains
+        case issues, moreFixes = "more_fixes", good, pronunciation, targets, asks, engine, explains
     }
 
     public init(id: String, folded: Bool? = nil, transcript: String? = nil, asrTranscript: String? = nil,
@@ -141,6 +155,7 @@ public struct Session: Codable, Equatable, Sendable {
         asrTranscript = try c.decodeIfPresent(String.self, forKey: .asrTranscript)
         correctedText = try c.decodeIfPresent(String.self, forKey: .correctedText)
         issues = try c.decodeIfPresent([Issue].self, forKey: .issues) ?? []
+        moreFixes = try c.decodeIfPresent([Fix].self, forKey: .moreFixes)
         good = try c.decodeIfPresent(String.self, forKey: .good)
         pronunciation = try c.decodeIfPresent([Pronunciation].self, forKey: .pronunciation)
         targets = try c.decodeIfPresent([SessionTarget].self, forKey: .targets)

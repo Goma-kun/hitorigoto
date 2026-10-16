@@ -107,7 +107,22 @@ struct SpeakView: View {
                     }
                 }
             }
-            let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues, asks: fb.asks)
+            if !fb.moreFixes.isEmpty {
+                // コーチが「直すべし」に入れきれなかった直し。理由つき（2026-10-17 から）
+                Card(title: String(localized: "ほかに直したところ")) {
+                    ForEach(Array(fb.moreFixes.enumerated()), id: \.offset) { i, f in
+                        if i > 0 { Divider().overlay(Theme.line) }
+                        VStack(alignment: .leading, spacing: 3) {
+                            (Text(f.original).strikethrough().foregroundStyle(Theme.bad) + Text("  →  ").foregroundStyle(Theme.faint) + Text(f.suggestion).bold().foregroundStyle(Theme.good))
+                                .font(.callout)
+                            if !f.note.isEmpty { Text(f.note).font(.caption).foregroundStyle(Theme.muted) }
+                        }
+                    }
+                    Note(text: String(localized: "「直すべし」は大事なものから 5 件までです。修正版で直した残りを、理由つきで並べています。"))
+                }
+            }
+            // コーチが挙げきれなかった直しが残っていれば、機械で突き合わせて拾う（理由は付かない）
+            let silent = SilentFixes.find(transcript: fb.transcript, corrected: fb.correctedText, issues: fb.issues + fb.moreFixes.map(\.asIssue), asks: fb.asks)
             if !silent.isEmpty {
                 Card(title: String(localized: "ほかに、添削文で直っていたところ")) {
                     ForEach(silent) { f in

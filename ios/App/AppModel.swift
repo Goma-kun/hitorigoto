@@ -282,6 +282,7 @@ final class AppModel: ObservableObject {
         guard let s = snapshot.sessions.first else { return }
         latest = Feedback(correctedText: s.correctedText ?? "", issues: s.issues, recurring: [], recognitionDoubt: [],
                           good: s.good ?? "", transcript: s.transcript ?? "", pronunciation: s.pronunciation ?? [], targets: [], asks: s.asks ?? [])
+        latest?.moreFixes = s.moreFixes ?? []
         latestSession = s
         latestJudged = (s.targets ?? []).compactMap { t in
             guard let c = snapshot.phrases.first(where: { $0.phrase == t.phrase }) else { return nil }
@@ -392,12 +393,16 @@ final class AppModel: ObservableObject {
             let b = i.suggestion.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
             return a.isEmpty || a != b
         }
+        // 「ほかに直したところ」から、指摘と同じ箇所を外す
+        let covered = Set(fb.issues.compactMap { $0.original?.lowercased() })
+        fb.moreFixes = fb.moreFixes.filter { !covered.contains($0.original.lowercased()) }
         do {
             var session = Session(id: ISO8601DateFormatter.withMillis.string(from: p.date), transcript: fb.transcript,
                                   correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: engine)
             if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
             if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
             if !fb.asks.isEmpty { session.asks = fb.asks }
+            if !fb.moreFixes.isEmpty { session.moreFixes = fb.moreFixes }
 
             var judged: [Judged] = []
             if !targetCards.isEmpty {

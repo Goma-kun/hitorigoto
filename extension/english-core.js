@@ -74,6 +74,8 @@ function parseFeedback(raw) {
         };
       })
       .filter(it => it.original && it.suggestion),
+    // 「直すべし」に入りきらなかった直し（理由つき）。言った形と直した形が揃っているものだけ・最大 20
+    more_fixes:        asFixes(data.more_fixes),
     recurring:         asStringArray(data.recurring),
     recognition_doubt: asStringArray(data.recognition_doubt),
     good:              asText(data.good),
@@ -85,6 +87,18 @@ function parseFeedback(raw) {
     // 日本語で言った箇所（英語が出てこなかったところ）→ 英語ならこう言う。無ければ空
     asks:              asAsks(data.asks),
   };
+}
+
+function asFixes(v) {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(it => ({
+      original:   asText(it && it.original),
+      suggestion: asText(it && it.suggestion),
+      note:       asText(it && it.note),
+    }))
+    .filter(it => it.original && it.suggestion && it.original !== it.suggestion)
+    .slice(0, 20);
 }
 
 // 「日本語で言った分 → 英語ならこう」。said（言ったこと）と ways（言い方）が揃っているものだけ残す。
@@ -206,6 +220,14 @@ function buildSessionText(session, labels) {
       return `${i + 1}. ${type}${head}${it.reason ? `\n   ${it.reason}` : ''}`;
     });
     out.push(`【${L.issues}】\n${lines.join('\n\n')}`);
+  }
+
+  // 「直すべし」に入りきらなかった直し（理由つき）。無いセッションでは出さない
+  const more = s.more_fixes || [];
+  if (more.length > 0 && L.more) {
+    const lines = more.map((it, i) =>
+      `${i + 1}. ${it.original}\n   → ${it.suggestion}${it.note ? `\n   ${it.note}` : ''}`);
+    out.push(`【${L.more}】\n${lines.join('\n\n')}`);
   }
 
   // 音声モードで拾った「発音で伝わらなかった箇所」。無いセッションでは出さない

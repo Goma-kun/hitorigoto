@@ -118,7 +118,14 @@ struct SessionCard: View {
                         }
                     }
                 }
-                let silent = SilentFixes.find(transcript: session.transcript ?? "", corrected: session.correctedText ?? "", issues: session.issues, asks: session.asks ?? [])
+                if let more = session.moreFixes, !more.isEmpty {
+                    // コーチが理由つきで挙げた残りの直し（2026-10-17 から）
+                    Text("ほかに直したところ").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                    ForEach(Array(more.enumerated()), id: \.offset) { _, f in
+                        Text(hl("• \(f.original) → \(f.suggestion)" + (f.note.isEmpty ? "" : " — \(f.note)"))).font(.caption).foregroundStyle(Theme.text)
+                    }
+                }
+                let silent = SilentFixes.find(transcript: session.transcript ?? "", corrected: session.correctedText ?? "", issues: session.issues + (session.moreFixes ?? []).map(\.asIssue), asks: session.asks ?? [])
                 if !silent.isEmpty {
                     Text("ほかに、添削文で直っていたところ").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(silent) { f in
@@ -149,7 +156,7 @@ struct SessionCard: View {
     }
 
     static let labels = Logic.Labels(corrected: String(localized: "修正版"), issues: String(localized: "直すべし"), good: String(localized: "わしが買ってやる点"), said: String(localized: "話した内容（音声から書き起こし）"),
-                                     pron: String(localized: "発音で伝わらなかった箇所"), asks: String(localized: "日本語で言った分、英語ならこう"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
+                                     pron: String(localized: "発音で伝わらなかった箇所"), asks: String(localized: "日本語で言った分、英語ならこう"), more: String(localized: "ほかに直したところ"), types: ["phrasing": String(localized: "言い回し"), "vocabulary": String(localized: "語彙"), "grammar": String(localized: "文法")])
 
     /// 画面に出していない欄のうち、検索語が当たったもの
     private var hiddenHits: [(label: String, text: String)] {
@@ -202,6 +209,7 @@ extension Session {
     func matches(_ words: [String]) -> Bool {
         var parts: [String] = [transcript ?? "", asrTranscript ?? "", correctedText ?? "", good ?? ""]
         for i in issues { parts += [i.original ?? "", i.suggestion, i.reason ?? ""] }
+        for f in moreFixes ?? [] { parts += [f.original, f.suggestion, f.note] }
         for a in asks ?? [] { parts += [a.said] + a.ways + [a.note] }
         for p in pronunciation ?? [] { parts += [p.said, p.heardAs, p.note] }
         for t in targets ?? [] { parts += [t.phrase, t.as] }

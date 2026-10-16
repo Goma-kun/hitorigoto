@@ -102,3 +102,8 @@ enum SilentFixes {
         return ws.joined(separator: spaced ? " " : "")
     }
 }
+
+extension Fix {
+    /// 黙った直しの突き合わせで「もう挙がっている」と数えるための形
+    var asIssue: Issue { Issue(type: "phrasing", original: original, suggestion: suggestion) }
+}

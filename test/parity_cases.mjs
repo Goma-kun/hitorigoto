@@ -68,7 +68,9 @@ const SAMPLE = { corrected_text: 'I went.', issues: [{ type: 'VOCABULARY', origi
   asks: [{ said: 'ガツガツ食べてた', ways: ['He was wolfing down the food.', 'He was scarfing it down.', 3, 'third', 'fourth'], ipa: ['/wʊlf/', 7], note: 'n' },
          { said: 'あくび', ways: ['yawn'], ipa: ['/jɔːn/', '/x/', '/y/'] },
          { said: '', ways: ['x'] }, { said: 'only said' }, { said: 'no ways', ways: [] }, { said: 'a', ways: ['b'] }, { said: 'c', ways: ['d'] },
-         { said: 'e', ways: ['f'] }, { said: 'g', ways: ['h'] }, { said: 'i', ways: ['j'] }] };
+         { said: 'e', ways: ['f'] }, { said: 'g', ways: ['h'] }, { said: 'i', ways: ['j'] }],
+  more_fixes: [{ original: 'a news', suggestion: 'news', note: 'n' }, { original: 'same', suggestion: 'same' }, { original: 'x' }, { suggestion: 'y' },
+               ...Array.from({ length: 24 }, (_, i) => ({ original: `o${i}`, suggestion: `s${i}` }))] };
 for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) + '\n```', 'はい。' + JSON.stringify({ ...SAMPLE, good: '括弧 } と "引用符"' }) + ' です',
   '{ "corrected_text": ', 'ローマ帝国は…', '{"corrected_text":"Hello."}', JSON.stringify({ issues: [] })]) {
   push({ fn: 'parseFeedback', raw }, JS.parseFeedback(raw));
@@ -94,6 +96,10 @@ for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) 
   push({ fn: 'userMessage', text: 'asr', recurring: rec, extra: '', audio: true }, JS.buildEnglishAudioUserMessage('asr', rec, ''));
   const labels = { corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容', pron: '発音', asks: '英語ならこう', types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' } };
   const labelsNoAsks = { corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容', pron: '発音', types: {} };
+  const labelsMore = { ...labels, more: 'ほかに直したところ' };
+  const s3 = { id: 'm', corrected_text: 'I have good news.', issues: [], more_fixes: [{ original: 'a good news', suggestion: 'good news', note: 'news は数えない' }, { original: 'x', suggestion: 'y', note: '' }] };
+  push({ fn: 'sessionText', session: s3, labels: labelsMore }, JS.buildSessionText(s3, labelsMore));
+  push({ fn: 'sessionText', session: s3, labels }, JS.buildSessionText(s3, labels));
   const s2 = { id: 'z', transcript: 't', asks: [{ said: 'ガツガツ', ways: ['wolf down', 'scarf down'], note: 'n' }, { said: 'x', ways: ['y'], note: '' }], good: 'g' };
   push({ fn: 'sessionText', session: s2, labels }, JS.buildSessionText(s2, labels));
   push({ fn: 'sessionText', session: s2, labels: labelsNoAsks }, JS.buildSessionText(s2, labelsNoAsks));
