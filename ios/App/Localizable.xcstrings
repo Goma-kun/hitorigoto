@@ -2521,6 +2521,46 @@
           }
         }
       }
+    },
+    "ほかの形も正解？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other correct ways?"
+          }
+        }
+      }
+    },
+    "この形になった話の流れ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The context this came from"
+          }
+        }
+      }
+    },
+    "答えは、この話の流れでの言い方です。場面が変われば、ほかの形も正解になります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This answer fits the context of what you said. In a different situation, other forms can be correct too."
+          }
+        }
+      }
+    },
+    "💬 ほかの形も正解？ トラさんに聞く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💬 Other correct ways? Ask Tora"
+          }
+        }
+      }
     }
   }
 }

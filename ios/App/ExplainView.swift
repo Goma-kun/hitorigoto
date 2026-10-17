@@ -22,6 +22,8 @@ struct ExplainSheet: View {
     @Environment(\.dismiss) private var dismiss
     let sessionId: String
     let topic: ExplainTopic
+    /// 開いたときに最初に聞くこと（クイズからは「ほかの形も正解？」）
+    var firstAsk: Explain.Preset = .deeper
 
     @State private var loading = false
     @State private var error: String?
@@ -72,7 +74,10 @@ struct ExplainSheet: View {
         .task {
             await model.refreshExplainQuota()
             // 押した時点で「詳しく」と言っているので、最初の 1 回は待たせずに聞く
-            if turns.isEmpty && !loading { await send(Explain.Preset.deeper.label, preset: .deeper) }
+            if !loading {
+                if turns.isEmpty { await send(firstAsk.label, preset: firstAsk) }
+                else if firstAsk != .deeper && !turns.contains(where: { $0.q == firstAsk.label }) { await send(firstAsk.label, preset: firstAsk) }
+            }
         }
     }
 

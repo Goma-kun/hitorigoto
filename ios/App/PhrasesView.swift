@@ -224,6 +224,7 @@ struct FlashSheet: View {
     @State private var ok = 0
     @State private var ng = 0
     @State private var started = false
+    @State private var explainFor: Quiz.Source?
 
     var body: some View {
         NavigationStack {
@@ -262,6 +263,23 @@ struct FlashSheet: View {
                                 Text(c.phrase).font(.title2.weight(.heavy)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
                                 SpeakButton(text: c.phrase)
                             }
+                            // 答えは「その話の流れでの言い方」。この形だけが正解だと覚えないように、流れと一言を添える（2026-10-17 本人要望）
+                            let src = Quiz.source(c, sessions: model.snapshot.sessions)
+                            if let ctx = src?.context, !ctx.isEmpty {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("この形になった話の流れ").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
+                                    Text(ctx).font(.caption).foregroundStyle(Theme.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(Theme.bg, in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            Text("答えは、この話の流れでの言い方です。場面が変われば、ほかの形も正解になります。")
+                                .font(.caption).foregroundStyle(Theme.faint).multilineTextAlignment(.center)
+                            if let src {
+                                Button("💬 ほかの形も正解？ トラさんに聞く") { explainFor = src }
+                                    .buttonStyle(.bordered).controlSize(.small).tint(Theme.info)
+                            }
                         } else {
                             Text("声に出して言ってみてから、答えを見てください").font(.caption).foregroundStyle(Theme.faint)
                         }
@@ -282,6 +300,9 @@ struct FlashSheet: View {
             .navigationTitle("覚えてますか？").compactNavigationTitle()
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("やめる") { dismiss() } } }
             .onAppear { if !started { start(all: false) } }
+            .sheet(item: $explainFor) { src in
+                ExplainSheet(sessionId: src.sessionId, topic: src.topic, firstAsk: .alternatives).environmentObject(model)
+            }
         }
         #if os(macOS)
         .frame(minWidth: 380, minHeight: 360)
@@ -307,4 +328,8 @@ struct FlashSheet: View {
         if good { ok += 1 } else { ng += 1 }
         i += 1; open = false
     }
+}
+
+extension Quiz.Source: Identifiable {
+    public var id: String { sessionId + "|" + topic.key }
 }

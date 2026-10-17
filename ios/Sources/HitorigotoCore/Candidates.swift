@@ -154,6 +154,56 @@ public enum Quiz {
         return PhraseLogic.addDays(last.d, ladder[min(streak - 1, ladder.count - 1)])
     }
 
+    /// クイズの答えがどの独り言から来たか。答えは「その話の流れでの言い方」なので、流れを一緒に見せる
+    public struct Source: Equatable, Sendable {
+        public var sessionId: String
+        public var topic: ExplainTopic
+        /// 修正版のうち、その表現が出てくる文と、その 1 つ前の文
+        public var context: String
+    }
+
+    /// 表現カードの元になった直し（または「英語ならこう」）と、その話の流れを探す。見つからなければ nil
+    public static func source(_ c: PhraseCard, sessions: [Session]) -> Source? {
+        let key = PhraseLogic.phraseKey(c.phrase)
+        for s in sessions where s.folded != true {
+            var topic: ExplainTopic?
+            if let it = s.issues.first(where: { PhraseLogic.phraseKey($0.suggestion) == key }) { topic = ExplainTopic(issue: it) }
+            else if let it = (s.moreFixes ?? []).first(where: { PhraseLogic.phraseKey($0.suggestion) == key }) {
+                topic = ExplainTopic(kind: "issue", original: it.original, suggestion: it.suggestion, reason: it.note)
+            } else if let a = (s.asks ?? []).first(where: { $0.ways.contains { PhraseLogic.phraseKey($0) == key } }) { topic = ExplainTopic(ask: a) }
+            guard let topic else { continue }
+            return Source(sessionId: s.id, topic: topic, context: context(of: c.phrase, in: s.correctedText ?? ""))
+        }
+        return nil
+    }
+
+    /// 文章から、表現にいちばん語が重なる文と、その 1 つ前の文を取り出す
+    public static func context(of phrase: String, in text: String) -> String {
+        let ranges = sentenceRanges(text)
+        guard !ranges.isEmpty else { return "" }
+        func words(_ t: String) -> Set<String> { Set(t.lowercased().split(whereSeparator: { !$0.isLetter && $0 != "'" }).map(String.init)) }
+        let want = words(phrase)
+        guard !want.isEmpty else { return "" }
+        var best = -1, bestScore = 0
+        for (i, r) in ranges.enumerated() {
+            let score = want.intersection(words(r)).count
+            if score > bestScore { best = i; bestScore = score }
+        }
+        guard best >= 0, Double(bestScore) / Double(want.count) >= 0.5 else { return "" }
+        return (best > 0 ? ranges[best - 1] + " " : "") + ranges[best]
+    }
+
+    /// 文ごとに切る（句点も残す）
+    static func sentenceRanges(_ text: String) -> [String] {
+        var out: [String] = [], cur = ""
+        for ch in text.replacingOccurrences(of: "\n", with: " ") {
+            cur.append(ch)
+            if ".!?".contains(ch) { let t = cur.trimmingCharacters(in: .whitespaces); if !t.isEmpty { out.append(t) }; cur = "" }
+        }
+        let t = cur.trimmingCharacters(in: .whitespaces); if !t.isEmpty { out.append(t) }
+        return out
+    }
+
     /// 出題できる表現（しまったものは出さない）
     public static func pool(_ list: [PhraseCard]) -> [PhraseCard] {
         list.filter { $0.status != "archived" && cue($0) != nil }

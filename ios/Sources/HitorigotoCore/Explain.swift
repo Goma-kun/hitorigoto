@@ -64,12 +64,13 @@ public enum Explain {
 
     /// 用意しておく聞き方。最初の 1 回は deeper を自動で出す
     public enum Preset: String, CaseIterable, Sendable {
-        case deeper, examples, grammar, compare
+        case deeper, alternatives, examples, grammar, compare
 
         /// ボタンに出す文字（そのまま「聞いたこと」として残す）
         public var label: String {
             switch self {
             case .deeper: return String(localized: "くわしく")
+            case .alternatives: return String(localized: "ほかの形も正解？")
             case .examples: return String(localized: "例文をもっと")
             case .grammar: return String(localized: "文法で説明して")
             case .compare: return String(localized: "似た言い方との違い")
@@ -81,6 +82,8 @@ public enum Explain {
             switch self {
             case .deeper:
                 return "この直しについて、なぜそう直すのかをもう一歩くわしく説明してください。添削のときの一言より深く、どういう場面でどう使い分けるのかまで教えてください。例文を 3 つ付けてください。"
+            case .alternatives:
+                return "直した形は、元の話の流れに合わせた一つの言い方です。学習者が「この形だけが正解」と思い込まないように説明してください。(1) 元の話の流れでは、なぜこの形になるのか（時制・仮定・語の選び方など、形を決めた手がかりを話の中から示す）(2) 同じ中身を言える別の正しい形を 2〜3 個挙げ、それぞれ言うと意味や伝わり方がどう変わるか、どんな場面ならその形が合うか (3) 元の話の流れでは選ばないほうがよい形があれば、その理由。別の形ごとに例文を 1 つ付けてください。"
             case .examples:
                 return "この直した形（または言い方）を使った例文を、日常会話でよくある場面から 5 つください。場面がばらけるようにしてください。"
             case .grammar:

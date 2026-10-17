@@ -132,4 +132,19 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(Quiz.dueToday([c, noCue], today: "2026-10-30").map(\.id) == ["q"], "手がかりの無い表現は出さない")
         XCTAssertEqual(Quiz.nextDue([c], today: "2026-10-20"), "2026-10-21")
     }
+
+    /// クイズの答えの元と、その話の流れ（10/9 の If I were married の例）
+    func testQuizSourceAndContext() {
+        var s = Session(id: "2026-10-09T12:45:23.368Z", correctedText: "I haven't been there in about 15 years. You know, I'm single. If I were married, I might have gone, but since I'm alone, I didn't go. Recently, I went to a restaurant.",
+                        issues: [Issue(type: "grammar", original: "If I was if I were married person, I went there", suggestion: "If I were married, I would have gone there", reason: "r")])
+        s.asks = [Ask(said: "あくび", ways: ["yawn"], ipa: [], note: "")]
+        let card = PhraseCard(id: "c", phrase: "If I were married, I would have gone there", added: "2026-10-09", due: nil)
+        let src = Quiz.source(card, sessions: [s])
+        XCTAssertEqual(src?.sessionId, s.id)
+        XCTAssertEqual(src?.topic.kind, "issue")
+        XCTAssertEqual(src?.context, "You know, I'm single. If I were married, I might have gone, but since I'm alone, I didn't go.")
+        XCTAssertEqual(Quiz.source(PhraseCard(id: "y", phrase: "Yawn", added: "", due: nil), sessions: [s])?.topic.kind, "ask")
+        XCTAssertNil(Quiz.source(PhraseCard(id: "z", phrase: "nothing", added: "", due: nil), sessions: [s]))
+        XCTAssertEqual(Quiz.context(of: "zebra crossing", in: "I like cats. Dogs too."), "", "重ならなければ出さない")
+    }
 }
