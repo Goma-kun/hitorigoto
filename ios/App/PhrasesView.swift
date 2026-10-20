@@ -171,7 +171,9 @@ struct AddPhraseSheet: View {
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
                         #endif
-                    TextField("意味", text: $meaning, prompt: Text("例: ほんの一瞬"))
+                    // 長い意味も全部見えるよう、内容に合わせて縦に伸ばす（1 行だと入ったか確かめられない。2026-10-21 本人指摘）
+                    TextField("意味", text: $meaning, prompt: Text("例: ほんの一瞬"), axis: .vertical)
+                        .lineLimit(3...12)
                         .frame(maxWidth: .infinity)
                     Picker("種類", selection: $kind) { Text("表現").tag("phrase"); Text("単語").tag("word") }
                     Button("入れる") {
