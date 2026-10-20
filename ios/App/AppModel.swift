@@ -498,6 +498,14 @@ final class AppModel: ObservableObject {
         save()
     }
 
+    /// 表現の中身（意味・前に言ってしまった形）を直す。表現そのものは同期の鍵なので変えない
+    func updatePhrase(_ id: String, meaning: String, note: String) {
+        guard let i = snapshot.phrases.firstIndex(where: { $0.id == id }) else { return }
+        snapshot.phrases[i].meaning = meaning.trimmingCharacters(in: .whitespacesAndNewlines)
+        snapshot.phrases[i].note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        save()
+    }
+
     func toggleGraduate(_ id: String) {
         guard let i = snapshot.phrases.firstIndex(where: { $0.id == id }) else { return }
         let p = snapshot.phrases[i]

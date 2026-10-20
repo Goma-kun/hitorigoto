@@ -7,6 +7,7 @@ struct PhrasesView: View {
     @State private var adding = false
     @State private var flashing = false
     @State private var confirmDelete: PhraseCard?
+    @State private var opened: PhraseCard?
 
     private let filters: [(String, String)] = [("all", String(localized: "すべて")), ("today", String(localized: "今日")), ("active", String(localized: "稽古中")), ("fresh", String(localized: "未挑戦")), ("graduated", String(localized: "卒業")), ("word", String(localized: "単語"))]
 
@@ -45,6 +46,7 @@ struct PhrasesView: View {
                 LazyVStack(spacing: 6) {
                     ForEach(shown) { p in
                         PhraseRow(card: p, today: today, isToday: todayIds.contains(p.id),
+                                  onOpen: { opened = p },
                                   onToggle: { model.toggleGraduate(p.id) }, onDelete: { confirmDelete = p })
                     }
                 }
@@ -56,6 +58,7 @@ struct PhrasesView: View {
         .background(Theme.bg)
         .sheet(isPresented: $adding) { AddPhraseSheet().environmentObject(model) }
         .sheet(isPresented: $flashing) { FlashSheet().environmentObject(model) }
+        .sheet(item: $opened) { p in PhraseDetailSheet(card: p).environmentObject(model) }
         .confirmationDialog("「\(confirmDelete?.phrase ?? "")」を削除しますか？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
             Button("削除", role: .destructive) { if let c = confirmDelete { model.deletePhrase(c.id) }; confirmDelete = nil }
             Button("やめる", role: .cancel) { confirmDelete = nil }
@@ -94,6 +97,7 @@ struct PhraseRow: View {
     let card: PhraseCard
     let today: String
     let isToday: Bool
+    var onOpen: () -> Void
     var onToggle: () -> Void
     var onDelete: () -> Void
 
@@ -103,9 +107,11 @@ struct PhraseRow: View {
                 Text(card.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
                 if card.kind == "word" { Tag(text: String(localized: "単語"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
                 Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
             }
+            // 一覧では 2 行まで。全文はタップして開く（2026-10-21 本人指摘: 中身を見る場所が無い）
             if !card.meaning.isEmpty || !card.note.isEmpty {
-                Text(card.meaning.isEmpty ? "✗ \(card.note)" : card.meaning).font(.caption).foregroundStyle(Theme.muted)
+                Text(card.meaning.isEmpty ? "✗ \(card.note)" : card.meaning).font(.caption).foregroundStyle(Theme.muted).lineLimit(2)
             }
             HStack {
                 let marks = PhraseLogic.marks(card)
@@ -125,6 +131,10 @@ struct PhraseRow: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(isToday ? Theme.accent.opacity(0.6) : Theme.line))
         .opacity(card.status == "graduated" ? 0.65 : 1)
+        // 一覧の文字は選べなくする（Mac では文字の上のクリックが選択に取られて開かない）。コピーは開いた画面で
+        .textSelection(.disabled)
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .onTapGesture(perform: onOpen)
     }
 
     private var dueLabel: (text: String, color: Color) {
@@ -135,6 +145,73 @@ struct PhraseRow: View {
         if n == 0 { return (String(localized: "今日"), Theme.accent) }
         if n == 1 { return (String(localized: "明日"), Theme.faint) }
         return (String(localized: "\(n) 日後"), Theme.faint)
+    }
+}
+
+/// 表現を開いた画面。意味・メモを全文で見て、その場で直せる
+struct PhraseDetailSheet: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let card: PhraseCard
+    @State private var meaning: String
+    @State private var note: String
+
+    init(card: PhraseCard) {
+        self.card = card
+        _meaning = State(initialValue: card.meaning)
+        _note = State(initialValue: card.note)
+    }
+
+    private var changed: Bool {
+        meaning.trimmingCharacters(in: .whitespacesAndNewlines) != card.meaning || note.trimmingCharacters(in: .whitespacesAndNewlines) != card.note
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(card.phrase).font(.title3.weight(.bold)).foregroundStyle(Theme.text).textSelection(.enabled)
+                    LabeledContent("種類", value: card.kind == "word" ? String(localized: "単語") : String(localized: "表現"))
+                    LabeledContent("入れた日", value: card.added)
+                    LabeledContent("次の出番", value: card.status == "graduated" ? String(localized: "卒業") : (card.due ?? "—"))
+                }
+                Section("意味・説明") {
+                    TextField("意味", text: $meaning, prompt: Text("例: ほんの一瞬"), axis: .vertical)
+                        .lineLimit(3...20)
+                        .labelsHidden()
+                }
+                Section("前に言ってしまった形") {
+                    TextField("前に言ってしまった形", text: $note, prompt: Text("無ければ空のままで"), axis: .vertical)
+                        .lineLimit(1...6)
+                        .labelsHidden()
+                }
+                Section("これまでの記録") {
+                    if card.history.isEmpty {
+                        Text("まだ試していない").foregroundStyle(Theme.muted)
+                    } else {
+                        ForEach(Array(card.history.enumerated()), id: \.offset) { _, h in
+                            LabeledContent(h.d, value: PhraseLogic.markOf[h.r] ?? h.r)
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("表現の中身").compactNavigationTitle()
+            .toolbar {
+                if changed {
+                    ToolbarItem(placement: .cancellationAction) { Button("やめる") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("保存して閉じる") { model.updatePhrase(card.id, meaning: meaning, note: note); dismiss() }
+                    }
+                } else {
+                    ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } }
+                }
+            }
+        }
+        .interactiveDismissDisabled(changed)
+        #if os(macOS)
+        .frame(minWidth: 400, idealWidth: 420, minHeight: 520)
+        #endif
     }
 }
 
