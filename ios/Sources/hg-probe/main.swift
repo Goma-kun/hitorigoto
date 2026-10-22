@@ -84,6 +84,8 @@ func run(_ c: [String: Any]) -> Any {
         }
     case "targetsSection":
         return PhraseLogic.targetsSection(decode([PhraseCard].self, c["cards"]) ?? [])
+    case "dropEchoedAsks":
+        return PhraseLogic.dropEchoedAsks(decode([Ask].self, c["asks"]) ?? [], cards: decode([PhraseCard].self, c["cards"]) ?? []).map(\.said)
     case "stats":
         let s = PhraseLogic.stats(decode([PhraseCard].self, c["list"]) ?? [])
         return ["total": s.total, "active": s.active, "fresh": s.fresh, "graduated": s.graduated]

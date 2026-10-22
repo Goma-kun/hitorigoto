@@ -288,7 +288,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             val b = i.suggestion.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.joinToString(" ")
             a.isEmpty() || a != b
         }
-        val fb = feedback.copy(issues = issues)
+        val fb = feedback.copy(issues = issues, asks = PhraseLogic.dropEchoedAsks(feedback.asks, targetCards))
         var session = Session(id = ExportFile.isoNow(Instant.ofEpochMilli(p.date)), transcript = fb.transcript,
             correctedText = fb.correctedText, issues = fb.issues, good = fb.good, engine = engine)
         if (p.transcript.isNotEmpty() && p.transcript != fb.transcript) session = session.copy(asrTranscript = p.transcript)
@@ -361,7 +361,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
         addPhrase(issue.suggestion, "", if (issue.type == "vocabulary") "word" else "phrase", "issue", issue.original ?: "")
 
     /** 「日本語で言った分 → 英語ならこう」から表現集へ。意味の欄に日本語で言ったことを残す */
-    fun addFromAsk(ask: Ask, way: String): Boolean = addPhrase(way, ask.said, "phrase", "issue")
+    fun addFromAsk(ask: Ask, way: String): Boolean = addPhrase(way, PhraseLogic.cleanMeaning(ask.said), "phrase", "issue")
 
     fun hasPhrase(text: String): Boolean = PhraseLogic.findPhrase(snapshot.phrases, text) != null
 

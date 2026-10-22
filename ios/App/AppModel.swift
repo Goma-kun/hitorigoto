@@ -252,7 +252,7 @@ final class AppModel: ObservableObject {
     func useCandidates(_ items: [Candidates.Item]) {
         _ = todayCards()   // 日をまたいでいたら今日の分を先に決めておく（足した分が選び直しで消えないように）
         for it in items {
-            let meaning = it.origin == "ask" ? it.said : ""
+            let meaning = it.origin == "ask" ? PhraseLogic.cleanMeaning(it.said) : ""
             let note = it.origin == "ask" ? "" : it.said
             addPhrase(it.phrase, meaning: meaning, kind: it.kind, source: "issue", note: note)
             if let card = PhraseLogic.findPhrase(snapshot.phrases, it.phrase), snapshot.today?.ids.contains(card.id) == false {
@@ -401,6 +401,7 @@ final class AppModel: ObservableObject {
                                   correctedText: fb.correctedText, issues: fb.issues, good: fb.good, engine: engine)
             if !p.transcript.isEmpty, p.transcript != fb.transcript { session.asrTranscript = p.transcript }
             if !fb.pronunciation.isEmpty { session.pronunciation = fb.pronunciation }
+            fb.asks = PhraseLogic.dropEchoedAsks(fb.asks, cards: targetCards)
             if !fb.asks.isEmpty { session.asks = fb.asks }
             if !fb.moreFixes.isEmpty { session.moreFixes = fb.moreFixes }
 
@@ -476,7 +477,7 @@ final class AppModel: ObservableObject {
 
     /// 「日本語で言った分 → 英語ならこう」から表現集へ。意味の欄に日本語で言ったことを残す
     func addFromAsk(_ ask: Ask, way: String) -> Bool {
-        addPhrase(way, meaning: ask.said, kind: "phrase", source: "issue")
+        addPhrase(way, meaning: PhraseLogic.cleanMeaning(ask.said), kind: "phrase", source: "issue")
     }
 
     func hasPhrase(_ text: String) -> Bool { PhraseLogic.findPhrase(snapshot.phrases, text) != nil }

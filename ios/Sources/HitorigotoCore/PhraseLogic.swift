@@ -389,12 +389,43 @@ public enum PhraseLogic {
         return out
     }
 
+    /// asks から表現集に入れた表現は、意味の欄に「（英語で迷ったところ）」が付いたまま残っている
+    public static func cleanMeaning(_ meaning: String) -> String {
+        meaning.replacingOccurrences(of: "[（(]\\s*英語で迷ったところ\\s*[）)]", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// AI へ渡す「今日の狙いの表現」の節（無ければ空文字）
+    /// 前の日の asks から入れた表現が、そのまま今日の asks に書き戻されたことがある（2026-10-22）。
+    /// 意味から asks の印を外し、この一覧は今回言ったことではないと書き添える
     public static func targetsSection(_ cards: [PhraseCard]) -> String {
         let list = cards.filter { !$0.phrase.isEmpty }
         if list.isEmpty { return "" }
-        let lines = list.map { "- \($0.phrase)" + ($0.meaning.isEmpty ? "" : "（\($0.meaning)）") }
-        return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n" + lines.joined(separator: "\n")
+        let lines = list.map { c -> String in
+            let m = cleanMeaning(c.meaning)
+            return "- \(c.phrase)" + (m.isEmpty ? "" : "（\(m)）")
+        }
+        return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n"
+            + "※ 判定のための参考です。学習者が今回言ったことではありません。\"asks\"・\"issues\"・\"more_fixes\" には入れないでください。\n"
+            + lines.joined(separator: "\n")
+    }
+
+    private static func phraseKeyNoStop(_ text: String) -> String {
+        phraseKey(text).replacingOccurrences(of: "[.!?。]+$", with: "", options: .regularExpression)
+    }
+
+    /// 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
+    /// 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+    public static func dropEchoedAsks(_ asks: [Ask], cards: [PhraseCard]) -> [Ask] {
+        let phrases = Set(cards.filter { !$0.phrase.isEmpty }.map { phraseKeyNoStop($0.phrase) })
+        let meanings = Set(cards.map { cleanMeaning($0.meaning) }.filter { !$0.isEmpty })
+        if phrases.isEmpty { return asks }
+        return asks.filter { a in
+            let said = cleanMeaning(a.said).replacingOccurrences(of: "^[（(]|[）)]$", with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if said == "同上" || meanings.contains(said) { return false }
+            return !a.ways.contains { phrases.contains(phraseKeyNoStop($0)) }
+        }
     }
 
     public struct Stats: Equatable, Sendable { public var total, active, fresh, graduated: Int }

@@ -15,12 +15,12 @@ if (s < 0 || e < 0) throw new Error('マーカーが見つかりません');
 const mod = new Function(`${src.slice(s, e)}
   return { phAddDays, phDaysBetween, phraseKey, makePhrase, parsePhraseLine, parsePhraseLines, addPhrases,
            rebuildPhrase, setSpeechResult, setRecallResult, setManualStatus, pickTodayPhrases,
-           detectPhrase, judgePhrases, mergeAiTargets, buildTargetsSection, phraseStats, trimPhrases, phraseMarks,
+           detectPhrase, judgePhrases, mergeAiTargets, buildTargetsSection, dropEchoedAsks, phraseStats, trimPhrases, phraseMarks,
            PH_DEFAULT_TOTAL, PH_DEFAULT_NEW };`)();
 const {
   phAddDays, phDaysBetween, makePhrase, parsePhraseLine, parsePhraseLines, addPhrases,
   setSpeechResult, setRecallResult, setManualStatus, pickTodayPhrases,
-  detectPhrase, judgePhrases, mergeAiTargets, buildTargetsSection, phraseStats, trimPhrases, phraseMarks,
+  detectPhrase, judgePhrases, mergeAiTargets, buildTargetsSection, dropEchoedAsks, phraseStats, trimPhrases, phraseMarks,
 } = mod;
 
 let pass = 0, fail = 0;
@@ -159,6 +159,23 @@ console.log('== AI の判定を重ねる ==');
 console.log('== AI へ渡す節 ==');
 check('無ければ空',    buildTargetsSection([]), '');
 check('表現と意味',    buildTargetsSection([mk('under the hood', '裏側の仕組み'), mk('in-house')]).includes('- under the hood（裏側の仕組み）\n- in-house'), true);
+
+// 前の日の asks から入れた表現が、そのまま今日の asks に書き戻された（2026-10-22 実機）
+console.log('== asks への書き戻し ==');
+{
+  const offer = mk("Please let us know if there's anything we can help with.", '手助けを申し出る時の自然な言い方（英語で迷ったところ）');
+  const sec = buildTargetsSection([offer]);
+  check('意味から asks の印を外す', sec.includes('（英語で迷ったところ）'), false);
+  check('asks に入れないと書き添える', sec.includes('"asks"・"issues"・"more_fixes" には入れないでください'), true);
+  const asks = [
+    { said: '蔓延している', ways: ['rampant'] },
+    { said: '手助けを申し出る時の自然な言い方（英語で迷ったところ）', ways: ['x'] },
+    { said: '（同上）', ways: ['y'] },
+    { said: '別', ways: ["please let us know if there's anything we can help with"] },
+  ];
+  check('今回の asks だけ残す', dropEchoedAsks(asks, [offer]).map(a => a.said), ['蔓延している']);
+  check('狙いが無ければそのまま', dropEchoedAsks(asks, []).length, 4);
+}
 
 console.log('== 件数と上限 ==');
 {

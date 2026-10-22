@@ -386,12 +386,38 @@ function mergeAiTargets(judged, cards, aiTargets) {
   return out;
 }
 
+// asks から表現集に入れた表現は、意味の欄に「（英語で迷ったところ）」が付いたまま残っている
+function cleanPhraseMeaning(meaning) {
+  return String(meaning || '').replace(/[（(]\s*英語で迷ったところ\s*[）)]/g, '').trim();
+}
+
 // AI へ渡す「今日の狙いの表現」の節（無ければ空文字。呼び出し側で末尾に足す）
+// 前の日の asks から入れた表現が、そのまま今日の asks に書き戻されたことがある（2026-10-22）。
+// 意味から asks の印を外し、この一覧は今回言ったことではないと書き添える
 function buildTargetsSection(cards) {
   const list = (cards || []).filter(c => c && c.phrase);
   if (list.length === 0) return '';
-  const lines = list.map(c => `- ${c.phrase}${c.meaning ? `（${c.meaning}）` : ''}`);
-  return `\n\n## 今日使うと決めていた表現（それぞれ使えたかを "targets" で判定してください）\n${lines.join('\n')}`;
+  const lines = list.map(c => {
+    const m = cleanPhraseMeaning(c.meaning);
+    return `- ${c.phrase}${m ? `（${m}）` : ''}`;
+  });
+  return `\n\n## 今日使うと決めていた表現（それぞれ使えたかを "targets" で判定してください）\n`
+    + `※ 判定のための参考です。学習者が今回言ったことではありません。"asks"・"issues"・"more_fixes" には入れないでください。\n`
+    + lines.join('\n');
+}
+
+// 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
+// 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+function dropEchoedAsks(asks, cards) {
+  const list = Array.isArray(asks) ? asks : [];
+  const phrases = new Set((cards || []).filter(c => c && c.phrase).map(c => phraseKey(c.phrase).replace(/[.!?。]+$/, '')));
+  const meanings = new Set((cards || []).map(c => cleanPhraseMeaning(c && c.meaning)).filter(Boolean));
+  if (phrases.size === 0) return list;
+  return list.filter(a => {
+    const said = cleanPhraseMeaning(a.said).replace(/^[（(]|[）)]$/g, '').trim();
+    if (said === '同上' || meanings.has(said)) return false;
+    return !(a.ways || []).some(w => phrases.has(phraseKey(w).replace(/[.!?。]+$/, '')));
+  });
 }
 
 // 表現集の件数（画面の見出し用）

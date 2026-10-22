@@ -15,7 +15,7 @@ const ai = readFileSync(join(root, 'extension/ai-providers.js'), 'utf8');
 const JS = new Function('parseFeedback0', 'buildEnglishUserMessage0', 'buildEnglishAudioUserMessage0', `${core}\n${phrase}\n${ai}
   return { parseFeedback, promoteRecurring, topRecurring, foldSessions, buildEnglishUserMessage, buildEnglishAudioUserMessage, buildSessionText,
            phAddDays, phDaysBetween, parsePhraseLine, detectPhrase, rebuildPhrase, setSpeechResult, setRecallResult, setManualStatus,
-           pickTodayPhrases, judgePhrases, mergeAiTargets, buildTargetsSection, phraseStats, phraseMarks,
+           pickTodayPhrases, judgePhrases, mergeAiTargets, buildTargetsSection, dropEchoedAsks, phraseStats, phraseMarks,
            EN_SYSTEM_PROMPT, EN_SYSTEM_PROMPT_AUDIO };`)();
 
 let seed = 20260927;
@@ -146,6 +146,21 @@ for (let i = 0; i < 30; i++) {
   push({ fn: 'mergeAiTargets', cards: cs, text, ai: [] }, JS.judgePhrases(cs, text));
   push({ fn: 'targetsSection', cards: cs }, JS.buildTargetsSection(cs));
   push({ fn: 'targetsSection', cards: [] }, '');
+  // 前の日の asks から入れた表現（意味に「（英語で迷ったところ）」が付く）が asks に書き戻された場面（2026-10-22）
+  const echo = [
+    { ...cs[0], phrase: "Please let us know if there's anything we can help with.", meaning: '相手の対応状況を確認したり手助けを申し出たりする時の自然な言い方（英語で迷ったところ）' },
+    { ...cs[1], phrase: 'Feel free to reach out if you are still running into any issues', meaning: '' },
+  ];
+  push({ fn: 'targetsSection', cards: echo }, JS.buildTargetsSection(echo));
+  const asks = [
+    { said: '蔓延している', ways: ['rampant', 'widespread'], ipa: [], note: 'n' },
+    { said: '相手の対応状況を確認したり手助けを申し出たりする時の自然な言い方（英語で迷ったところ）', ways: ['Something else entirely'], ipa: [], note: '' },
+    { said: '（同上）', ways: ['Another way'], ipa: [], note: '' },
+    { said: '別の質問', ways: ['feel free to reach out if you are still running into any issues.'], ipa: [], note: '' },
+    { said: '依頼者への説明', ways: ['Let me explain how the invitation works'], ipa: [], note: '' },
+  ];
+  push({ fn: 'dropEchoedAsks', asks, cards: echo }, JS.dropEchoedAsks(asks, echo).map(a => a.said));
+  push({ fn: 'dropEchoedAsks', asks, cards: [] }, asks.map(a => a.said));
 }
 
 // ---- 比べる ----

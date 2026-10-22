@@ -366,12 +366,45 @@ object PhraseLogic {
         return out
     }
 
-    /** AI へ渡す「今日の狙いの表現」の節（無ければ空文字） */
+    private val askMark = Regex("[（(]\\s*英語で迷ったところ\\s*[）)]")
+    private val trailingStop = Regex("[.!?。]+$")
+    private val outerParen = Regex("^[（(]|[）)]$")
+
+    /** asks から表現集に入れた表現は、意味の欄に「（英語で迷ったところ）」が付いたまま残っている */
+    fun cleanMeaning(meaning: String): String = meaning.replace(askMark, "").trim()
+
+    /**
+     * AI へ渡す「今日の狙いの表現」の節（無ければ空文字）
+     * 前の日の asks から入れた表現が、そのまま今日の asks に書き戻されたことがある（2026-10-22）。
+     * 意味から asks の印を外し、この一覧は今回言ったことではないと書き添える
+     */
     fun targetsSection(cards: List<PhraseCard>): String {
         val list = cards.filter { it.phrase.isNotEmpty() }
         if (list.isEmpty()) return ""
-        val lines = list.map { "- ${it.phrase}" + (if (it.meaning.isEmpty()) "" else "（${it.meaning}）") }
-        return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n" + lines.joinToString("\n")
+        val lines = list.map { c ->
+            val m = cleanMeaning(c.meaning)
+            "- ${c.phrase}" + (if (m.isEmpty()) "" else "（$m）")
+        }
+        return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n" +
+            "※ 判定のための参考です。学習者が今回言ったことではありません。\"asks\"・\"issues\"・\"more_fixes\" には入れないでください。\n" +
+            lines.joinToString("\n")
+    }
+
+    private fun phraseKeyNoStop(text: String): String = phraseKey(text).replace(trailingStop, "")
+
+    /**
+     * 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
+     * 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+     */
+    fun dropEchoedAsks(asks: List<Ask>, cards: List<PhraseCard>): List<Ask> {
+        val phrases = cards.filter { it.phrase.isNotEmpty() }.map { phraseKeyNoStop(it.phrase) }.toSet()
+        val meanings = cards.map { cleanMeaning(it.meaning) }.filter { it.isNotEmpty() }.toSet()
+        if (phrases.isEmpty()) return asks
+        return asks.filter { a ->
+            val said = cleanMeaning(a.said).replace(outerParen, "").trim()
+            if (said == "同上" || said in meanings) false
+            else a.ways.none { phraseKeyNoStop(it) in phrases }
+        }
     }
 
     data class Stats(val total: Int, val active: Int, val fresh: Int, val graduated: Int)

@@ -1,5 +1,6 @@
 package jp.nishira.hitorigoto.core.probe
 
+import jp.nishira.hitorigoto.core.Ask
 import jp.nishira.hitorigoto.core.HgJson
 import jp.nishira.hitorigoto.core.Issue
 import jp.nishira.hitorigoto.core.Logic
@@ -91,6 +92,8 @@ private fun run(c: JsonObject): JsonElement {
             })
         }
         "targetsSection" -> JsonPrimitive(PhraseLogic.targetsSection(c["cards"].decode(cardsS) ?: emptyList()))
+        "dropEchoedAsks" -> JsonArray(PhraseLogic.dropEchoedAsks(c["asks"].decode(ListSerializer(Ask.serializer())) ?: emptyList(),
+            c["cards"].decode(cardsS) ?: emptyList()).map { JsonPrimitive(it.said) })
         "stats" -> {
             val s = PhraseLogic.stats(c["list"].decode(cardsS) ?: emptyList())
             buildJsonObject { put("total", s.total); put("active", s.active); put("fresh", s.fresh); put("graduated", s.graduated) }

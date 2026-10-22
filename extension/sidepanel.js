@@ -282,6 +282,7 @@ async function runEnglishFeedback(blob = null) {
     };
     if (fb.audio && fb.transcript && text && text !== fb.transcript) session.asr_transcript = text;
     if (fb.pronunciation && fb.pronunciation.length > 0) session.pronunciation = fb.pronunciation;
+    fb.asks = dropEchoedAsks(fb.asks, targetCards);
     if (fb.asks && fb.asks.length > 0) session.asks = fb.asks;
 
     // 今日の表現が出たかを判定して記録する。AI の判定（音声を聞いている）があればそちらを優先
