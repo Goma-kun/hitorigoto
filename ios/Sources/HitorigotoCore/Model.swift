@@ -199,13 +199,17 @@ public struct PhraseCard: Codable, Equatable, Sendable, Identifiable {
     public var status: String      // active | graduated | archived
     public var history: [PhraseHistory]
     public var manual: String?     // graduated | active（手で押した記録）
+    /// 例文（英文と訳を改行でつなぐ）。スクショから入れたときに付く。アプリ版だけの欄（拡張・Android は読み飛ばす）
+    public var example: String?
+    /// 元のスクショのファイル名（端末の phrase-images に置き、iCloud には添付ファイルとして送る）。アプリ版だけの欄
+    public var image: String?
 
     public init(id: String, phrase: String, meaning: String = "", note: String = "", kind: String = "phrase",
                 source: String = "manual", added: String, due: String?, hits: Int = 0, status: String = "active",
-                history: [PhraseHistory] = [], manual: String? = nil) {
+                history: [PhraseHistory] = [], manual: String? = nil, example: String? = nil, image: String? = nil) {
         self.id = id; self.phrase = phrase; self.meaning = meaning; self.note = note; self.kind = kind
         self.source = source; self.added = added; self.due = due; self.hits = hits; self.status = status
-        self.history = history; self.manual = manual
+        self.history = history; self.manual = manual; self.example = example; self.image = image
     }
 
     public init(from decoder: Decoder) throws {
@@ -222,6 +226,8 @@ public struct PhraseCard: Codable, Equatable, Sendable, Identifiable {
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? "active"
         history = try c.decodeIfPresent([PhraseHistory].self, forKey: .history) ?? []
         manual = try c.decodeIfPresent(String.self, forKey: .manual)
+        example = try c.decodeIfPresent(String.self, forKey: .example)
+        image = try c.decodeIfPresent(String.self, forKey: .image)
     }
 }
 

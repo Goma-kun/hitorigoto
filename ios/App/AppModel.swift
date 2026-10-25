@@ -497,14 +497,71 @@ final class AppModel: ObservableObject {
         snapshot.today?.ids.removeAll { $0 == id }
         snapshot.today?.results.removeValue(forKey: id)
         save()
+        PhraseImages.prune(keeping: Set(snapshot.phrases.compactMap(\.image)))
     }
 
-    /// 表現の中身（意味・前に言ってしまった形）を直す。表現そのものは同期の鍵なので変えない
-    func updatePhrase(_ id: String, meaning: String, note: String) {
+    /// 表現の中身（意味・前に言ってしまった形・例文）を直す。表現そのものは同期の鍵なので変えない
+    func updatePhrase(_ id: String, meaning: String, note: String, example: String? = nil) {
         guard let i = snapshot.phrases.firstIndex(where: { $0.id == id }) else { return }
         snapshot.phrases[i].meaning = meaning.trimmingCharacters(in: .whitespacesAndNewlines)
         snapshot.phrases[i].note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let example {
+            let e = example.trimmingCharacters(in: .whitespacesAndNewlines)
+            snapshot.phrases[i].example = e.isEmpty ? nil : e
+        }
         save()
+    }
+
+    // MARK: - スクショから表現
+
+    /// 共有シートで受け取って、まだ表現にしていないスクショの枚数（表現タブに出す）
+    @Published private(set) var inboxCount = 0
+
+    func refreshInbox() { inboxCount = ScreenshotInbox.files().count }
+
+    /// スクショ 1 枚を読んで候補にする。失敗したら利用者向けの文を返す
+    func scanScreenshot(_ data: Data) async -> Result<[ScanCandidate], ScanFailure> {
+        if DevHooks.fakeScan {
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            return .success(Scan.parse(#"{"items":[{"phrase":"get the hang of","meaning":"〜のコツをつかむ・慣れる","example":"You'll get the hang of it in no time.\nすぐにコツをつかめるよ。\n\nI'm finally getting the hang of driving on the left.\nやっと左側通行に慣れてきた。","kind":"phrase"},{"phrase":"learn the ropes","meaning":"仕事などの要領を覚える","example":"","kind":"phrase"}]}"#))
+        }
+        let client: GeminiClient
+        if usesRelay {
+            client = GeminiClient(transport: Relay.transport)
+        } else if let key = KeychainStore.apiKey {
+            client = GeminiClient(key: key)
+        } else {
+            return .failure(ScanFailure(String(localized: "スクショを読むには、「設定」で「おまかせ（キー不要）」を選ぶか、Gemini の API キーを登録してください。")))
+        }
+        guard let jpeg = PhraseImages.jpeg(data, maxPixel: PhraseImages.sendMaxPixel, quality: 0.8) else {
+            return .failure(ScanFailure(String(localized: "画像を開けませんでした。")))
+        }
+        do {
+            return .success(try await client.scanImage(jpeg, system: Scan.system(language: targetLanguage)))
+        } catch let f as GeminiClient.Failure {
+            if case .quota(_, let limit) = f {
+                return .failure(ScanFailure(String(localized: "今日の「スクショから表現」（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。")))
+            }
+            return .failure(ScanFailure(Self.message(for: f)))
+        } catch {
+            return .failure(ScanFailure(error.localizedDescription))
+        }
+    }
+
+    /// 選んだ候補を表現集に入れる。元のスクショは縮めて 1 枚だけ保存し、入れたカードすべてに付ける。入れた件数を返す
+    func addScanned(_ items: [ScanCandidate], image: Data?) -> Int {
+        let name = image.flatMap(PhraseImages.store)
+        let cards = items.compactMap { c -> PhraseCard? in
+            guard var card = PhraseLogic.makePhrase(phrase: c.phrase, meaning: c.meaning, kind: c.kind, today: today) else { return nil }
+            let e = c.example.trimmingCharacters(in: .whitespacesAndNewlines)
+            card.example = e.isEmpty ? nil : e
+            card.image = name
+            return card
+        }
+        let r = PhraseLogic.addPhrases(snapshot.phrases, cards)
+        snapshot.phrases = PhraseLogic.trim(r.list)
+        save()
+        return r.added
     }
 
     func toggleGraduate(_ id: String) {

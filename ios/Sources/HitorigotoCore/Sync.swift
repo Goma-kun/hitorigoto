@@ -151,6 +151,8 @@ public enum Sync {
         c.history = bySlot.values.sorted { $0.d != $1.d ? $0.d < $1.d : encode($0).lexicographicallyPrecedes(encode($1)) }
         c.meaning = pickText(a.meaning, b.meaning)
         c.note = pickText(a.note, b.note)
+        c.example = pickOptional(a.example, b.example)
+        c.image = pickOptional(a.image, b.image)
         let added = [a.added, b.added].filter { !$0.isEmpty }
         c.added = added.min() ?? first.added
         c.manual = [a.manual, b.manual].compactMap { $0 }.max() ?? nil
@@ -214,6 +216,13 @@ public enum Sync {
     static func larger<T: Encodable>(_ a: T, _ b: T) -> T {
         let x = encode(a), y = encode(b)
         return x.lexicographicallyPrecedes(y) ? b : a
+    }
+
+    /// 片方にしか無ければそれ。両方あれば pickText と同じ決め方
+    static func pickOptional(_ a: String?, _ b: String?) -> String? {
+        let x = a ?? "", y = b ?? ""
+        let v = pickText(x, y)
+        return v.isEmpty ? nil : v
     }
 
     static func pickText(_ a: String, _ b: String) -> String {

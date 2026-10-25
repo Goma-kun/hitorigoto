@@ -47,6 +47,11 @@ App Store で配布するアプリ版「独り言」は、上の拡張機能と�
 - **自分の Gemini キー**: 拡張機能と同じく、利用者自身のキーで Google の Gemini API に直接送られます。開発者のサーバーは介在しません。
 - **この端末の AI（試験的）**: Apple Intelligence（Apple Foundation Models）を使い、録音中の字幕の文字を端末の中で添削します。話した内容は端末の外に出ません。
 
+### スクショから表現を入れる（2026-10-25 追記）
+- 表現タブの「スクショから」や、ほかのアプリの共有シートで「独り言」を選んだときだけ、利用者が選んだ画像（スクリーンショット）を読み取りに使います。写真ライブラリ全体にはアクセスしません（選んだ画像だけを受け取ります）。
+- 画像は縮小してから、上の添削と同じ経路（おまかせ＝開発者の中継サーバー経由、または自分の Gemini キーで直接）で Google の Gemini API へ送られ、表現・意味・例文の読み取りに使われます。**中継サーバーは画像を保存しません。**
+- 表現集に入れたときは、元の画像を縮小して端末の中に保存し、そのカードに付けます。iCloud 同期を入れている場合は、利用者自身の iCloud（非公開データベース）に添付ファイルとして入ります。開発者からは見えません。表現を削除すると画像も消えます。
+
 ### マイクと音声認識
 - マイクは録音に使います。録音は添削のためにその場で送るだけで、端末にも保存しません（添削が終わるまでの間だけ、失敗時のやり直し用に端末内に残します）。
 - 話している間の字幕には、端末の音声認識（iOS / macOS の Speech フレームワーク）を使います。設定で切れます。
@@ -100,6 +105,11 @@ The app version of Hitorigoto distributed on the App Store follows the same prin
 - **Default (no API key needed)**: when you stop, the recorded audio of that session, your "Today's phrases" and your recurring issues are sent to the developer's relay server (hosted on Cloudflare Workers). The relay forwards them to Google's Gemini API, receives the feedback and returns it unchanged. **The relay does not store your audio or what you said.** Nothing that identifies you is sent. For rate limiting, the app sends a random per-device identifier (UUID) that it generates and keeps only on the device; it does not identify you. Free use is limited to 3 reviews per device per day.
 - **Your own Gemini key**: as with the extension, requests go directly to Google's Gemini API with your own key. No developer server is involved.
 - **On-device AI (experimental)**: uses Apple Intelligence (Apple Foundation Models) to review the live caption text on the device. What you said never leaves the device.
+
+### Adding phrases from screenshots (added 2026-10-25)
+- Only when you use "From screenshot" in the Phrases tab, or choose Hitorigoto from another app's share sheet, the image you picked is used. The app does not access your whole photo library (it receives only the images you choose).
+- The image is downscaled and sent the same way as reviews (Default = via the developer's relay server, or directly with your own Gemini key) to Google's Gemini API, which reads the phrases, meanings and example sentences. **The relay does not store the image.**
+- When you add a phrase, a downscaled copy of the original image is stored on your device and attached to that card. With iCloud sync on, it goes into your own iCloud (private database) as an attachment; the developer cannot see it. Deleting the phrase deletes the image.
 
 ### Microphone and speech recognition
 - The microphone is used for recording. The recording is sent only for that review and is not stored on the device (it is kept on the device only until the review succeeds, so that a failed request can be retried).

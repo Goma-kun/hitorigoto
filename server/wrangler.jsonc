@@ -17,6 +17,11 @@
     "EXPLAIN_PER_DAY": "10",
     "EXPLAIN_GLOBAL_PER_DAY": "100",
     "EXPLAIN_MAX_BODY_BYTES": "65536",
+    // 「スクショから表現」（画像 1 枚・2026-10-25）。1 回 1 円未満（画像 1 枚＋短い返事）
+    "SCAN_PER_DAY": "20",
+    "SCAN_GLOBAL_PER_DAY": "100",
+    "SCAN_MAX_BODY_BYTES": "6000000",
+    "SCAN_COST_YEN": "1",
     // 月の予算（円）と、1 回あたりの見込みの原価（多めに見積もる）。日の上限 20×10＋100×1＝最大 300 円／日 ≒ 9,000 円／月。
     // 帳簿が予算に届いたら月末まで止まる（日の上限を上げても 1 万円は超えない）
     "MONTHLY_BUDGET_YEN": "10000",

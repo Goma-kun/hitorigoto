@@ -27,7 +27,7 @@ struct HitorigotoApp: App {
             .environmentObject(model)
             .tint(Theme.tint)
             // 前に出るたびに、もう一方の端末の変更を取りに行く
-            .onChange(of: scenePhase) { _, phase in if phase == .active { model.syncNow() } }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { model.syncNow(); model.refreshInbox() } }
             #if os(macOS)
             .frame(minWidth: 400, minHeight: 600)
             #endif
@@ -46,6 +46,7 @@ struct HitorigotoApp: App {
 /// 設定は「よくある歯車」だけにして右端に離す（2026-10-04 本人要望）
 struct RootTabs: View {
     @Binding var tab: Int
+    @EnvironmentObject private var model: AppModel
 
     var body: some View {
         #if os(macOS)
@@ -88,6 +89,8 @@ struct RootTabs: View {
                 .tabItem { Label("話す", systemImage: "mic.fill") }.tag(0)
             PhrasesView()
                 .tabItem { Label("表現", systemImage: "books.vertical.fill") }.tag(1)
+                // 共有シートで受け取ったスクショがあれば数を出す（開くと表現タブの上に「表現にする」が出る）
+                .badge(model.inboxCount)
             HistoryView()
                 .tabItem { Label("履歴", systemImage: "clock.fill") }.tag(2)
             SettingsView()
@@ -123,6 +126,23 @@ enum DevHooks {
         #if DEBUG
         let d = UserDefaults.standard
         return d.bool(forKey: "HGNoSync") || d.string(forKey: "HGSeed") != nil
+        #else
+        return false
+        #endif
+    }
+
+    /// -HGFakeScan 1 スクショの読み取りを Gemini に送らず見本の候補を返す（画面の確かめ用）
+    static var fakeScan: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "HGFakeScan")
+        #else
+        return false
+        #endif
+    }
+    /// -HGOpenScan 1 表現タブを開いたらスクショの画面を開いておく（撮影用）
+    static var openScan: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "HGOpenScan")
         #else
         return false
         #endif

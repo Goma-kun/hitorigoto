@@ -23,6 +23,8 @@ final class CloudSync: CKSyncEngineDelegate, @unchecked Sendable {
     static let containerID = "iCloud.jp.nishira.hitorigoto"
     static let zone = CKRecordZone(zoneName: "Hitorigoto")
     static let field = "json"
+    /// 表現カードの「元のスクショ」。JSON とは別の添付ファイル（CKAsset）で送る。記録の指紋（known）には入れない
+    static let imageField = "image"
 
     /// 端末に残す同期の控え（記録そのものとは別ファイル）
     private struct State: Codable {
@@ -181,6 +183,11 @@ final class CloudSync: CKSyncEngineDelegate, @unchecked Sendable {
     private func record(for item: Sync.Item, id: CKRecord.ID) -> CKRecord {
         let r = state.fields[item.name].flatMap(Self.restore) ?? CKRecord(recordType: item.kind.rawValue, recordID: id)
         r[Self.field] = item.data as NSData
+        // 表現カードに元のスクショが付いていれば添付する。名前は JSON の中にあるので、画像が変われば JSON も変わって送り直しになる
+        if item.kind == .phrase, let card = try? JSONDecoder().decode(PhraseCard.self, from: item.data),
+           let name = card.image, PhraseImages.exists(name), let u = PhraseImages.url(name) {
+            r[Self.imageField] = CKAsset(fileURL: u)
+        }
         return r
     }
 
@@ -195,6 +202,11 @@ final class CloudSync: CKSyncEngineDelegate, @unchecked Sendable {
             let name = r.recordID.recordName
             state.fields[name] = Self.archive(r)
             state.known[name] = Sync.hash(data)
+            // 添付のスクショは、カードが指している名前で端末に置く（届いた一時ファイルは CloudKit が後で消す）
+            if kind == .phrase, let asset = r[Self.imageField] as? CKAsset, let file = asset.fileURL,
+               let card = try? JSONDecoder().decode(PhraseCard.self, from: data), let imageName = card.image {
+                PhraseImages.adopt(file, as: imageName)
+            }
             s = Sync.merge(s, Sync.Item(name: name, kind: kind, data: data))
         }
         for name in deletions {

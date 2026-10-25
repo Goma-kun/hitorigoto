@@ -148,6 +148,24 @@ public struct GeminiClient: Sendable {
         return turn
     }
 
+    /// スクショ 1 枚から表現集の候補を取り出す（JPEG を渡す）。中継サーバーでは /v1/scan で別に数える
+    public static let imageMaxBytes = 4 * 1024 * 1024
+
+    public func scanImage(_ jpeg: Data, system: String) async throws -> [ScanCandidate] {
+        guard !jpeg.isEmpty, jpeg.count <= Self.imageMaxBytes else { throw Failure.audio }
+        let raw = try await call([
+            "systemInstruction": ["parts": [["text": system]]],
+            "contents": [["role": "user", "parts": [
+                ["inlineData": ["mimeType": "image/jpeg", "data": jpeg.base64EncodedString()]],
+                ["text": Scan.userMessage],
+            ]]],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/scan")
+        if Logic.extractJsonObject(raw) == nil { throw Failure.parse }
+        return Scan.parse(raw)
+    }
+
     /// 中継サーバーの今日の残り回数を聞く（direct のときは nil）
     public func quota() async -> Quota? {
         guard case .relay(let url, let deviceId, let appKey) = transport else { return nil }

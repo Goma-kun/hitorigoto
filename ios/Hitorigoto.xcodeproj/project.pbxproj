@@ -6,9 +6,38 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0000000000000000000000DA /* HitorigotoShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D1 /* HitorigotoShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0000000000000000000000DC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0000000000000000000000A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0000000000000000000000D3;
+			remoteInfo = HitorigotoShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0000000000000000000000DB /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0000000000000000000000DA /* HitorigotoShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0000000000000000000000A5 /* Hitorigoto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hitorigoto.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0000000000000000000000C5 /* HitorigotoMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hitorigoto.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0000000000000000000000D1 /* HitorigotoShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HitorigotoShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -20,6 +49,11 @@
 		0000000000000000000000AA /* HitorigotoCore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Sources/HitorigotoCore;
+			sourceTree = "<group>";
+		};
+		0000000000000000000000D2 /* ShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +73,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0000000000000000000000D5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -47,6 +88,7 @@
 			children = (
 				0000000000000000000000A6 /* App */,
 				0000000000000000000000AA /* HitorigotoCore */,
+				0000000000000000000000D2 /* ShareExtension */,
 				0000000000000000000000A3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -56,6 +98,7 @@
 			children = (
 				0000000000000000000000A5 /* Hitorigoto.app */,
 				0000000000000000000000C5 /* HitorigotoMac.app */,
+				0000000000000000000000D1 /* HitorigotoShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,10 +113,12 @@
 				0000000000000000000000A7 /* Sources */,
 				0000000000000000000000A8 /* Frameworks */,
 				0000000000000000000000A9 /* Resources */,
+				0000000000000000000000DB /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0000000000000000000000DD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0000000000000000000000A6 /* App */,
@@ -109,6 +154,28 @@
 			productReference = 0000000000000000000000C5 /* HitorigotoMac.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0000000000000000000000D3 /* HitorigotoShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0000000000000000000000D7 /* Build configuration list for PBXNativeTarget "HitorigotoShare" */;
+			buildPhases = (
+				0000000000000000000000D4 /* Sources */,
+				0000000000000000000000D5 /* Frameworks */,
+				0000000000000000000000D6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0000000000000000000000D2 /* ShareExtension */,
+			);
+			name = HitorigotoShare;
+			packageProductDependencies = (
+			);
+			productName = HitorigotoShare;
+			productReference = 0000000000000000000000D1 /* HitorigotoShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -141,6 +208,7 @@
 			targets = (
 				0000000000000000000000A4 /* Hitorigoto */,
 				0000000000000000000000C4 /* Hitorigoto (Mac) */,
+				0000000000000000000000D3 /* HitorigotoShare */,
 			);
 		};
 /* End PBXProject section */
@@ -154,6 +222,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0000000000000000000000C8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0000000000000000000000D6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -177,7 +252,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0000000000000000000000D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0000000000000000000000DD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0000000000000000000000D3 /* HitorigotoShare */;
+			targetProxy = 0000000000000000000000DC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0000000000000000000000B2 /* Debug */ = {
@@ -363,6 +453,64 @@
 			};
 			name = Release;
 		};
+		0000000000000000000000D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HitorigotoShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 9XV6M5KNMK;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HitorigotoShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "独り言";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 NISHIRA";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.nishira.hitorigoto.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		0000000000000000000000D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = HitorigotoShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 9XV6M5KNMK;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HitorigotoShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "独り言";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 NISHIRA";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.nishira.hitorigoto.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -389,6 +537,15 @@
 			buildConfigurations = (
 				0000000000000000000000C1 /* Debug */,
 				0000000000000000000000C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0000000000000000000000D7 /* Build configuration list for PBXNativeTarget "HitorigotoShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0000000000000000000000D8 /* Debug */,
+				0000000000000000000000D9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

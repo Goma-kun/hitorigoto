@@ -8,6 +8,7 @@ struct PhrasesView: View {
     @State private var flashing = false
     @State private var confirmDelete: PhraseCard?
     @State private var opened: PhraseCard?
+    @State private var scanning = false
 
     private let filters: [(String, String)] = [("all", String(localized: "すべて")), ("today", String(localized: "今日")), ("active", String(localized: "稽古中")), ("fresh", String(localized: "未挑戦")), ("graduated", String(localized: "卒業")), ("word", String(localized: "単語"))]
 
@@ -20,10 +21,28 @@ struct PhrasesView: View {
                 HStack(spacing: 12) {
                     stat(String(localized: "稽古中"), st.active); stat(String(localized: "まだ試していない"), st.fresh); stat(String(localized: "卒業"), st.graduated)
                 }
+                // 共有シートで受け取ったスクショ。開くたびに目に入る場所に出す
+                if model.inboxCount > 0 {
+                    Button { scanning = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "tray.and.arrow.down.fill")
+                            Text(String(localized: "共有で受け取ったスクショが \(model.inboxCount) 枚あります")).font(.callout.weight(.bold))
+                            Spacer(minLength: 0)
+                            Text("表現にする").font(.callout.weight(.bold))
+                            Image(systemName: "chevron.right").font(.caption.weight(.bold))
+                        }
+                        .padding(10)
+                        .foregroundStyle(Theme.accent)
+                        .background(Theme.accentBg, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.accent.opacity(0.5)))
+                    }
+                    .buttonStyle(.plain)
+                }
                 HStack(spacing: 8) {
                     Button("＋ 追加") { adding = true }.buttonStyle(.borderedProminent).tint(Theme.accent)
-                    Button(String(localized: "🃏 覚えてますか？（今日 \(Quiz.dueToday(model.snapshot.phrases, today: model.today).count) 問）")) { flashing = true }.buttonStyle(.bordered).tint(Theme.accent)
+                    Button("📷 スクショから") { scanning = true }.buttonStyle(.bordered).tint(Theme.accent)
                 }
+                Button(String(localized: "🃏 覚えてますか？（今日 \(Quiz.dueToday(model.snapshot.phrases, today: model.today).count) 問）")) { flashing = true }.buttonStyle(.bordered).tint(Theme.accent)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(filters, id: \.0) { key, label in
@@ -57,6 +76,8 @@ struct PhrasesView: View {
         }
         .background(Theme.bg)
         .sheet(isPresented: $adding) { AddPhraseSheet().environmentObject(model) }
+        .sheet(isPresented: $scanning) { ScanSheet().environmentObject(model) }
+        .onAppear { model.refreshInbox(); if DevHooks.openScan { scanning = true } }
         .sheet(isPresented: $flashing) { FlashSheet().environmentObject(model) }
         .sheet(item: $opened) { p in PhraseDetailSheet(card: p).environmentObject(model) }
         .confirmationDialog("「\(confirmDelete?.phrase ?? "")」を削除しますか？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
@@ -106,6 +127,7 @@ struct PhraseRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(card.phrase).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
                 if card.kind == "word" { Tag(text: String(localized: "単語"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
+                if card.image != nil { Image(systemName: "photo").font(.caption).foregroundStyle(Theme.faint) }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
             }
@@ -155,15 +177,19 @@ struct PhraseDetailSheet: View {
     let card: PhraseCard
     @State private var meaning: String
     @State private var note: String
+    @State private var example: String
+    @State private var zoom = false
 
     init(card: PhraseCard) {
         self.card = card
         _meaning = State(initialValue: card.meaning)
         _note = State(initialValue: card.note)
+        _example = State(initialValue: card.example ?? "")
     }
 
     private var changed: Bool {
         meaning.trimmingCharacters(in: .whitespacesAndNewlines) != card.meaning || note.trimmingCharacters(in: .whitespacesAndNewlines) != card.note
+            || example.trimmingCharacters(in: .whitespacesAndNewlines) != (card.example ?? "")
     }
 
     var body: some View {
@@ -179,6 +205,27 @@ struct PhraseDetailSheet: View {
                     TextField("意味", text: $meaning, prompt: Text("例: ほんの一瞬"), axis: .vertical)
                         .lineLimit(3...20)
                         .labelsHidden()
+                }
+                // 例文はスクショから入れたときに付く。手で足してもよい
+                Section("例文") {
+                    TextField("例文", text: $example, prompt: Text("無ければ空のままで"), axis: .vertical)
+                        .lineLimit(1...12)
+                        .labelsHidden()
+                }
+                if let name = card.image {
+                    Section("元のスクショ") {
+                        if let img = PhraseImages.image(name) {
+                            img.resizable().scaledToFit()
+                                .frame(maxHeight: 260)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .contentShape(Rectangle())
+                                .onTapGesture { zoom = true }
+                            Text("押すと大きく見られます").font(.caption).foregroundStyle(Theme.faint)
+                        } else {
+                            Text("スクショがまだこの端末に届いていません（iCloud から届くと出ます）").font(.callout).foregroundStyle(Theme.muted)
+                        }
+                    }
                 }
                 Section("前に言ってしまった形") {
                     TextField("前に言ってしまった形", text: $note, prompt: Text("無ければ空のままで"), axis: .vertical)
@@ -201,7 +248,7 @@ struct PhraseDetailSheet: View {
                 if changed {
                     ToolbarItem(placement: .cancellationAction) { Button("やめる") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("保存して閉じる") { model.updatePhrase(card.id, meaning: meaning, note: note); dismiss() }
+                        Button("保存して閉じる") { model.updatePhrase(card.id, meaning: meaning, note: note, example: example); dismiss() }
                     }
                 } else {
                     ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } }
@@ -209,6 +256,7 @@ struct PhraseDetailSheet: View {
             }
         }
         .interactiveDismissDisabled(changed)
+        .sheet(isPresented: $zoom) { if let name = card.image { ZoomedShot(name: name) } }
         #if os(macOS)
         .frame(minWidth: 400, idealWidth: 420, minHeight: 520)
         #endif
@@ -341,6 +389,16 @@ struct FlashSheet: View {
                             HStack(spacing: 4) {
                                 Text(c.phrase).font(.title2.weight(.heavy)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
                                 SpeakButton(text: c.phrase)
+                            }
+                            // スクショから入れた表現は例文を添える（覚えた場面を思い出す手がかり）
+                            if let ex = c.example, !ex.isEmpty {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("例文").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
+                                    Text(ex).font(.caption).foregroundStyle(Theme.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(Theme.bg, in: RoundedRectangle(cornerRadius: 10))
                             }
                             // 答えは「その話の流れでの言い方」。この形だけが正解だと覚えないように、流れと一言を添える（2026-10-17 本人要望）
                             let src = Quiz.source(c, sessions: model.snapshot.sessions)

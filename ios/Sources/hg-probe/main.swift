@@ -103,6 +103,40 @@ func run(_ c: [String: Any]) -> Any {
     }
 }
 
+// ---- 実 API（scan）----
+// `hg-probe scan --image shot.png [--image shot2.jpg]` スクショから表現の候補を取り出す（画像はそのまま送る。4MB まで）
+// HG_RELAY=1 なら中継サーバーの /v1/scan を通る
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "scan" {
+    var paths: [String] = []
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    while let i = args.firstIndex(of: "--image"), i + 1 < args.count { paths.append(args[i + 1]); args.removeSubrange(i...(i + 1)) }
+    let env = ProcessInfo.processInfo.environment
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let sem = DispatchSemaphore(value: 0)
+    var exitCode: Int32 = 0
+    Task {
+        for p in paths {
+            guard let data = FileManager.default.contents(atPath: p) else { print("NG: 読めない \(p)"); exitCode = 1; continue }
+            do {
+                let started = Date()
+                let items = try await client.scanImage(data, system: Scan.system(language: .enUS, explanation: .ja))
+                print("== \(p)（\(data.count / 1024)KB・\(String(format: "%.1f", Date().timeIntervalSince(started)))秒）")
+                for c in items { print("・[\(c.kind)] \(c.phrase)\n  意味: \(c.meaning)\n  例文: \(c.example.replacingOccurrences(of: "\n", with: " / "))") }
+                if items.isEmpty { print("（候補なし）") }
+            } catch { print("NG: \(p) \(error)"); exitCode = 1 }
+        }
+        sem.signal()
+    }
+    sem.wait()
+    exit(exitCode)
+}
+
 // ---- 実 API（explain）----
 // `hg-probe explain --original "..." --suggestion "..." [--reason "..."] [--question "..."] [--preset deeper|examples|grammar|compare]`
 // HG_RELAY=1 なら中継サーバーの /v1/explain を通る
