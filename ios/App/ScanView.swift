@@ -131,8 +131,12 @@ struct ScanSheet: View {
                     Text(m).font(.callout).foregroundStyle(Theme.warn)
                     Button("もう一度読む") { retry(shot.id) }.buttonStyle(.bordered).controlSize(.small)
                 }
-                Button("このスクショは使わない", role: .destructive) { drop(shot.id) }
-                    .buttonStyle(.borderless).controlSize(.small).font(.caption)
+                // 小さな赤い文字だけだと気づきにくい（2026-10-25 本人指摘）。枠とゴミ箱の絵を付けてボタンに見せる
+                Button(role: .destructive) { drop(shot.id) } label: {
+                    Label("このスクショは使わない", systemImage: "trash")
+                        .foregroundStyle(Theme.bad)   // 絵だけアプリの紫にならないよう、文字と揃える
+                }
+                .buttonStyle(.bordered).tint(Theme.bad).controlSize(.small)
             }
             Spacer(minLength: 0)
         }
