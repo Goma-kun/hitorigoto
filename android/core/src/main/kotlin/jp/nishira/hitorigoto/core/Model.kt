@@ -44,11 +44,24 @@ data class Target(
     val note: String = "",
 )
 
+/** 「直すべし」に入りきらなかった直し（コーチが理由を一言つける）。JS の asFixes・Swift の Fix と同じ形 */
+@Serializable
+data class Fix(
+    val original: String,
+    val suggestion: String,
+    val note: String = "",
+) {
+    /** 黙って直された箇所を拾うときなど、指摘と同じ扱いにする形 */
+    val asIssue: Issue get() = Issue(type = "phrasing", original = original, suggestion = suggestion)
+}
+
 /** AI の応答を、表示と保存が前提にできる形に揃えたもの（JS の parseFeedback の結果） */
 @Serializable
 data class Feedback(
     @SerialName("corrected_text") val correctedText: String = "",
     val issues: List<Issue> = emptyList(),
+    /** 「直すべし」に入りきらなかった直し（理由つき）。最大 20 件 */
+    @SerialName("more_fixes") val moreFixes: List<Fix> = emptyList(),
     val recurring: List<String> = emptyList(),
     @SerialName("recognition_doubt") val recognitionDoubt: List<String> = emptyList(),
     val good: String = "",
@@ -75,6 +88,8 @@ data class Session(
     @SerialName("asr_transcript") val asrTranscript: String? = null,
     @SerialName("corrected_text") val correctedText: String? = null,
     val issues: List<Issue> = emptyList(),
+    /** 「直すべし」に入りきらなかった直し（理由つき）。2026-10-17 から。それより前の記録には無い */
+    @SerialName("more_fixes") val moreFixes: List<Fix>? = null,
     val good: String? = null,
     val pronunciation: List<Pronunciation>? = null,
     val targets: List<SessionTarget>? = null,

@@ -80,16 +80,44 @@ object Logic {
         collapseSpaces(t.lowercase()).replace(trailingMarks, "").trim()
 
     /**
-     * 同じ直しの重なりを外す（JS の tidyFixes の issues 側と同じ）。
-     * 直す前と後が同じものと、同じ組の 2 件目以降を外す。順番は保つ。
-     * （Android はまだ more_fixes を受け取らないので、issues だけ）
+     * 同じ直しの重なりを外す（JS の tidyFixes と同じ）。AI が同じ直しを 2 度書くことがある。
+     * - issues: 直す前と後が同じもの（直しになっていない）と、同じ組の 2 件目以降を外す。順番は保つ
+     * - fixes（more_fixes）: 同じく外したうえで、残した issues のどれかで説明済みの直し
+     *   （言った形も直した形も、その issue の中に語の区切りごと含まれる）も外す
      */
-    internal fun tidyIssues(issues: List<Issue>): List<Issue> {
+    internal fun tidyFixes(issues: List<Issue>, fixes: List<Fix>): Pair<List<Issue>, List<Fix>> {
         val seen = HashSet<String>()
-        return issues.filter {
-            val o = fixKey(it.original ?: ""); val s = fixKey(it.suggestion)
-            o != s && seen.add(o + "\n" + s)
+        fun keep(original: String, suggestion: String): Pair<String, String>? {
+            val o = fixKey(original); val s = fixKey(suggestion)
+            if (o == s) return null
+            if (!seen.add(o + "\n" + s)) return null
+            return o to s
         }
+        val outIssues = ArrayList<Issue>()
+        val covered = ArrayList<Pair<String, String>>()
+        for (it in issues) {
+            val p = keep(it.original ?: "", it.suggestion) ?: continue
+            outIssues.add(it)
+            covered.add(" ${p.first} " to " ${p.second} ")
+        }
+        val outFixes = ArrayList<Fix>()
+        for (f in fixes) {
+            val o = " ${fixKey(f.original)} "; val s = " ${fixKey(f.suggestion)} "
+            if (covered.any { c -> c.first.contains(o) && c.second.contains(s) }) continue
+            if (keep(f.original, f.suggestion) != null) outFixes.add(f)
+        }
+        return outIssues to outFixes
+    }
+
+    /** JS の asFixes。言った形と直した形が揃っていて違うものだけ・最大 20 件 */
+    internal fun asFixes(v: JsonElement?): List<Fix> {
+        val a = v as? JsonArray ?: return emptyList()
+        return a.mapNotNull { raw ->
+            val it = raw as? JsonObject
+            val original = asText(it?.get("original")); val suggestion = asText(it?.get("suggestion"))
+            if (original.isEmpty() || suggestion.isEmpty() || original == suggestion) null
+            else Fix(original, suggestion, asText(it?.get("note")))
+        }.take(20)
     }
 
     /** 応答を、表示と保存が前提にできる形に揃える。読み取れなければ null */
@@ -127,9 +155,12 @@ object Logic {
             val ipa = ways.indices.map { i -> ipaRaw.getOrNull(i) ?: "" }
             if (said.isEmpty() || ways.isEmpty()) null else Ask(said, ways, ipa, asText(it?.get("note")))
         }
+        // 同じ直しの重なりを外す（JS の tidyFixes と同じ）。more_fixes は先に最大 20 件に切ってから外す
+        val (tidyIssues, tidyMore) = tidyFixes(issues, asFixes(d["more_fixes"]))
         return Feedback(
             correctedText = asText(d["corrected_text"]),
-            issues = tidyIssues(issues),
+            issues = tidyIssues,
+            moreFixes = tidyMore,
             recurring = asStringArray(d["recurring"]),
             recognitionDoubt = asStringArray(d["recognition_doubt"]),
             good = asText(d["good"]),
@@ -195,6 +226,8 @@ object Logic {
         val types: Map<String, String>,
         /** 「日本語で言った分 → 英語ならこう」の見出し。空なら出さない（JS の L.asks が無いときと同じ） */
         val asks: String = "",
+        /** 「直すべし」に入りきらなかった直しの見出し。空なら出さない（JS の L.more が無いときと同じ） */
+        val more: String = "",
     )
 
     /** 履歴からコピーするときの本文。修正版だけでなく、何をどう直されたのかも持ち出せる */
@@ -210,6 +243,12 @@ object Logic {
                 "${i + 1}. $type$head$reason"
             }
             out.add("【${L.issues}】\n${lines.joinToString("\n\n")}")
+        }
+        // 「直すべし」に入りきらなかった直し（理由つき）。無いセッションでは出さない
+        val more = s.moreFixes
+        if (!more.isNullOrEmpty() && L.more.isNotEmpty()) {
+            val lines = more.mapIndexed { i, it -> "${i + 1}. ${it.original}\n   → ${it.suggestion}" + (if (it.note.isEmpty()) "" else "\n   ${it.note}") }
+            out.add("【${L.more}】\n${lines.joinToString("\n\n")}")
         }
         val pron = s.pronunciation
         if (!pron.isNullOrEmpty() && L.pron.isNotEmpty()) {

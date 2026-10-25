@@ -80,7 +80,13 @@ private fun SessionCard(model: AppModel, session: Session) {
                     }
                 }
             }
-            val silent = SilentFixes.find(session.transcript ?: "", session.correctedText ?: "", session.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = session.asks ?: emptyList())
+            val more = session.moreFixes
+            if (!more.isNullOrEmpty()) {
+                // コーチが理由つきで挙げた残りの直し（2026-10-17 から）
+                Text(stringResource(R.string.more_fixes_title), color = Hg.faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                for (f in more) Text("• ${f.original} → ${f.suggestion}" + (if (f.note.isEmpty()) "" else " — ${f.note}"), color = Hg.text, fontSize = 12.sp, lineHeight = 17.sp)
+            }
+            val silent = SilentFixes.find(session.transcript ?: "", session.correctedText ?: "", session.issues + (session.moreFixes ?: emptyList()).map { it.asIssue }, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = session.asks ?: emptyList())
             if (silent.isNotEmpty()) {
                 Text(stringResource(R.string.silent_fixes_title), color = Hg.faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 for (f in silent) Text("• ${f.from} → ${f.to}", color = Hg.text, fontSize = 12.sp, lineHeight = 17.sp)

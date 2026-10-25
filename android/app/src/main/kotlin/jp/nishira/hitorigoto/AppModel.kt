@@ -199,7 +199,7 @@ class AppModel(app: Application) : AndroidViewModel(app) {
     fun showLatestSessionAsResult() {
         if (!BuildConfig.DEBUG) return
         val s = snapshot.sessions.firstOrNull() ?: return
-        latest = Feedback(correctedText = s.correctedText ?: "", issues = s.issues, good = s.good ?: "",
+        latest = Feedback(correctedText = s.correctedText ?: "", issues = s.issues, moreFixes = s.moreFixes ?: emptyList(), good = s.good ?: "",
             transcript = s.transcript ?: "", pronunciation = s.pronunciation ?: emptyList(), asks = s.asks ?: emptyList())
         latestSession = s
         latestJudged = (s.targets ?: emptyList()).mapNotNull { t ->
@@ -288,12 +288,16 @@ class AppModel(app: Application) : AndroidViewModel(app) {
             val b = i.suggestion.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.joinToString(" ")
             a.isEmpty() || a != b
         }
-        val fb = feedback.copy(issues = issues, asks = PhraseLogic.dropEchoedAsks(feedback.asks, targetCards))
+        // 「ほかに直したところ」から、指摘と同じ箇所を外す（iOS 版と同じ）
+        val covered = issues.mapNotNull { it.original?.lowercase() }.toSet()
+        val fb = feedback.copy(issues = issues, asks = PhraseLogic.dropEchoedAsks(feedback.asks, targetCards),
+            moreFixes = feedback.moreFixes.filter { it.original.lowercase() !in covered })
         var session = Session(id = ExportFile.isoNow(Instant.ofEpochMilli(p.date)), transcript = fb.transcript,
             correctedText = fb.correctedText, issues = fb.issues, good = fb.good, engine = engine)
         if (p.transcript.isNotEmpty() && p.transcript != fb.transcript) session = session.copy(asrTranscript = p.transcript)
         if (fb.pronunciation.isNotEmpty()) session = session.copy(pronunciation = fb.pronunciation)
         if (fb.asks.isNotEmpty()) session = session.copy(asks = fb.asks)
+        if (fb.moreFixes.isNotEmpty()) session = session.copy(moreFixes = fb.moreFixes)
 
         var judged: List<Judged> = emptyList()
         if (targetCards.isNotEmpty()) {

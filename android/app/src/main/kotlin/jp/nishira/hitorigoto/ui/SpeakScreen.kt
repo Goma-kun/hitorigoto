@@ -328,7 +328,25 @@ private fun ResultBody(model: AppModel) {
         if (fb.issues.isEmpty()) Note(stringResource(R.string.no_issues))
         else fb.issues.forEachIndexed { i, it -> if (i > 0) Line(); IssueRow(model, it) }
     }
-    val silent = SilentFixes.find(fb.transcript, fb.correctedText, fb.issues, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = fb.asks)
+    if (fb.moreFixes.isNotEmpty()) {
+        // コーチが「直すべし」に入れきれなかった直し。理由つき（iOS 版と同じ見せ方）
+        Card(title = stringResource(R.string.more_fixes_title)) {
+            fb.moreFixes.forEachIndexed { i, f ->
+                if (i > 0) Line()
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(buildAnnotatedString {
+                        withStyle(SpanStyle(color = c.bad, textDecoration = TextDecoration.LineThrough)) { append(f.original) }
+                        withStyle(SpanStyle(color = c.faint)) { append("  →  ") }
+                        withStyle(SpanStyle(color = c.good, fontWeight = FontWeight.Bold)) { append(f.suggestion) }
+                    }, fontSize = 15.sp, lineHeight = 22.sp)
+                    if (f.note.isNotEmpty()) Text(f.note, color = Hg.muted, fontSize = 12.sp, lineHeight = 17.sp)
+                }
+            }
+            Note(stringResource(R.string.more_fixes_note))
+        }
+    }
+    // コーチが挙げきれなかった直しが残っていれば、機械で突き合わせて拾う（理由は付かない）
+    val silent = SilentFixes.find(fb.transcript, fb.correctedText, fb.issues + fb.moreFixes.map { it.asIssue }, wordSpaces = !model.targetLanguage.hasNoWordSpaces, asks = fb.asks)
     if (silent.isNotEmpty()) {
         Card(title = stringResource(R.string.silent_fixes_title)) {
             for (f in silent) {
@@ -395,6 +413,7 @@ fun sessionLabels() = Logic.Labels(
     corrected = stringResource(R.string.label_corrected), issues = stringResource(R.string.fix_these), good = stringResource(R.string.good_title),
     said = stringResource(R.string.label_said), pron = stringResource(R.string.pron_title),
     asks = stringResource(R.string.asks_title),
+    more = stringResource(R.string.more_fixes_title),
     types = mapOf("phrasing" to stringResource(R.string.type_phrasing), "vocabulary" to stringResource(R.string.type_vocabulary), "grammar" to stringResource(R.string.type_grammar)),
 )
 

@@ -88,6 +88,8 @@
     <string name="type_grammar">文法</string>
     <string name="add_to_phrases">＋ 表現集へ</string>
     <string name="added_check">✓ 入れた</string>
+    <string name="more_fixes_title">ほかに直したところ</string>
+    <string name="more_fixes_note">「直すべし」は大事なものから 5 件までです。修正版で直した残りを、理由つきで並べています。</string>
     <string name="silent_fixes_title">ほかに、添削文で直っていたところ</string>
     <string name="silent_fixes_note">コーチの指摘は大事なものだけに絞られています。添削文と話した内容を比べて拾った、残りの直しです。</string>
     <string name="asks_title">日本語で言った分、英語ならこう</string>

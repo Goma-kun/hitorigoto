@@ -88,6 +88,8 @@
     <string name="type_grammar">Grammar</string>
     <string name="add_to_phrases">+ Add to phrases</string>
     <string name="added_check">✓ Added</string>
+    <string name="more_fixes_title">Other fixes</string>
+    <string name="more_fixes_note">“Fix these” shows only the five most important points. Here are the rest of the changes in the corrected version, each with a reason.</string>
     <string name="silent_fixes_title">Other fixes in the corrected text</string>
     <string name="silent_fixes_note">The coach only lists the important corrections. These are the rest, found by comparing the corrected text with what you said.</string>
     <string name="asks_title">What you said in your own language, in English</string>
