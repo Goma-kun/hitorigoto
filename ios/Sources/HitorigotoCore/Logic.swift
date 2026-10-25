@@ -57,6 +57,42 @@ public enum Logic {
         }
     }
 
+    /// 直しの重なりを比べるときの形（JS の fixKey と同じ）。大文字小文字・空白の数・文末の記号の違いは同じとみなす
+    static func fixKey(_ t: String) -> String {
+        collapseSpaces(t.lowercased())
+            .replacingOccurrences(of: "[.!?。]+$", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 同じ直しの重なりを外す（JS の tidyFixes と同じ）。
+    /// issues は「直す前と後が同じ」と同じ組の 2 件目以降を外す。fixes はそれに加えて、残した issue で説明済みのものも外す
+    static func tidyFixes(_ issues: [Issue], _ fixes: [Fix]) -> (issues: [Issue], fixes: [Fix]) {
+        var seen = Set<String>()
+        func keep(_ original: String, _ suggestion: String) -> (String, String)? {
+            let o = fixKey(original), s = fixKey(suggestion)
+            if o == s { return nil }
+            let k = o + "\n" + s
+            if seen.contains(k) { return nil }
+            seen.insert(k)
+            return (o, s)
+        }
+        var outIssues: [Issue] = []
+        var covered: [(String, String)] = []
+        for it in issues {
+            if let p = keep(it.original ?? "", it.suggestion) {
+                outIssues.append(it)
+                covered.append((" " + p.0 + " ", " " + p.1 + " "))
+            }
+        }
+        var outFixes: [Fix] = []
+        for f in fixes {
+            let o = " " + fixKey(f.original) + " ", s = " " + fixKey(f.suggestion) + " "
+            if covered.contains(where: { $0.0.contains(o) && $0.1.contains(s) }) { continue }
+            if keep(f.original, f.suggestion) != nil { outFixes.append(f) }
+        }
+        return (outIssues, outFixes)
+    }
+
     /// 応答を、表示と保存が前提にできる形に揃える。読み取れなければ nil
     public static func parseFeedback(_ raw: String?) -> Feedback? {
         guard let json = extractJsonObject(raw),
@@ -101,10 +137,12 @@ public enum Logic {
             let ipa = ((it?["ipa"] as? [Any]) ?? []).map { asText($0) }
             return Ask(said: said, ways: Array(ways), ipa: ipa, note: asText(it?["note"]))
         }
+        // 同じ直しの重なりを外す（JS の tidyFixes と同じ）。more_fixes は先に最大 20 件に切ってから外す
+        let tidy = tidyFixes(issues, Array(fixes.prefix(20)))
         return Feedback(
             correctedText: asText(d["corrected_text"]),
-            issues: issues,
-            moreFixes: Array(fixes.prefix(20)),
+            issues: tidy.issues,
+            moreFixes: tidy.fixes,
             recurring: asStringArray(d["recurring"]),
             recognitionDoubt: asStringArray(d["recognition_doubt"]),
             good: asText(d["good"]),

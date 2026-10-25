@@ -349,6 +349,36 @@ console.log('== コピー本文に発音の欄が入る ==');
 }
 
 // ============================================================
+console.log('== 同じ直しの重なりを外す（tidyFixes）==');
+{
+  const raw = JSON.stringify({
+    corrected_text: 'x',
+    issues: [
+      { type: 'grammar', original: 'drugs are rampage in that area', suggestion: 'drugs were rampant in that area', reason: 'r' },
+      { type: 'grammar', original: 'Hand it to him', suggestion: 'Give it to him' },
+      { type: 'phrasing', original: 'hand it to him.', suggestion: 'Give it to him' },
+      { type: 'vocabulary', original: 'him', suggestion: 'him' },
+      { type: 'grammar', original: 'something related to his mouth', suggestion: 'Something related to his mouth.' },
+    ],
+    more_fixes: [
+      { original: 'drugs are rampage', suggestion: 'drugs were rampant' },
+      { original: 'a', suggestion: 'the' },
+      { original: 'I go', suggestion: 'I went', note: '1' },
+      { original: 'I  go', suggestion: 'I went.', note: '2' },
+      { original: 'Hand it to him', suggestion: 'Give it to him' },
+    ],
+  });
+  const fb = parseFeedback(raw);
+  check('直す前と後が同じ指摘は外す',                fb.issues.some(i => i.original === 'him'), false);
+  check('大文字・文末の記号だけ違う「直し」も外す',  fb.issues.some(i => i.original.startsWith('something')), false);
+  check('同じ組の 2 件目以降は外す（大文字・記号違いも同じ）', fb.issues.map(i => i.original), ['drugs are rampage in that area', 'Hand it to him']);
+  check('issue で説明済みの直しは more_fixes から外す',
+        fb.more_fixes.map(f => `${f.original}>${f.suggestion}`), ['a>the', 'I go>I went']);
+  check('more_fixes の重なりは最初の 1 件を残す',    fb.more_fixes.find(f => f.original === 'I go').note, '1');
+  check('語の途中は「含む」とみなさない（a と area）', fb.more_fixes.some(f => f.original === 'a'), true);
+}
+
+// ============================================================
 console.log('');
 console.log(`結果: ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

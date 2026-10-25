@@ -72,7 +72,17 @@ const SAMPLE = { corrected_text: 'I went.', issues: [{ type: 'VOCABULARY', origi
   more_fixes: [{ original: 'a news', suggestion: 'news', note: 'n' }, { original: 'same', suggestion: 'same' }, { original: 'x' }, { suggestion: 'y' },
                ...Array.from({ length: 24 }, (_, i) => ({ original: `o${i}`, suggestion: `s${i}` }))] };
 for (const raw of [JSON.stringify(SAMPLE), '```json\n' + JSON.stringify(SAMPLE) + '\n```', 'はい。' + JSON.stringify({ ...SAMPLE, good: '括弧 } と "引用符"' }) + ' です',
-  '{ "corrected_text": ', 'ローマ帝国は…', '{"corrected_text":"Hello."}', JSON.stringify({ issues: [] })]) {
+  '{ "corrected_text": ', 'ローマ帝国は…', '{"corrected_text":"Hello."}', JSON.stringify({ issues: [] }),
+  // 同じ直しの重なりを外す（tidyFixes。2026-10-25 の Claude との比較で見つかった重なり方を再現）
+  JSON.stringify({ corrected_text: 'x',
+    issues: [{ type: 'grammar', original: 'drugs are rampage in that area', suggestion: 'drugs were rampant in that area' },
+             { type: 'grammar', original: 'Hand it to him', suggestion: 'Give it to him' },
+             { type: 'phrasing', original: '  hand it  to him. ', suggestion: 'Give it to him!' },
+             { type: 'vocabulary', original: 'him', suggestion: 'him' },
+             { type: 'grammar', original: 'something related to his mouth', suggestion: 'Something related to his mouth.' }],
+    more_fixes: [{ original: 'drugs are rampage', suggestion: 'drugs were rampant' }, { original: 'a', suggestion: 'the' },
+                 { original: 'I go', suggestion: 'I went', note: '1' }, { original: 'I  go', suggestion: 'I went.', note: '2' },
+                 { original: 'Hand it to him', suggestion: 'Give it to him' }, { original: 'Same。', suggestion: 'same' }] })]) {
   push({ fn: 'parseFeedback', raw }, JS.parseFeedback(raw));
 }
 

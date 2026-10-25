@@ -73,6 +73,25 @@ object Logic {
 
     private val strictJson = Json { }
 
+    private val trailingMarks = Regex("[.!?。]+$")
+
+    /** 直しの重なりを比べるときの形（JS の fixKey と同じ）。大文字小文字・空白の数・文末の記号の違いは同じとみなす */
+    internal fun fixKey(t: String): String =
+        collapseSpaces(t.lowercase()).replace(trailingMarks, "").trim()
+
+    /**
+     * 同じ直しの重なりを外す（JS の tidyFixes の issues 側と同じ）。
+     * 直す前と後が同じものと、同じ組の 2 件目以降を外す。順番は保つ。
+     * （Android はまだ more_fixes を受け取らないので、issues だけ）
+     */
+    internal fun tidyIssues(issues: List<Issue>): List<Issue> {
+        val seen = HashSet<String>()
+        return issues.filter {
+            val o = fixKey(it.original ?: ""); val s = fixKey(it.suggestion)
+            o != s && seen.add(o + "\n" + s)
+        }
+    }
+
     /** 応答を、表示と保存が前提にできる形に揃える。読み取れなければ null */
     fun parseFeedback(raw: String?): Feedback? {
         val json = extractJsonObject(raw) ?: return null
@@ -110,7 +129,7 @@ object Logic {
         }
         return Feedback(
             correctedText = asText(d["corrected_text"]),
-            issues = issues,
+            issues = tidyIssues(issues),
             recurring = asStringArray(d["recurring"]),
             recognitionDoubt = asStringArray(d["recognition_doubt"]),
             good = asText(d["good"]),

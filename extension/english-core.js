@@ -61,9 +61,7 @@ function parseFeedback(raw) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
 
   const issues = Array.isArray(data.issues) ? data.issues : [];
-  return {
-    corrected_text: asText(data.corrected_text),
-    issues: issues
+  const issueList = issues
       .map(it => {
         const type = asText(it && it.type).toLowerCase();
         return {
@@ -73,9 +71,14 @@ function parseFeedback(raw) {
           reason:     asText(it && it.reason),
         };
       })
-      .filter(it => it.original && it.suggestion),
+      .filter(it => it.original && it.suggestion);
+  // 同じ直しの重なりを外す（tidyFixes）。more_fixes は先に最大 20 件に切ってから外す
+  const tidy = tidyFixes(issueList, asFixes(data.more_fixes));
+  return {
+    corrected_text: asText(data.corrected_text),
+    issues: tidy.issues,
     // 「直すべし」に入りきらなかった直し（理由つき）。言った形と直した形が揃っているものだけ・最大 20
-    more_fixes:        asFixes(data.more_fixes),
+    more_fixes:        tidy.fixes,
     recurring:         asStringArray(data.recurring),
     recognition_doubt: asStringArray(data.recognition_doubt),
     good:              asText(data.good),
@@ -87,6 +90,40 @@ function parseFeedback(raw) {
     // 日本語で言った箇所（英語が出てこなかったところ）→ 英語ならこう言う。無ければ空
     asks:              asAsks(data.asks),
   };
+}
+
+// 直しの重なりを比べるときの形。大文字小文字・空白の数・文末の記号（. ! ? 。）の違いは同じとみなす
+function fixKey(t) {
+  return String(t || '').toLowerCase().replace(/\s+/g, ' ').trim().replace(/[.!?。]+$/, '').trim();
+}
+
+// 同じ直しの重なりを外す。AI が同じ直しを 2 度書くことがある
+// （2026-10-25 の Claude との比較で見つかった: 同じ直しが issues と more_fixes に重なる・同じ指摘が 5 件並ぶ・直す前と後が同じ）
+// - issues: 言った形と直した形が同じもの（直しになっていない）と、同じ組の 2 件目以降を外す。順番は保つ
+// - fixes（more_fixes）: 同じく外したうえで、残した issues のどれかで説明済みの直し
+//   （言った形も直した形も、その issue の中に語の区切りごと含まれる）も外す
+function tidyFixes(issues, fixes) {
+  const seen = new Set();
+  const keep = (it) => {
+    const o = fixKey(it.original), s = fixKey(it.suggestion);
+    if (o === s) return null;
+    const k = o + '\n' + s;
+    if (seen.has(k)) return null;
+    seen.add(k);
+    return [o, s];
+  };
+  const outIssues = [], covered = [];
+  for (const it of (issues || [])) {
+    const ks = keep(it);
+    if (ks) { outIssues.push(it); covered.push(ks.map(x => ' ' + x + ' ')); }
+  }
+  const outFixes = [];
+  for (const f of (fixes || [])) {
+    const o = fixKey(f.original), s = fixKey(f.suggestion);
+    if (covered.some(([io, is]) => io.includes(' ' + o + ' ') && is.includes(' ' + s + ' '))) continue;
+    if (keep(f)) outFixes.push(f);
+  }
+  return { issues: outIssues, fixes: outFixes };
 }
 
 function asFixes(v) {
