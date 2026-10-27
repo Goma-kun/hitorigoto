@@ -2561,6 +2561,446 @@
           }
         }
       }
+    },
+    "%@ が話を振ります。%@で返してください。言葉が出てこなければ日本語で言えば、トラさんが%@にしてくれます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ starts the conversation. Answer in %@. If the words won’t come, say it in your own language and Tora will put it into %@."
+          }
+        }
+      }
+    },
+    "%@ が話を考え中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is thinking…"
+          }
+        }
+      }
+    },
+    "%@ とトラさんと気楽におしゃべり。詰まったら日本語で OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat casually with %@ and Tora. Stuck? Just say it in your language"
+          }
+        }
+      }
+    },
+    "%@だけで": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ only"
+          }
+        }
+      }
+    },
+    "%@だけで言えた %lld・助けてもらった %lld・直し %lld（終わると見られます）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ only: %lld · With help: %lld · Fixes: %lld (shown when you finish)"
+          }
+        }
+      }
+    },
+    "あなた": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        }
+      }
+    },
+    "なんて言えばいい？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What should I say?"
+          }
+        }
+      }
+    },
+    "はじめる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "トラさん": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tora"
+          }
+        }
+      }
+    },
+    "トラさんが、次に言えそうなことを 2 つ出します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tora suggests two things you could say next"
+          }
+        }
+      }
+    },
+    "トラさんに助けてもらった言い方です。次は自分の口から出るよう、表現集に入れておくと明日また出ます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phrases Tora helped you with. Add them to your phrases so they come up again tomorrow and you can say them yourself next time."
+          }
+        }
+      }
+    },
+    "ネイティブ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Native speaker"
+          }
+        }
+      }
+    },
+    "マイクから音が入っていません（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sound from the microphone (%@)"
+          }
+        }
+      }
+    },
+    "三人で話す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talk with two friends"
+          }
+        }
+      }
+    },
+    "二人が締めの一言を考え中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both are thinking of a goodbye…"
+          }
+        }
+      }
+    },
+    "二人が聞いています…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both are listening…"
+          }
+        }
+      }
+    },
+    "今日の「三人で話す」（%lld ターン）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’ve used today’s %lld turns of “Talk with two friends”. It resets at midnight. Register your own Gemini key in Settings for unlimited use."
+          }
+        }
+      }
+    },
+    "今日の「三人で話す」（%lld ターン）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’ve used today’s %lld turns of “Talk with two friends”. It resets at midnight. Register your own Gemini key for unlimited use."
+          }
+        }
+      }
+    },
+    "今日の会話": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today’s conversation"
+          }
+        }
+      }
+    },
+    "今日の表現が会話に出ました: ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today’s phrases came up: "
+          }
+        }
+      }
+    },
+    "今日はあと %lld ターン（%lld ターンまで・添削の回数とは別）。1 回話すごとに 1 ターン使います。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld turns left today (up to %lld, separate from reviews). Each time you speak uses one turn."
+          }
+        }
+      }
+    },
+    "会話には、「設定」で「おまかせ（キー不要）」を選ぶか、Gemini の API キーを登録してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To chat, choose “Built-in (no key)” in Settings or register a Gemini API key."
+          }
+        }
+      }
+    },
+    "会話を終えますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End the conversation?"
+          }
+        }
+      }
+    },
+    "会話を読み返す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-read the conversation"
+          }
+        }
+      }
+    },
+    "例: 今日の仕事、週末のこと、うちの猫": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. work today, the weekend, my cat"
+          }
+        }
+      }
+    },
+    "別れの一言と締めをもらって、記録に残します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say goodbye, get Tora’s wrap-up, and save the conversation"
+          }
+        }
+      }
+    },
+    "助けてもらった": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With help"
+          }
+        }
+      }
+    },
+    "往復": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turns"
+          }
+        }
+      }
+    },
+    "押して、%@で返す（日本語が混ざっても OK）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap and answer in %@ (mixing in your language is fine)"
+          }
+        }
+      }
+    },
+    "直しは会話の邪魔をしないよう、終わってからまとめて出ます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrections are held until the end so they don’t interrupt the chat."
+          }
+        }
+      }
+    },
+    "直すべし（会話中は黙っていた分）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix these (held back during the chat)"
+          }
+        }
+      }
+    },
+    "終えて記録に残す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish and save"
+          }
+        }
+      }
+    },
+    "終わる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish"
+          }
+        }
+      }
+    },
+    "続ける": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep going"
+          }
+        }
+      }
+    },
+    "自分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Me"
+          }
+        }
+      }
+    },
+    "言い終えたら、もう一度押してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you’re done, tap again"
+          }
+        }
+      }
+    },
+    "記録せずに閉じる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close without saving"
+          }
+        }
+      }
+    },
+    "記録には残していません（何も話していないため）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not saved (you didn’t say anything)."
+          }
+        }
+      }
+    },
+    "記録に残しました。「履歴」からいつでも読み返せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved. You can re-read it anytime in History."
+          }
+        }
+      }
+    },
+    "訳": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Translation"
+          }
+        }
+      }
+    },
+    "訳を隠す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide translation"
+          }
+        }
+      }
+    },
+    "話したいこと（空なら %@ が決めます）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What to talk about (leave empty and %@ decides)"
+          }
+        }
+      }
+    },
+    "送る": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        }
+      }
+    },
+    "通訳役": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interpreter"
+          }
+        }
+      }
     }
   }
 }

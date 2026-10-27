@@ -20,10 +20,18 @@ final class Speaker: NSObject, ObservableObject {
     }
 
     /// 押すたびに「読む／止める」。別の文を押したら、前のを止めてそちらを読む
-    func toggle(_ text: String, rate: Float = 0.42) {
+    func toggle(_ text: String, rate: Float = 0.42, language: String? = nil) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
         if speaking == t { stop(); return }
+        speak(t, rate: rate, language: language)
+    }
+
+    /// 読む（読み上げ中なら止めてから）。会話の返事を自動で読むときはこちら（押し直しで止まらないように）
+    /// language を渡すと、その言語の声で読む（トラさんの日本語など）。省略すると設定の「話す言語」
+    func speak(_ text: String, rate: Float = 0.42, language: String? = nil) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
         stop()
         #if os(iOS)
         // 再生だけなので playback。マナーモードでも鳴らしたいが、録音の設定は壊さない
@@ -31,7 +39,7 @@ final class Speaker: NSObject, ObservableObject {
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
         let u = AVSpeechUtterance(string: t)
-        u.voice = Self.voice(for: language)
+        u.voice = Self.voice(for: language ?? self.language)
         u.rate = rate
         u.postUtteranceDelay = 0.1
         speaking = t
@@ -70,13 +78,15 @@ extension Speaker: AVSpeechSynthesizerDelegate {
 /// 英語の文の横に置く、小さな読み上げボタン
 struct SpeakButton: View {
     let text: String
+    /// 読む言語。省略すると設定の「話す言語」
+    var language: String? = nil
     @ObservedObject private var speaker = Speaker.shared
 
     private var isSpeaking: Bool { speaker.speaking == text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         Button {
-            speaker.toggle(text)
+            speaker.toggle(text, language: language)
         } label: {
             Image(systemName: isSpeaking ? "speaker.wave.2.fill" : "speaker.wave.2")
                 .font(.system(size: 15))

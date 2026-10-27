@@ -71,6 +71,8 @@ struct SpeakView: View {
             }
             // 文章で説明する代わりに、挨拶と 3 つの絵で流れを見せる（2026-10-04 本人要望「ぱっと見て直感的に」）
             Welcome()
+            // 三人で話す（ネイティブ役＋トラさん＋自分）。独り言と並ぶもう一つの入口（2026-10-28）
+            TalkCard()
             QuizCard()
             CandidatesCard()
             TodayCard(goPhrases: goPhrases)

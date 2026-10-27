@@ -103,6 +103,47 @@ func run(_ c: [String: Any]) -> Any {
     }
 }
 
+// ---- 実 API（talk）----
+// `hg-probe talk --open "話題"` / `hg-probe talk --audio turn.m4a [--history h.json]` 三人で話すの 1 ターンを本物の Gemini に投げる。
+// --history は TalkLine の JSON 配列（省略可）。--hint / --close も可。結果は JSON で返す
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let audioPath = take("--audio")
+    let topic = take("--open")
+    let historyPath = take("--history")
+    let isHint = args.contains("--hint"), isClose = args.contains("--close")
+    let env = ProcessInfo.processInfo.environment
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let history: [TalkLine] = historyPath.flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
+    let request: Talk.Request = topic.map { .open(topic: $0) } ?? (isHint ? .hint : (isClose ? .close : .speak))
+    let audio = audioPath.flatMap { FileManager.default.contents(atPath: $0) }
+    let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
+    let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), explanation: .ja)
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        do {
+            let t = try await client.talk(audio: audio, mimeType: "audio/mp4", message: message, system: Talk.system(language: lang, explanation: .ja))
+            let out: [String: Any] = ["heard": t.heard, "corrected": t.corrected, "reply": t.reply, "reply_sub": t.replySub, "help": t.help,
+                                      "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good]
+            let d = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
+            print(String(data: d, encoding: .utf8)!)
+        } catch { print("{\"error\": \"\(error)\"}") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（scan）----
 // `hg-probe scan --image shot.png [--image shot2.jpg]` スクショから表現の候補を取り出す（画像はそのまま送る。4MB まで）
 // HG_RELAY=1 なら中継サーバーの /v1/scan を通る

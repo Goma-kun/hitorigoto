@@ -40,6 +40,8 @@ final class AppModel: ObservableObject {
     @Published var quota: GeminiClient.Quota?
     /// 「トラさんに詳しく聞く」の今日の回数（添削とは別枠）
     @Published var explainQuota: GeminiClient.Quota?
+    /// 「三人で話す」の今日の回数（1 ターン 1 回・添削とは別枠）
+    @Published var talkQuota: GeminiClient.Quota?
     /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
     @Published var syncEnabled: Bool {
         didSet { UserDefaults.standard.set(syncEnabled, forKey: "iCloudSync"); updateSync() }
@@ -172,6 +174,52 @@ final class AppModel: ObservableObject {
     }
 
     var today: String { Logic.todayStamp() }
+
+    // MARK: - 三人で話す
+
+    /// 今の設定で使う Gemini の口。キーも中継も使えないときは nil（理由は talkBlocker）
+    var talkClient: GeminiClient? {
+        if usesRelay { return GeminiClient(transport: Relay.transport) }
+        if let key = KeychainStore.apiKey { return GeminiClient(key: key) }
+        return nil
+    }
+
+    var talkBlocker: String? {
+        if usesRelay {
+            if let q = talkQuota, q.remaining == 0 { return String(localized: "今日の「三人で話す」（\(q.limit) ターン）を使い切りました。日付が変わると戻ります。自分の Gemini キーを「設定」で登録すると回数の制限なく使えます。") }
+            return nil
+        }
+        return hasKey ? nil : String(localized: "会話には、「設定」で「おまかせ（キー不要）」を選ぶか、Gemini の API キーを登録してください。")
+    }
+
+    func refreshTalkQuota() async {
+        guard usesRelay else { talkQuota = nil; return }
+        talkQuota = await GeminiClient(transport: Relay.transport).talkQuota()
+    }
+
+    /// 会話を終えたら 1 回の記録として残す。今日の表現が会話の中で出ていれば、独り言と同じように判定して記録する
+    @discardableResult
+    func finishTalk(lines: [TalkLine], good: String, startedAt: Date) -> Session? {
+        guard lines.contains(where: { $0.who == "me" && !$0.text.isEmpty }) else { return nil }
+        var session = Talk.makeSession(id: ISO8601DateFormatter.withMillis.string(from: startedAt), lines: lines, good: good,
+                                       engine: usesRelay ? "talk-cloud" : "talk-gemini")
+        let targetCards = todayCards()
+        if !targetCards.isEmpty {
+            let judged = PhraseLogic.judge(targetCards, text: session.transcript ?? "")
+            // 出なかった表現は会話では責めない（独り言と違って話題を選べないので）。出たものだけ記録する
+            let hits = judged.filter { $0.result == "hit" || $0.result == "partial" }
+            if !hits.isEmpty {
+                recordTodayResults(hits)
+                session.targets = hits.map { j in SessionTarget(phrase: targetCards.first { $0.id == j.id }?.phrase ?? "", r: j.result, as: j.asSaid) }
+            }
+        }
+        snapshot.sessions.insert(session, at: 0)
+        snapshot.sessions.sort { $0.id > $1.id }
+        snapshot.sessions = Logic.foldSessions(snapshot.sessions)
+        snapshot.recurring = Logic.promoteRecurring(snapshot.recurring, issues: session.issues, today: today)
+        save()
+        return session
+    }
 
     // MARK: - 今日の表現
 

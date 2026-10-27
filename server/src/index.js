@@ -14,7 +14,8 @@
 //   /v1/review  添削（音声つき）。端末ごと FREE_PER_DAY 回
 //   /v1/explain 直し 1 件を詳しく聞く（文字だけ・2026-10-13）。添削とは別に端末ごと EXPLAIN_PER_DAY 回・全体 EXPLAIN_GLOBAL_PER_DAY 回
 //   /v1/scan    スクショ 1 枚から表現集の候補を取り出す（画像つき・2026-10-25）。端末ごと SCAN_PER_DAY 回・全体 SCAN_GLOBAL_PER_DAY 回
-//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan" に入れて返す）
+//   /v1/talk    「三人で話す」の 1 ターン（短い音声か文字・2026-10-28）。端末ごと TALK_PER_DAY 回・全体 TALK_GLOBAL_PER_DAY 回
+//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan"、talk の分は "talk" に入れて返す）
 //
 // 月の予算（2026-10-13 本人「月に最大 1 万円程度に抑える」）:
 //   1 回ごとに見込みの原価（REVIEW_COST_YEN / EXPLAIN_COST_YEN）を月の帳簿 m:YYYYMM に足し、MONTHLY_BUDGET_YEN に達したら止める。
@@ -91,18 +92,26 @@ export default {
     const sKey = `s:${device}:${day}`;
     const sgKey = `gs:${day}`;
 
+    const tLimit = Number(env.TALK_PER_DAY || '40');
+    const tGlobalLimit = Number(env.TALK_GLOBAL_PER_DAY || '300');
+    const tKey = `t:${device}:${day}`;
+    const tgKey = `gt:${day}`;
+
     if (url.pathname === '/v1/quota' && request.method === 'GET') {
       const used = await count(env, dKey, ttl);
       const eUsed = await count(env, eKey, ttl);
       const sUsed = await count(env, sKey, ttl);
+      const tUsed = await count(env, tKey, ttl);
       return json({ used, limit, remaining: Math.max(0, limit - used), resetsInSeconds: ttl,
         explain: { used: eUsed, limit: eLimit, remaining: Math.max(0, eLimit - eUsed) },
-        scan: { used: sUsed, limit: sLimit, remaining: Math.max(0, sLimit - sUsed) } });
+        scan: { used: sUsed, limit: sLimit, remaining: Math.max(0, sLimit - sUsed) },
+        talk: { used: tUsed, limit: tLimit, remaining: Math.max(0, tLimit - tUsed) } });
     }
 
     const isExplain = url.pathname === '/v1/explain';
     const isScan = url.pathname === '/v1/scan';
-    if ((url.pathname !== '/v1/review' && !isExplain && !isScan) || request.method !== 'POST') {
+    const isTalk = url.pathname === '/v1/talk';
+    if ((url.pathname !== '/v1/review' && !isExplain && !isScan && !isTalk) || request.method !== 'POST') {
       return json({ error: { code: 'not_found', message: 'そのような入口はありません' } }, 404);
     }
     // 詳しく聞くは別の財布で数える（添削の 3 回を食わない）
@@ -118,6 +127,13 @@ export default {
         costYen: Number(env.SCAN_COST_YEN || '1'),
         maxBody: Number(env.SCAN_MAX_BODY_BYTES || '6000000'), textOnly: false,
         quotaMessage: '今日の「スクショから表現」の回数を使い切りました' });
+    }
+    // 三人で話すは 1 ターンごと（短い音声か文字だけ）。これも別の財布
+    if (isTalk) {
+      return relay(request, env, { dKey: tKey, gKey: tgKey, ttl, limit: tLimit, globalLimit: tGlobalLimit,
+        costYen: Number(env.TALK_COST_YEN || '1'),
+        maxBody: Number(env.TALK_MAX_BODY_BYTES || '3000000'), textOnly: false,
+        quotaMessage: '今日の「三人で話す」の回数を使い切りました' });
     }
     return relay(request, env, { dKey, gKey, ttl, limit, globalLimit,
       costYen: Number(env.REVIEW_COST_YEN || '10'),

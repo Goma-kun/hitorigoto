@@ -86,7 +86,10 @@ struct SessionCard: View {
 
     var body: some View {
         Card {
-            Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+            HStack(spacing: 6) {
+                Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                if session.talk != nil { Tag(text: String(localized: "三人で話す"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
+            }
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
                 Text(lines.isEmpty ? AttributedString(String(localized: "古い記録（指摘だけ残しています）")) : hl(lines.joined(separator: " / ")))
@@ -105,6 +108,23 @@ struct SessionCard: View {
                     // 一覧全体に textSelection が付いているので、plain なボタンの文字は選択に食われて押せなかった（2026-10-09 本人指摘）
                     Button(expanded ? String(localized: "たたむ") : String(localized: "全文")) { expanded.toggle() }
                         .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent)
+                }
+                if let talk = session.talk, !talk.isEmpty {
+                    // 会話そのもの。長いので畳んでおく
+                    DisclosureGroup {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(talk.enumerated()), id: \.offset) { _, l in
+                                let who = l.who == "native" ? Talk.nativeName(model.targetLanguage) : (l.who == "tora" ? String(localized: "トラさん") : String(localized: "自分"))
+                                let extra = l.who == "tora" && !l.asks.isEmpty ? "（" + l.asks.flatMap(\.ways).joined(separator: " / ") + "）" : ""
+                                if !l.text.isEmpty || !extra.isEmpty {
+                                    Text(hl("\(who): \(l.text)\(extra)")).font(.caption).foregroundStyle(l.who == "me" ? Theme.text : Theme.muted)
+                                }
+                            }
+                        }
+                        .padding(.top, 4)
+                    } label: {
+                        Text("会話を読み返す").font(.caption.weight(.bold)).foregroundStyle(Theme.accent)
+                    }
                 }
                 if !session.issues.isEmpty {
                     Text("直すべし").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)

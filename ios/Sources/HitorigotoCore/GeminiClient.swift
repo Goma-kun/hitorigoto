@@ -39,7 +39,7 @@ public struct GeminiClient: Sendable {
         case relayBusy         // 中継サーバーの全体の上限
     }
 
-    /// relayPath: 中継サーバーの入口。添削は v1/review、詳しく聞くは v1/explain（回数を別に数える）
+    /// relayPath: 中継サーバーの入口。添削は v1/review、詳しく聞くは v1/explain、スクショは v1/scan、三人で話すは v1/talk（回数を別に数える）
     private func endpoint(_ relayPath: String) -> URL {
         switch transport {
         case .direct: return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent")!
@@ -78,6 +78,7 @@ public struct GeminiClient: Sendable {
                 case "quota": throw Failure.quota(used: err?["used"] as? Int ?? 0, limit: err?["limit"] as? Int ?? 0)
                 case "busy": throw Failure.relayBusy
                 case "forbidden", "device": throw Failure.server(msg)
+                case "not_found": throw Failure.server(msg)
                 default: break
                 }
             }
@@ -146,6 +147,42 @@ public struct GeminiClient: Sendable {
         ], relayPath: "v1/explain")
         guard let turn = Explain.parse(raw, question: question) else { throw Failure.parse }
         return turn
+    }
+
+    /// 「三人で話す」の 1 ターン。audio が nil のターン（はじまり・ヒント・締め）は文字だけ。中継サーバーでは /v1/talk で別に数える
+    public func talk(audio: Data?, mimeType: String, message: String, system: String) async throws -> TalkTurn {
+        var parts: [[String: Any]] = []
+        if let audio {
+            guard !audio.isEmpty, audio.count <= Self.audioMaxBytes else { throw Failure.audio }
+            parts.append(["inlineData": ["mimeType": mimeType, "data": audio.base64EncodedString()]])
+        }
+        parts.append(["text": message])
+        let raw = try await call([
+            "systemInstruction": ["parts": [["text": system]]],
+            "contents": [["role": "user", "parts": parts]],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/talk")
+        guard let turn = Talk.parse(raw) else { throw Failure.parse }
+        return turn
+    }
+
+    /// 「三人で話す」の今日の残り回数（中継サーバーが古くて答えないときは nil）
+    public func talkQuota() async -> Quota? {
+        await subQuota("talk")
+    }
+
+    private func subQuota(_ name: String) async -> Quota? {
+        guard case .relay(let url, let deviceId, let appKey) = transport else { return nil }
+        var req = URLRequest(url: url.appendingPathComponent("v1/quota"))
+        req.setValue(deviceId, forHTTPHeaderField: "x-device-id")
+        req.setValue(appKey, forHTTPHeaderField: "x-app-key")
+        req.timeoutInterval = 15
+        guard let (data, _) = try? await session.data(for: req),
+              let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let e = j[name] as? [String: Any],
+              let used = e["used"] as? Int, let limit = e["limit"] as? Int else { return nil }
+        return Quota(used: used, limit: limit)
     }
 
     /// スクショ 1 枚から表現集の候補を取り出す（JPEG を渡す）。中継サーバーでは /v1/scan で別に数える

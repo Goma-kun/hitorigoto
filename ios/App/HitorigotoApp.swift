@@ -139,6 +139,22 @@ enum DevHooks {
         return false
         #endif
     }
+    /// -HGFakeTalk 1 「三人で話す」を Gemini に送らず見本の返事で動かす（画面の確かめ用）
+    static var fakeTalk: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "HGFakeTalk")
+        #else
+        return false
+        #endif
+    }
+    /// -HGOpenTalk 1 話す画面を開いたら「三人で話す」のシートを開いておく（撮影用）
+    static var openTalk: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "HGOpenTalk")
+        #else
+        return false
+        #endif
+    }
     /// -HGOpenScan 1 表現タブを開いたらスクショの画面を開いておく（撮影用）
     static var openScan: Bool {
         #if DEBUG
