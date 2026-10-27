@@ -86,6 +86,12 @@ struct TalkSheet: View {
                         .font(.callout).foregroundStyle(Theme.text)
                     Text("直しは会話の邪魔をしないよう、終わってからまとめて出ます。")
                         .font(.caption).foregroundStyle(Theme.muted)
+                    if let r = talk.review, !r.phrases.isEmpty {
+                        // 翌日の Sam は前回の話を覚えている。昨日の言い方が自然に出る場を作る（復習を会話に溶かす）
+                        Divider().overlay(Theme.line)
+                        Text(String(localized: "\(talk.nativeName) は\(r.when)の話を覚えています。前回助けてもらった言い方（\(r.phrases.prefix(3).joined(separator: " / "))）が出せる話を振ってきます。"))
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
                 }
                 Card(title: String(localized: "話したいこと（空なら \(talk.nativeName) が決めます）")) {
                     TextField(String(localized: "例: 今日の仕事、週末のこと、うちの猫"), text: $talk.topic)
@@ -182,28 +188,44 @@ struct TalkSheet: View {
             VStack(spacing: 6) {
                 if talk.turns > 0 {
                     let t = talk.tally
-                    Text(String(localized: "\(model.targetLanguage.name)だけで言えた \(t.alone)・助けてもらった \(t.helped)・直し \(talk.pendingFixes)（終わると見られます）"))
+                    Text(String(localized: "\(model.targetLanguage.name)だけで言えた \(t.alone)・助けてもらった \(t.helped)・直し \(talk.pendingFixes)（終わると見られます）")
+                         + (t.repeated > 0 ? String(localized: "・言い直せた \(t.repeated)") : ""))
                         .font(.caption2).foregroundStyle(Theme.faint)
                 }
                 if talk.phase == .recording { RecordingStrip(recorder: talk.recorder) }
                 HStack(alignment: .center, spacing: 10) {
-                    Button {
-                        Task { await talk.hint() }
-                    } label: {
-                        VStack(spacing: 2) {
-                            Image(systemName: "questionmark.bubble").font(.title3)
-                            Text("なんて言えばいい？").font(.caption2.weight(.semibold))
+                    if talk.phase == .repeating {
+                        // 言ってみるのを飛ばす。責めない（押さなくても会話は続く）
+                        Button {
+                            talk.skipRepeat()
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "forward.end").font(.title3)
+                                Text("今はいい").font(.caption2.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.bordered).tint(Theme.muted)
+                        .help("言い直さずに会話を続けます")
+                    } else {
+                        Button {
+                            Task { await talk.hint() }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "questionmark.bubble").font(.title3)
+                                Text("なんて言えばいい？").font(.caption2.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered).tint(Theme.warn)
+                        .disabled(talk.phase != .listening)
+                        .help("トラさんが、次に言えそうなことを 2 つ出します")
                     }
-                    .buttonStyle(.bordered).tint(Theme.warn)
-                    .disabled(talk.phase != .listening)
-                    .help("トラさんが、次に言えそうなことを 2 つ出します")
 
                     Button {
                         Task {
                             switch talk.phase {
-                            case .listening: await talk.startRecording()
+                            case .listening, .repeating: await talk.startRecording()
                             case .recording: await talk.stopAndSend()
                             default: break
                             }
@@ -213,8 +235,8 @@ struct TalkSheet: View {
                             Circle().fill(micColor).frame(width: 84, height: 84)
                                 .shadow(color: micColor.opacity(talk.phase == .recording ? 0.5 : 0.3), radius: 10, y: 3)
                             VStack(spacing: 1) {
-                                Image(systemName: talk.phase == .recording ? "stop.fill" : "mic.fill").font(.system(size: 28, weight: .semibold))
-                                Text(talk.phase == .recording ? String(localized: "送る") : String(localized: "話す")).font(.system(size: 13, weight: .bold))
+                                Image(systemName: talk.phase == .recording ? "stop.fill" : (talk.phase == .repeating ? "repeat" : "mic.fill")).font(.system(size: 28, weight: .semibold))
+                                Text(micLabel).font(.system(size: 13, weight: .bold))
                             }
                             .foregroundStyle(.white)
                         }
@@ -248,7 +270,16 @@ struct TalkSheet: View {
         switch talk.phase {
         case .recording: return Theme.rec
         case .listening: return Theme.accent
+        case .repeating: return Theme.good
         default: return Theme.faint
+        }
+    }
+
+    private var micLabel: String {
+        switch talk.phase {
+        case .recording: return String(localized: "送る")
+        case .repeating: return String(localized: "言ってみる")
+        default: return String(localized: "話す")
         }
     }
 
@@ -256,6 +287,8 @@ struct TalkSheet: View {
         switch talk.phase {
         case .recording: return String(localized: "言い終えたら、もう一度押してください")
         case .listening: return String(localized: "押して、\(model.targetLanguage.name)で返す（日本語が混ざっても OK）")
+        // もらった言い方を見て終わりにしない。その場で一回、口に出す（これがいちばん定着に効く）
+        case .repeating: return String(localized: "トラさんの言い方を、そのまま口に出してみてください（\(talk.nativeName) は待っています）")
         default: return " "
         }
     }
@@ -265,11 +298,17 @@ struct TalkSheet: View {
     @ViewBuilder
     private var summary: some View {
         let t = talk.tally
-        Card(title: String(localized: "今日の会話")) {
+        Card(title: talk.rerunOf.isEmpty ? String(localized: "今日の会話") : String(localized: "もう一回の結果")) {
             HStack(spacing: 14) {
                 stat(String(localized: "往復"), talk.turns, Theme.accent)
                 stat(String(localized: "\(model.targetLanguage.name)だけで"), t.alone, Theme.good)
                 stat(String(localized: "助けてもらった"), t.helped, Theme.warn)
+                if t.repeated > 0 { stat(String(localized: "言い直せた"), t.repeated, Theme.info) }
+            }
+            if let p = talk.previousTally {
+                // さっきと比べて、助けてもらった数が減ったのが目で分かるように
+                Text(String(localized: "さっきは \(model.targetLanguage.name)だけで \(p.alone)・助けてもらった \(p.helped) でした。"))
+                    .font(.caption).foregroundStyle(Theme.muted)
             }
             if let s = talk.saved, let targets = s.targets, !targets.isEmpty {
                 Text(String(localized: "今日の表現が会話に出ました: ") + targets.map { "\(Mark.symbol($0.r)) \($0.phrase)" }.joined(separator: "　"))
@@ -300,6 +339,16 @@ struct TalkSheet: View {
                     Note(text: String(localized: "トラさんに助けてもらった言い方です。次は自分の口から出るよう、表現集に入れておくと明日また出ます。"))
                 }
             }
+        }
+        if talk.turns > 0 {
+            // 同じ話をもう一回。同じ会話を繰り返すと流暢さが伸びる（研究の裏づけがいちばん強い型）
+            Button {
+                Task { await talk.rerun() }
+            } label: {
+                Label(String(localized: "同じ話をもう一回（今度は助けなしで）"), systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered).tint(Theme.accent).controlSize(.large)
+            Note(text: String(localized: "さっきと同じ質問を \(talk.nativeName) がもう一度振ります。2〜3 往復で十分です。同じ話を繰り返すと、言葉が出てくる速さが上がります。"))
         }
         Button("閉じる") { dismiss() }
             .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(.large)
@@ -405,6 +454,11 @@ struct MeBubble: View {
         HStack(alignment: .top, spacing: 8) {
             Spacer(minLength: 40)
             VStack(alignment: .trailing, spacing: 4) {
+                if line.tag == "repeat_ok" {
+                    Tag(text: String(localized: "✓ 言い直せた"), fg: Theme.good, bg: Theme.goodBg)
+                } else if line.tag == "repeat_ng" {
+                    Tag(text: String(localized: "言い直し（もう一回でも OK）"), fg: Theme.warn, bg: Theme.warnBg)
+                }
                 Text(line.text).font(.body).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)
                 if !line.sub.isEmpty {

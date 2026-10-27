@@ -3001,6 +3001,136 @@
           }
         }
       }
+    },
+    "・言い直せた %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · Said it back: %lld"
+          }
+        }
+      }
+    },
+    "今はいい": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "言い直さずに会話を続けます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue without repeating"
+          }
+        }
+      }
+    },
+    "言ってみる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it"
+          }
+        }
+      }
+    },
+    "トラさんの言い方を、そのまま口に出してみてください（%@ は待っています）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say Tora’s phrase out loud, just as it is (%@ is waiting)"
+          }
+        }
+      }
+    },
+    "もう一回の結果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Second run"
+          }
+        }
+      }
+    },
+    "言い直せた": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Said it back"
+          }
+        }
+      }
+    },
+    "さっきは %@だけで %lld・助けてもらった %lld でした。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last run: %@ only %lld · with help %lld."
+          }
+        }
+      }
+    },
+    "同じ話をもう一回（今度は助けなしで）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same conversation again (no help this time)"
+          }
+        }
+      }
+    },
+    "さっきと同じ質問を %@ がもう一度振ります。2〜3 往復で十分です。同じ話を繰り返すと、言葉が出てくる速さが上がります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ asks the same questions again. Two or three turns are enough. Repeating the same conversation makes the words come faster."
+          }
+        }
+      }
+    },
+    "✓ 言い直せた": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Said it back"
+          }
+        }
+      }
+    },
+    "言い直し（もう一回でも OK）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat (try again if you like)"
+          }
+        }
+      }
+    },
+    "%@ は%@の話を覚えています。前回助けてもらった言い方（%@）が出せる話を振ってきます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ remembers your chat from %@ and will steer toward phrases you got help with last time (%@)."
+          }
+        }
+      }
     }
   }
 }

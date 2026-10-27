@@ -35,6 +35,9 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(t?.reply, "Hi! What did you do today?")
         XCTAssertEqual(t?.heard, "")
         XCTAssertNil(Talk.parse(#"{"heard": "", "reply": "", "help": "", "asks": [], "fixes": []}"#), "何も入っていない応答は読めなかった扱い")
+        let rep = Talk.parse(#"{"heard": "I had a baked sweet potato.", "reply": "Nice! So, do you get one often?", "said_ok": true, "asks": [], "fixes": []}"#)
+        XCTAssertEqual(rep?.saidOk, true)
+        XCTAssertEqual(Talk.parse(#"{"heard": "I ate potato.", "reply": "Close!", "said_ok": "false"}"#)?.saidOk, true, "文字列の false は JS と同じく真（Gemini は bool で返す約束）")
         XCTAssertNil(Talk.parse("読めません"))
         XCTAssertNil(Talk.parse(nil))
     }
@@ -60,6 +63,34 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(Talk.userMessage(request: .open(topic: "猫"), history: [], language: .enUS).contains("猫"))
         XCTAssertTrue(Talk.userMessage(request: .hint, history: history, language: .enUS).contains("2 つ"))
         XCTAssertTrue(Talk.userMessage(request: .close, history: history, language: .enUS).contains("\"good\""))
+        // 言ってみる・もう一回・前回の話
+        let r = Talk.userMessage(request: .repeat(ways: ["a baked sweet potato", "a roasted sweet potato"]), history: history, language: .enUS)
+        XCTAssertTrue(r.contains("言ってみる") && r.contains("a baked sweet potato / a roasted sweet potato") && r.contains("said_ok"))
+        let again = Talk.userMessage(request: .open(topic: "猫", rerun: history), history: [], language: .enUS)
+        XCTAssertTrue(again.contains("もう一度同じ流れ") && again.contains("Sam: Hi there!") && again.contains("言い方: Well"))
+        let rv = TalkReview(when: "昨日", summary: "I had a baked sweet potato.", phrases: ["a baked sweet potato"])
+        let withReview = Talk.userMessage(request: .open(topic: "猫"), history: [], language: .enUS, review: rv)
+        XCTAssertTrue(withReview.contains("前回の会話（昨日）") && withReview.contains("- a baked sweet potato"))
+        XCTAssertTrue(Talk.system(language: .enUS, explanation: .ja).contains("言ってみる"))
+    }
+
+    func testReviewFromSessions() {
+        var s = Talk.makeSession(id: "2026-10-27T10:00:00.000Z", lines: [
+            TalkLine(who: "native", text: "Hi"), TalkLine(who: "me", text: "I ate 焼き芋.", sub: "I had a baked sweet potato.",
+                                                         fixes: [Issue(type: "vocabulary", original: "I ate", suggestion: "I had", reason: "")]),
+            TalkLine(who: "tora", text: "", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato", "a roasted sweet potato"])]),
+        ], good: "", engine: "talk-gemini")
+        let plain = Session(id: "2026-10-28T09:00:00.000Z", transcript: "monologue", issues: [])
+        // 会話の日付は端末の時刻で数える（id は UTC）
+        let localDay = Logic.todayStamp(ISO8601DateFormatter().date(from: "2026-10-27T10:00:00Z")!)
+        let r = TalkReview.from(sessions: [plain, s], today: PhraseLogic.addDays(localDay, 1))
+        XCTAssertEqual(r?.when, "昨日")
+        XCTAssertEqual(r?.phrases, ["a baked sweet potato", "I had"], "言い方は 1 件につき最初の 1 つ・直しは直した形")
+        XCTAssertEqual(r?.summary, "I had a baked sweet potato.")
+        XCTAssertEqual(TalkReview.from(sessions: [plain, s], today: PhraseLogic.addDays(localDay, 1), maxDays: 0), nil, "古すぎる会話は振らない")
+        XCTAssertEqual(TalkReview.from(sessions: [s], today: localDay)?.when, "さっき")
+        s.transcript = ""
+        XCTAssertNil(TalkReview.from(sessions: [s], today: localDay), "何も話していない会話は飛ばす")
     }
 
     func testMakeSessionAndTally() throws {
@@ -72,6 +103,8 @@ final class TalkTests: XCTestCase {
             TalkLine(who: "me", text: "Yes, very sweet.", fixes: [Issue(type: "vocabulary", original: "I ate 焼き芋", suggestion: "I had a baked sweet potato", reason: "dup")]),
             TalkLine(who: "tora", text: "こう言ってみな", sub: "hint", asks: [Ask(said: "猫も好き", ways: ["My cat likes it too."])]),
             TalkLine(who: "me", text: "My cat likes it too."),
+            TalkLine(who: "me", text: "His name is Goma.", tag: "repeat_ok"),
+            TalkLine(who: "me", text: "His name Goma.", tag: "repeat_ng"),
             TalkLine(who: "native", text: "Bye!"),
         ]
         let s = Talk.makeSession(id: "2026-10-28T10:00:00.000Z", lines: lines, good: "上等だ", engine: "talk-gemini")
@@ -80,11 +113,13 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(s.issues.count, 1, "同じ直しは 1 回")
         XCTAssertEqual(s.asks?.map(\.said), ["焼き芋", "猫も好き"])
         XCTAssertEqual(s.good, "上等だ")
-        XCTAssertEqual(s.talk?.count, 8)
+        XCTAssertEqual(s.talk?.count, 10)
+        XCTAssertEqual(s.transcript?.components(separatedBy: "\n").count, 3, "言い直しのターンは本文に入れない")
 
         let t = Talk.tally(lines, nativeLanguageIsJapanese: true)
         XCTAssertEqual(t.alone, 1, "英語だけで言えたのは Yes, very sweet. の 1 回")
         XCTAssertEqual(t.helped, 2, "日本語が混ざった 1 回と、ヒントのあとの 1 回")
+        XCTAssertEqual(t.repeated, 1, "言い直せたのは 1 回（違ったのは数えない）")
         let t2 = Talk.tally(lines, nativeLanguageIsJapanese: false)
         XCTAssertEqual(t2.alone, 2)
 
@@ -96,6 +131,10 @@ final class TalkTests: XCTestCase {
         // 昔の記録（talk 無し）も読める
         let old = try JSONDecoder().decode(Session.self, from: #"{"id": "x", "issues": []}"#.data(using: .utf8)!)
         XCTAssertNil(old.talk)
+        // tag は空なら書かない（印の無い行の JSON を変えない）
+        let plainLine = String(data: try JSONEncoder().encode(TalkLine(who: "me", text: "Hi")), encoding: .utf8)!
+        XCTAssertFalse(plainLine.contains("\"tag\""))
+        XCTAssertTrue(String(data: try JSONEncoder().encode(TalkLine(who: "me", text: "Hi", tag: "repeat_ok")), encoding: .utf8)!.contains("repeat_ok"))
     }
 
     func testMakeSessionWithoutSpeechHasEmptyBody() {
