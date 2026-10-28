@@ -42,6 +42,8 @@ final class AppModel: ObservableObject {
     @Published var explainQuota: GeminiClient.Quota?
     /// 「三人で話す」の今日の回数（1 ターン 1 回・添削とは別枠）
     @Published var talkQuota: GeminiClient.Quota?
+    /// 「三人で話す」で Sam とトラさんを AI の自然な声で話させる（既定で入）。切ると端末の声（通信なし）
+    @Published var naturalVoice: Bool { didSet { UserDefaults.standard.set(naturalVoice, forKey: "talkNaturalVoice") } }
     /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
     @Published var syncEnabled: Bool {
         didSet { UserDefaults.standard.set(syncEnabled, forKey: "iCloudSync"); updateSync() }
@@ -65,6 +67,7 @@ final class AppModel: ObservableObject {
         let saved = d.string(forKey: "engine") ?? (KeychainStore.hasKey ? "gemini" : "cloud")
         engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
         syncEnabled = d.object(forKey: "iCloudSync") as? Bool ?? true
+        naturalVoice = d.object(forKey: "talkNaturalVoice") as? Bool ?? true
         Speaker.shared.language = language
         updateSync()
     }

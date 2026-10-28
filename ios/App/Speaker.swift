@@ -11,6 +11,12 @@ final class Speaker: NSObject, ObservableObject {
     static let shared = Speaker()
 
     private let synth = AVSpeechSynthesizer()
+    /// AI の声（三人で話す）を鳴らす
+    private var player: AVAudioPlayer?
+    /// 端末の声で順に読む残り（三人で話すの代わりの声: トラさん → ネイティブ役）
+    private var queue: [(String, String?)] = []
+    /// 止めるたびに進む番号。声が遅れて届いたとき、もう止めた後（録音を始めた等）なら鳴らさないのに使う
+    private(set) var epoch = 0
     /// いま読み上げている文。同じ文をもう一度押したら止める・ボタンの絵を変えるのに使う
     @Published private(set) var speaking: String?
 
@@ -47,9 +53,47 @@ final class Speaker: NSObject, ObservableObject {
     }
 
     func stop() {
+        epoch += 1
+        queue = []
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        player?.stop(); player = nil
         speaking = nil
     }
+
+    /// 止めて、新しい番号を返す。この番号を play に渡すと、その間に止められていたら鳴らさない
+    func begin() -> Int { stop(); return epoch }
+
+    /// AI の声（WAV）を鳴らす。epoch が古ければ（その後に止められていれば）何もしない。鳴らせたら true
+    @discardableResult
+    func play(_ wav: Data, epoch: Int) -> Bool {
+        guard epoch == self.epoch, let p = try? AVAudioPlayer(data: wav) else { return false }
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        #endif
+        player = p
+        p.play()
+        return true
+    }
+
+    /// 端末の声で、いくつかの文を順に読む（言語は文ごと）。epoch が古ければ読まない
+    func speakInOrder(_ items: [(text: String, language: String?)], rate: Float = 0.46, epoch: Int) {
+        guard epoch == self.epoch else { return }
+        queue = items.map { ($0.text, $0.language) }
+        sayNext(rate: rate)
+    }
+
+    private func sayNext(rate: Float) {
+        guard !queue.isEmpty else { return }
+        let (text, lang) = queue.removeFirst()
+        let u = AVSpeechUtterance(string: text)
+        u.voice = Self.voice(for: lang ?? language)
+        u.rate = rate
+        u.postUtteranceDelay = 0.25
+        nextRate = rate
+        synth.speak(u)
+    }
+    private var nextRate: Float = 0.46
 
     /// 読み上げる言語（設定「話す言語」に合わせて AppModel が入れる）
     var language = TargetLanguage.default.locale
@@ -68,7 +112,10 @@ final class Speaker: NSObject, ObservableObject {
 
 extension Speaker: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) {
-        Task { @MainActor in self.speaking = nil }
+        Task { @MainActor in
+            self.speaking = nil
+            if !self.queue.isEmpty { self.sayNext(rate: self.nextRate) }
+        }
     }
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel u: AVSpeechUtterance) {
         Task { @MainActor in self.speaking = nil }

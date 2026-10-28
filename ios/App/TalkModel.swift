@@ -10,6 +10,7 @@ final class TalkModel: ObservableObject {
         case opening            // ネイティブ役の最初の一言を待っている
         case listening          // 学習者の番（マイクを押すのを待っている）
         case repeating          // トラさんの言い方を口に出す番（Sam は待っている）
+        case consulting         // トラさんにこっそり相談する（文字か声で、言いたいことを伝える）
         case recording
         case thinking           // 二人の返事を待っている
         case closing            // 締めの言葉を待っている
@@ -37,6 +38,13 @@ final class TalkModel: ObservableObject {
     private var pendingWays: [String] = []
     /// 録音を始めたときに「言ってみる」番だったか
     private var recordingRepeat = false
+    /// 録音を始めたときに「相談」中だったか（声で相談）
+    private var recordingConsult = false
+    /// 相談の文字（言いたいこと・事情）
+    @Published var wish = ""
+    /// AI の声を用意している間 true（文字は先に出す）
+    @Published private(set) var voiceLoading = false
+    private var voiceEpoch = 0
 
     private unowned let app: AppModel
 
@@ -57,7 +65,10 @@ final class TalkModel: ObservableObject {
     var busy: Bool { phase == .opening || phase == .thinking || phase == .closing }
     var active: Bool { phase != .setup && phase != .ended }
     /// 学習者がマイクを押せる番か
-    var myTurn: Bool { phase == .listening || phase == .repeating }
+    /// 相談中か（文字を書いている・声で相談を録っている・トラさんの答えを待っている）
+    var inConsult: Bool { phase == .consulting || (phase == .recording && recordingConsult) || consultWaiting }
+    @Published private var consultWaiting = false
+    var myTurn: Bool { phase == .listening || phase == .repeating || phase == .consulting }
 
     // MARK: - 進め方
 
@@ -87,8 +98,9 @@ final class TalkModel: ObservableObject {
         phase = .opening
         guard let turn = await request(r, audio: nil) else { phase = .setup; return }
         if !turn.reply.isEmpty {
-            lines.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
-            Speaker.shared.speak(turn.reply)
+            let l = TalkLine(who: "native", text: turn.reply, sub: turn.replySub)
+            lines.append(l)
+            say([l])
         }
         phase = .listening
     }
@@ -97,6 +109,7 @@ final class TalkModel: ObservableObject {
         guard myTurn else { return }
         error = nil
         recordingRepeat = phase == .repeating
+        recordingConsult = phase == .consulting
         Speaker.shared.stop()   // 読み上げ中なら止める。録音に混ざらないように
         do {
             try await recorder.start(captions: app.captionsOn, language: app.language, micUID: app.micUID)
@@ -111,7 +124,7 @@ final class TalkModel: ObservableObject {
     /// 止めて、二人の返事をもらう
     func stopAndSend() async {
         guard phase == .recording else { return }
-        let back: Phase = recordingRepeat ? .repeating : .listening
+        let back: Phase = recordingRepeat ? .repeating : (recordingConsult ? .consulting : .listening)
         let result = await recorder.stop()
         guard let result, result.seconds >= 1, !result.audio.isEmpty else {
             phase = back
@@ -119,7 +132,9 @@ final class TalkModel: ObservableObject {
             return
         }
         phase = .thinking
-        if recordingRepeat {
+        if recordingConsult {
+            await consult(audio: result.audio)
+        } else if recordingRepeat {
             guard let turn = await request(.repeat(ways: pendingWays), audio: result.audio) else { phase = back; return }
             applyRepeat(turn)
         } else {
@@ -136,13 +151,15 @@ final class TalkModel: ObservableObject {
             let same = PhraseLogic.phraseKey(turn.corrected) == PhraseLogic.phraseKey(turn.heard)
             lines.append(TalkLine(who: "me", text: turn.heard, sub: same ? "" : turn.corrected, fixes: turn.fixes))
         }
+        var added: [TalkLine] = []
         if !turn.help.isEmpty || !turn.asks.isEmpty {
-            lines.append(TalkLine(who: "tora", text: turn.help, asks: turn.asks))
+            added.append(TalkLine(who: "tora", text: turn.help, asks: turn.asks))
         }
         if !turn.reply.isEmpty {
-            lines.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
-            Speaker.shared.speak(turn.reply)
+            added.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
         }
+        lines += added
+        say(added)
         enterRepeatIfNeeded(turn.asks)
     }
 
@@ -157,13 +174,15 @@ final class TalkModel: ObservableObject {
         if !turn.heard.isEmpty {
             lines.append(TalkLine(who: "me", text: turn.heard, tag: turn.saidOk ? "repeat_ok" : "repeat_ng"))
         }
+        var added: [TalkLine] = []
         if !turn.saidOk, !turn.help.isEmpty {
-            lines.append(TalkLine(who: "tora", text: turn.help))
+            added.append(TalkLine(who: "tora", text: turn.help))
         }
         if !turn.reply.isEmpty {
-            lines.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
-            Speaker.shared.speak(turn.reply)
+            added.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
         }
+        lines += added
+        say(added)
         pendingWays = []
         phase = .listening
     }
@@ -171,19 +190,56 @@ final class TalkModel: ObservableObject {
     /// 言ってみるのを飛ばす（責めない）
     func skipRepeat() {
         guard phase == .repeating else { return }
+        Speaker.shared.stop()
         pendingWays = []
         phase = .listening
     }
 
-    /// なんて言えばいい？: トラさんが言えそうなことを 2 つ出す（音声なし）。出たら「言ってみる」番
-    func hint() async {
+    /// トラさんに相談する画面を開く／閉じる（Sam は待っている）
+    func openConsult() {
         guard phase == .listening else { return }
         error = nil
+        Speaker.shared.stop()
+        phase = .consulting
+    }
+
+    func cancelConsult() {
+        guard phase == .consulting else { return }
+        phase = .listening
+    }
+
+    /// おまかせ: トラさんが言えそうなことを 2 つ出す（音声なし）。出たら「言ってみる」番
+    func hint() async {
+        guard phase == .listening || phase == .consulting else { return }
+        let back = phase
+        error = nil
         phase = .thinking
-        guard let turn = await request(.hint, audio: nil) else { phase = .listening; return }
+        guard let turn = await request(.hint(), audio: nil) else { phase = back; return }
+        applyHint(turn, asked: nil)
+    }
+
+    /// 相談: 言いたいこと（事情）を文字か声で伝え、トラさんがその言い方を出す。出たら「言ってみる」番
+    func consult(audio: Data? = nil) async {
+        let w = wish.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard audio != nil || !w.isEmpty else { return }
+        error = nil
+        phase = .thinking
+        consultWaiting = true
+        defer { consultWaiting = false }
+        guard let turn = await request(.hint(wish: w), audio: audio) else { phase = .consulting; return }
+        wish = ""
+        applyHint(turn, asked: audio == nil ? w : (turn.heard.isEmpty ? nil : turn.heard))
+    }
+
+    private func applyHint(_ turn: TalkTurn, asked: String?) {
+        // 相談の中身も会話に残す（あとで読み返せる・次のターンの文脈になる）。Sam には聞こえていない扱い
+        if let asked, !asked.isEmpty { lines.append(TalkLine(who: "me", text: asked, tag: "consult")) }
+        var added: [TalkLine] = []
         if !turn.asks.isEmpty || !turn.help.isEmpty {
-            lines.append(TalkLine(who: "tora", text: turn.help, sub: "hint", asks: turn.asks))
+            added.append(TalkLine(who: "tora", text: turn.help, sub: "hint", asks: turn.asks))
         }
+        lines += added
+        say(added)
         enterRepeatIfNeeded(turn.asks)
     }
 
@@ -201,8 +257,15 @@ final class TalkModel: ObservableObject {
         }
         phase = .closing
         if let turn = await request(.close, audio: nil) {
-            if !turn.reply.isEmpty { lines.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub)) }
+            var spoken: [TalkLine] = []
+            if !turn.reply.isEmpty {
+                let l = TalkLine(who: "native", text: turn.reply, sub: turn.replySub)
+                lines.append(l); spoken.append(l)
+            }
             good = turn.good
+            // 締めはトラさんも声で（記録の会話には入れない。まとめのカードに出る）
+            if !turn.good.isEmpty { spoken.append(TalkLine(who: "tora", text: turn.good)) }
+            say(spoken)
         } else {
             error = nil   // 締めが取れなくても、会話は残す
         }
@@ -214,6 +277,31 @@ final class TalkModel: ObservableObject {
     func abandon() async {
         if phase == .recording { _ = await recorder.stop() }
         Speaker.shared.stop()
+    }
+
+    // MARK: - 声
+
+    /// このターンで足した行を声に出す（トラさん → ネイティブ役の順）。文字は先に出ていて、声は後から届く。
+    /// 自然な声（Gemini）が取れなければ端末の声で読む。届く前に録音を始めたら鳴らさない（Speaker の epoch）
+    private func say(_ added: [TalkLine]) {
+        let parts = Voice.parts(for: added, language: language)
+        guard !parts.isEmpty else { return }
+        let epoch = Speaker.shared.begin()
+        let toraLang = TargetLanguage.explanation == .ja ? "ja-JP" : "en-US"
+        let fallback: [(text: String, language: String?)] = parts.map { ($0.text, $0.speaker == Voice.tora ? toraLang : nil) }
+        var client = app.naturalVoice ? app.talkClient : nil
+        #if DEBUG
+        if DevHooks.fakeTalk { client = nil }
+        #endif
+        guard let client else { Speaker.shared.speakInOrder(fallback, epoch: epoch); return }
+        voiceLoading = true
+        voiceEpoch = epoch
+        Task {
+            let wav = try? await client.speech(parts, voices: Voice.voices(language))
+            if voiceEpoch == epoch { voiceLoading = false }
+            if let wav, Speaker.shared.play(wav, epoch: epoch) { return }
+            Speaker.shared.speakInOrder(fallback, epoch: epoch)
+        }
     }
 
     // MARK: - Gemini
@@ -234,7 +322,7 @@ final class TalkModel: ObservableObject {
         case .speak: rev = rerunOf.isEmpty ? review : nil
         default: break
         }
-        let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev)
+        let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev, hasAudio: audio != nil)
         do {
             let turn = try await client.talk(audio: audio, mimeType: Recorder.mimeType, message: message, system: Talk.system(language: language))
             if app.usesRelay { await app.refreshTalkQuota() }
@@ -269,6 +357,7 @@ final class TalkModel: ObservableObject {
         }
         await hint()
         if stage == "talk" { return }
+        if stage == "consult" { skipRepeat(); openConsult(); wish = "同僚は何人かいるけど、その人に聞かないといけない状況で困ってる"; return }
         skipRepeat()
         await end()
         if stage == "rerun" {
@@ -300,6 +389,8 @@ final class TalkModel: ObservableObject {
                             reply: "Your cat has good taste! What's your cat's name?", replySub: "猫ちゃん、センスいいね！名前は？")
         case .repeat:
             return TalkTurn(heard: "I had a baked sweet potato.", reply: "Nice! So, do you usually grab one on your way home?", replySub: "いいね！で、帰り道によく買うの？", saidOk: true)
+        case .hint(let wish) where !wish.isEmpty:
+            return TalkTurn(help: "そういう事情なら、困ってる気持ちを先に言っちまえ。", asks: [Ask(said: "同僚は何人かいるけど、その人に聞くしかなくて困ってる", ways: ["I have a few coworkers, but he's the only one who knows, so I have to ask him.", "There are other people on my team, but I really need to ask him."], ipa: [])])
         case .hint:
             return TalkTurn(help: "こう言ってみな。", asks: [Ask(said: "名前はごまです。黒い猫です", ways: ["His name is Goma. He's a black cat."], ipa: ["/hɪz neɪm ɪz ˈɡoʊmə hiz ə blæk kæt/"]),
                                                               Ask(said: "もう 15 歳です", ways: ["He's already 15."], ipa: ["/hiz ɔːlˈrɛdi fɪfˈtiːn/"])])

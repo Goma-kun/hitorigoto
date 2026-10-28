@@ -15,7 +15,8 @@
 //   /v1/explain 直し 1 件を詳しく聞く（文字だけ・2026-10-13）。添削とは別に端末ごと EXPLAIN_PER_DAY 回・全体 EXPLAIN_GLOBAL_PER_DAY 回
 //   /v1/scan    スクショ 1 枚から表現集の候補を取り出す（画像つき・2026-10-25）。端末ごと SCAN_PER_DAY 回・全体 SCAN_GLOBAL_PER_DAY 回
 //   /v1/talk    「三人で話す」の 1 ターン（短い音声か文字・2026-10-28）。端末ごと TALK_PER_DAY 回・全体 TALK_GLOBAL_PER_DAY 回
-//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan"、talk の分は "talk" に入れて返す）
+//   /v1/voice   「三人で話す」の声（Sam とトラさんの読み上げ・文字だけ送って音声が返る・2026-10-28）。端末ごと VOICE_PER_DAY 回・全体 VOICE_GLOBAL_PER_DAY 回
+//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan"、talk の分は "talk"、voice の分は "voice" に入れて返す）
 //
 // 月の予算（2026-10-13 本人「月に最大 1 万円程度に抑える」）:
 //   1 回ごとに見込みの原価（REVIEW_COST_YEN / EXPLAIN_COST_YEN）を月の帳簿 m:YYYYMM に足し、MONTHLY_BUDGET_YEN に達したら止める。
@@ -26,6 +27,9 @@
 
 const MODEL = 'gemini-3.6-flash';
 const GEMINI = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// 三人で話すの声（TTS）。アプリの GeminiClient.voiceModel と揃える
+const VOICE_MODEL = 'gemini-3.8-flash-lite-tts';
+const GEMINI_VOICE = `https://generativelanguage.googleapis.com/v1beta/models/${VOICE_MODEL}:generateContent`;
 
 // 日本時間の日付（YYYYMMDD）。回数はこの単位で数える
 function jstDay(now = new Date()) {
@@ -97,21 +101,29 @@ export default {
     const tKey = `t:${device}:${day}`;
     const tgKey = `gt:${day}`;
 
+    const vLimit = Number(env.VOICE_PER_DAY || '60');
+    const vGlobalLimit = Number(env.VOICE_GLOBAL_PER_DAY || '400');
+    const vKey = `v:${device}:${day}`;
+    const vgKey = `gv:${day}`;
+
     if (url.pathname === '/v1/quota' && request.method === 'GET') {
       const used = await count(env, dKey, ttl);
       const eUsed = await count(env, eKey, ttl);
       const sUsed = await count(env, sKey, ttl);
       const tUsed = await count(env, tKey, ttl);
+      const vUsed = await count(env, vKey, ttl);
       return json({ used, limit, remaining: Math.max(0, limit - used), resetsInSeconds: ttl,
         explain: { used: eUsed, limit: eLimit, remaining: Math.max(0, eLimit - eUsed) },
         scan: { used: sUsed, limit: sLimit, remaining: Math.max(0, sLimit - sUsed) },
-        talk: { used: tUsed, limit: tLimit, remaining: Math.max(0, tLimit - tUsed) } });
+        talk: { used: tUsed, limit: tLimit, remaining: Math.max(0, tLimit - tUsed) },
+        voice: { used: vUsed, limit: vLimit, remaining: Math.max(0, vLimit - vUsed) } });
     }
 
     const isExplain = url.pathname === '/v1/explain';
     const isScan = url.pathname === '/v1/scan';
     const isTalk = url.pathname === '/v1/talk';
-    if ((url.pathname !== '/v1/review' && !isExplain && !isScan && !isTalk) || request.method !== 'POST') {
+    const isVoice = url.pathname === '/v1/voice';
+    if ((url.pathname !== '/v1/review' && !isExplain && !isScan && !isTalk && !isVoice) || request.method !== 'POST') {
       return json({ error: { code: 'not_found', message: 'そのような入口はありません' } }, 404);
     }
     // 詳しく聞くは別の財布で数える（添削の 3 回を食わない）
@@ -135,6 +147,13 @@ export default {
         maxBody: Number(env.TALK_MAX_BODY_BYTES || '3000000'), textOnly: false,
         quotaMessage: '今日の「三人で話す」の回数を使い切りました' });
     }
+    // 三人で話すの声。送るのは文字だけ（音声は返ってくる側）。使い切ったらアプリは端末の声に落とす
+    if (isVoice) {
+      return relay(request, env, { dKey: vKey, gKey: vgKey, ttl, limit: vLimit, globalLimit: vGlobalLimit,
+        costYen: Number(env.VOICE_COST_YEN || '1'),
+        maxBody: Number(env.VOICE_MAX_BODY_BYTES || '32768'), textOnly: true, upstream: GEMINI_VOICE,
+        quotaMessage: '今日の「三人で話す」の声の回数を使い切りました' });
+    }
     return relay(request, env, { dKey, gKey, ttl, limit, globalLimit,
       costYen: Number(env.REVIEW_COST_YEN || '10'),
       maxBody: Number(env.MAX_BODY_BYTES || '8000000'), textOnly: false,
@@ -143,7 +162,7 @@ export default {
 };
 
 // 回数を数えて Gemini に転送する（添削と詳しく聞くで共通）
-async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYen, maxBody, textOnly, quotaMessage }) {
+async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYen, maxBody, textOnly, quotaMessage, upstream = GEMINI }) {
     const len = Number(request.headers.get('content-length') || '0');
     if (len > maxBody) return json({ error: { code: 'too_large', message: '音声が大きすぎます' } }, 413);
 
@@ -185,7 +204,7 @@ async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYe
 
     let res;
     try {
-      res = await fetch(GEMINI, {
+      res = await fetch(upstream, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
         body: JSON.stringify(parsed),

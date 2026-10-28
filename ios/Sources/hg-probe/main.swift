@@ -103,6 +103,42 @@ func run(_ c: [String: Any]) -> Any {
     }
 }
 
+// ---- 実 API（voice）----
+// `hg-probe voice --lines lines.json --out out.wav` 三人で話すの 1 ターンぶんの行（TalkLine の JSON 配列）を AI の声にする。
+// 読み上げる片（Voice.parts）と、かかった秒を出す。HG_RELAY=1 なら中継サーバーの /v1/voice を通る
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let env = ProcessInfo.processInfo.environment
+    let lines: [TalkLine] = take("--lines").flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
+    let out = take("--out") ?? "voice.wav"
+    let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let parts = Voice.parts(for: lines, language: lang)
+    for p in parts { print("[\(p.speaker)] \(p.text)") }
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        let t0 = Date()
+        do {
+            let wav = try await client.speech(parts, voices: Voice.voices(lang))
+            try wav.write(to: URL(fileURLWithPath: out))
+            print(String(format: "ok %.1fs %d bytes → %@", Date().timeIntervalSince(t0), wav.count, out))
+        } catch { print("error: \(error)") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（talk）----
 // `hg-probe talk --open "話題"` / `hg-probe talk --audio turn.m4a [--history h.json]` 三人で話すの 1 ターンを本物の Gemini に投げる。
 // --history は TalkLine の JSON 配列（省略可）。--hint / --close も可。結果は JSON で返す
@@ -131,10 +167,10 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
     let rerun: [TalkLine] = rerunPath.flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
     let reviewSessions: [Session] = reviewPath.flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([Session].self, from: $0) } ?? []
     let review = TalkReview.from(sessions: reviewSessions, today: Logic.todayStamp())
-    let request: Talk.Request = topic.map { .open(topic: $0, rerun: rerun) } ?? (!repeatWays.isEmpty ? .repeat(ways: repeatWays) : (isHint ? .hint : (isClose ? .close : .speak)))
+    let request: Talk.Request = topic.map { .open(topic: $0, rerun: rerun) } ?? (!repeatWays.isEmpty ? .repeat(ways: repeatWays) : (isHint ? .hint(wish: env["HG_WISH"] ?? "") : (isClose ? .close : .speak)))
     let audio = audioPath.flatMap { FileManager.default.contents(atPath: $0) }
     let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
-    let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), review: review, explanation: .ja)
+    let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), review: review, hasAudio: audio != nil, explanation: .ja)
     let sem = DispatchSemaphore(value: 0)
     Task {
         do {

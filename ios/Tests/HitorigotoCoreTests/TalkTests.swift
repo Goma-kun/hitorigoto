@@ -61,7 +61,7 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(m.contains("- on the mend"))
         XCTAssertTrue(m.contains("添付の音声"))
         XCTAssertTrue(Talk.userMessage(request: .open(topic: "猫"), history: [], language: .enUS).contains("猫"))
-        XCTAssertTrue(Talk.userMessage(request: .hint, history: history, language: .enUS).contains("2 つ"))
+        XCTAssertTrue(Talk.userMessage(request: .hint(), history: history, language: .enUS).contains("2 つ"))
         XCTAssertTrue(Talk.userMessage(request: .close, history: history, language: .enUS).contains("\"good\""))
         // 言ってみる・もう一回・前回の話
         let r = Talk.userMessage(request: .repeat(ways: ["a baked sweet potato", "a roasted sweet potato"]), history: history, language: .enUS)
@@ -148,5 +148,51 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(Talk.hasJapanese("I ate 焼き芋"))
         XCTAssertTrue(Talk.hasJapanese("えっと"))
         XCTAssertFalse(Talk.hasJapanese("I had a baked sweet potato."))
+    }
+
+    // トラさんも声で話す: 一言＋言い方（一言に入っていなければ足す）→ ネイティブ役の順。学習者の行は読まない
+    func testVoicePartsOrderAndWays() {
+        let lines = [
+            TalkLine(who: "me", text: "I ate 焼き芋"),
+            TalkLine(who: "tora", text: "焼き芋はこう言うんでえ。", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato", "a roasted sweet potato"])]),
+            TalkLine(who: "native", text: "Nice! Do you grab one often?"),
+        ]
+        let p = Voice.parts(for: lines, language: .enUS)
+        XCTAssertEqual(p.map(\.speaker), [Voice.tora, Voice.native])
+        XCTAssertEqual(p[0].text, "焼き芋はこう言うんでえ。 a baked sweet potato")
+        XCTAssertFalse(p[0].style.isEmpty)
+        // 一言の中に言い方が入っていれば重ねない
+        let q = Voice.parts(for: [TalkLine(who: "tora", text: "a baked sweet potato って言いな", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato"])])], language: .enUS)
+        XCTAssertEqual(q.first?.text, "a baked sweet potato って言いな")
+        // 同じ人が続いたら 1 片に
+        let r = Voice.parts(for: [TalkLine(who: "native", text: "A."), TalkLine(who: "native", text: "B?")], language: .enUS)
+        XCTAssertEqual(r.count, 1)
+        XCTAssertEqual(r.first?.text, "A. B?")
+        XCTAssertEqual(Voice.voices(.enUS)[Voice.tora], "Charon")
+    }
+
+    func testWavHeader() {
+        let w = Voice.wav(pcm: Data(repeating: 0, count: 480), sampleRate: 24000)
+        XCTAssertEqual(w.count, 44 + 480)
+        XCTAssertEqual(String(data: w.prefix(4), encoding: .ascii), "RIFF")
+    }
+
+    // 相談: 中身が指示文に入り、相談の行は会話の発言にも本文にも数えない
+    func testConsult() {
+        let history = [TalkLine(who: "native", text: "How's work?"), TalkLine(who: "me", text: "前に聞いたこと", tag: "consult")]
+        let m = Talk.userMessage(request: .hint(wish: "同僚に聞くしかなくて困ってる"), history: history, language: .enUS)
+        XCTAssertTrue(m.contains("こっそり相談"))
+        XCTAssertTrue(m.contains("同僚に聞くしかなくて困ってる"))
+        XCTAssertTrue(m.contains("Sam には聞こえていない"))
+        // 声だけの相談でも相談の指示になる。空の hint は従来の「2 つ」
+        XCTAssertTrue(Talk.userMessage(request: .hint(), history: [], language: .enUS, hasAudio: true).contains("添付の音声が相談の中身"))
+        XCTAssertTrue(Talk.userMessage(request: .hint(), history: [], language: .enUS).contains("2 つ"))
+        let lines = [TalkLine(who: "native", text: "Hi"), TalkLine(who: "me", text: "困ってると言いたい", tag: "consult"),
+                     TalkLine(who: "tora", text: "こう言いな", sub: "hint", asks: [Ask(said: "困ってる", ways: ["I'm stuck."])]),
+                     TalkLine(who: "me", text: "I'm stuck.")]
+        let t = Talk.tally(lines, nativeLanguageIsJapanese: true)
+        XCTAssertEqual(t.alone + t.helped, 1)
+        XCTAssertEqual(t.helped, 1)
+        XCTAssertEqual(Talk.makeSession(id: "x", lines: lines, good: "", engine: "talk-cloud").transcript, "I'm stuck.")
     }
 }

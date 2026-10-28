@@ -97,6 +97,16 @@ struct TalkSheet: View {
                     TextField(String(localized: "例: 今日の仕事、週末のこと、うちの猫"), text: $talk.topic)
                         .textFieldStyle(.roundedBorder)
                 }
+                Card {
+                    Toggle(isOn: $model.naturalVoice) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("自然な声で話す").font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
+                            Text("\(talk.nativeName) とトラさんが AI の声で話します。切ると端末の声（通信なし・機械的）になります。")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                        }
+                    }
+                    .tint(Theme.accent)
+                }
                 if let why = model.talkBlocker {
                     Card { Text(why).font(.callout).foregroundStyle(Theme.text) }
                 } else if let q = model.talkQuota {
@@ -167,6 +177,7 @@ struct TalkSheet: View {
         switch talk.phase {
         case .opening: return String(localized: "\(talk.nativeName) が話を考え中…")
         case .closing: return String(localized: "二人が締めの一言を考え中…")
+        case .thinking where talk.inConsult: return String(localized: "トラさんが考え中…")
         default: return String(localized: "二人が聞いています…")
         }
     }
@@ -192,9 +203,29 @@ struct TalkSheet: View {
                          + (t.repeated > 0 ? String(localized: "・言い直せた \(t.repeated)") : ""))
                         .font(.caption2).foregroundStyle(Theme.faint)
                 }
+                if talk.voiceLoading {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.mini)
+                        Text("声を用意しています…").font(.caption2).foregroundStyle(Theme.faint)
+                    }
+                }
+                if talk.phase == .consulting || talk.inConsult { consultPanel }
                 if talk.phase == .recording { RecordingStrip(recorder: talk.recorder) }
                 HStack(alignment: .center, spacing: 10) {
-                    if talk.phase == .repeating {
+                    if talk.inConsult {
+                        Button {
+                            talk.cancelConsult()
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "chevron.backward").font(.title3)
+                                Text("戻る").font(.caption2.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered).tint(Theme.muted)
+                        .disabled(talk.phase != .consulting)
+                        .help("相談をやめて会話に戻ります")
+                    } else if talk.phase == .repeating {
                         // 言ってみるのを飛ばす。責めない（押さなくても会話は続く）
                         Button {
                             talk.skipRepeat()
@@ -209,23 +240,23 @@ struct TalkSheet: View {
                         .help("言い直さずに会話を続けます")
                     } else {
                         Button {
-                            Task { await talk.hint() }
+                            talk.openConsult()
                         } label: {
                             VStack(spacing: 2) {
                                 Image(systemName: "questionmark.bubble").font(.title3)
-                                Text("なんて言えばいい？").font(.caption2.weight(.semibold))
+                                Text("トラさんに相談").font(.caption2.weight(.semibold))
                             }
                             .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered).tint(Theme.warn)
                         .disabled(talk.phase != .listening)
-                        .help("トラさんが、次に言えそうなことを 2 つ出します")
+                        .help("言いたいことや事情をトラさんに伝えて、言い方を教えてもらいます（\(talk.nativeName) には聞こえません）")
                     }
 
                     Button {
                         Task {
                             switch talk.phase {
-                            case .listening, .repeating: await talk.startRecording()
+                            case .listening, .repeating, .consulting: await talk.startRecording()
                             case .recording: await talk.stopAndSend()
                             default: break
                             }
@@ -235,7 +266,7 @@ struct TalkSheet: View {
                             Circle().fill(micColor).frame(width: 84, height: 84)
                                 .shadow(color: micColor.opacity(talk.phase == .recording ? 0.5 : 0.3), radius: 10, y: 3)
                             VStack(spacing: 1) {
-                                Image(systemName: talk.phase == .recording ? "stop.fill" : (talk.phase == .repeating ? "repeat" : "mic.fill")).font(.system(size: 28, weight: .semibold))
+                                Image(systemName: talk.phase == .recording ? "stop.fill" : (talk.phase == .repeating ? "repeat" : (talk.phase == .consulting ? "ear" : "mic.fill"))).font(.system(size: 28, weight: .semibold))
                                 Text(micLabel).font(.system(size: 13, weight: .bold))
                             }
                             .foregroundStyle(.white)
@@ -246,18 +277,33 @@ struct TalkSheet: View {
                     .disabled(talk.busy)
                     .animation(.easeInOut(duration: 0.2), value: talk.phase)
 
-                    Button {
-                        Task { await talk.end() }
-                    } label: {
-                        VStack(spacing: 2) {
-                            Image(systemName: "flag.checkered").font(.title3)
-                            Text("終わる").font(.caption2.weight(.semibold))
+                    if talk.inConsult {
+                        Button {
+                            Task { await talk.hint() }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "sparkles").font(.title3)
+                                Text("おまかせで 2 つ").font(.caption2.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.bordered).tint(Theme.warn)
+                        .disabled(talk.phase != .consulting)
+                        .help("トラさんが、次に言えそうなことを 2 つ出します")
+                    } else {
+                        Button {
+                            Task { await talk.end() }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "flag.checkered").font(.title3)
+                                Text("終わる").font(.caption2.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered).tint(Theme.muted)
+                        .disabled(talk.busy)
+                        .help("別れの一言と締めをもらって、記録に残します")
                     }
-                    .buttonStyle(.bordered).tint(Theme.muted)
-                    .disabled(talk.busy)
-                    .help("別れの一言と締めをもらって、記録に残します")
                 }
                 Text(micHint).font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
             }
@@ -271,6 +317,7 @@ struct TalkSheet: View {
         case .recording: return Theme.rec
         case .listening: return Theme.accent
         case .repeating: return Theme.good
+        case .consulting: return Theme.warn
         default: return Theme.faint
         }
     }
@@ -279,18 +326,48 @@ struct TalkSheet: View {
         switch talk.phase {
         case .recording: return String(localized: "送る")
         case .repeating: return String(localized: "言ってみる")
+        case .consulting: return String(localized: "声で相談")
         default: return String(localized: "話す")
         }
     }
 
     private var micHint: String {
         switch talk.phase {
+        case .recording where talk.inConsult: return String(localized: "トラさんに話し終えたら、もう一度押してください（\(talk.nativeName) には聞こえません）")
         case .recording: return String(localized: "言い終えたら、もう一度押してください")
+        case .consulting: return String(localized: "書くか、真ん中を押して日本語で話してください。トラさんが言い方を考えてくれます")
         case .listening: return String(localized: "押して、\(model.targetLanguage.name)で返す（日本語が混ざっても OK）")
         // もらった言い方を見て終わりにしない。その場で一回、口に出す（これがいちばん定着に効く）
         case .repeating: return String(localized: "トラさんの言い方を、そのまま口に出してみてください（\(talk.nativeName) は待っています）")
         default: return " "
         }
+    }
+
+    /// トラさんへの相談。言いたいこと・事情・聞きたいことを日本語で書く（声でも OK）
+    private var consultPanel: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image("Tange").resizable().scaledToFill().frame(width: 22, height: 22).clipShape(Circle())
+                Text("トラさんにこっそり相談（\(talk.nativeName) には聞こえません）").font(.caption.weight(.bold)).foregroundStyle(Theme.text)
+            }
+            HStack(alignment: .bottom, spacing: 6) {
+                TextField(String(localized: "例: 同僚は何人かいるけど、その人に聞くしかなくて困ってる、と言いたい"), text: $talk.wish, axis: .vertical)
+                    .lineLimit(1...4)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(talk.phase != .consulting)
+                    .onSubmit { Task { await talk.consult() } }
+                Button {
+                    Task { await talk.consult() }
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                }
+                .buttonStyle(.borderedProminent).tint(Theme.warn)
+                .disabled(talk.phase != .consulting || talk.wish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("トラさんに送ります")
+            }
+        }
+        .padding(10)
+        .background(Theme.warnBg.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - まとめ
@@ -458,6 +535,8 @@ struct MeBubble: View {
                     Tag(text: String(localized: "✓ 言い直せた"), fg: Theme.good, bg: Theme.goodBg)
                 } else if line.tag == "repeat_ng" {
                     Tag(text: String(localized: "言い直し（もう一回でも OK）"), fg: Theme.warn, bg: Theme.warnBg)
+                } else if line.tag == "consult" {
+                    Tag(text: String(localized: "トラさんにこっそり"), fg: Theme.warn, bg: Theme.warnBg)
                 }
                 Text(line.text).font(.body).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)

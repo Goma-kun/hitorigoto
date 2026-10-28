@@ -39,16 +39,25 @@ public struct GeminiClient: Sendable {
         case relayBusy         // 中継サーバーの全体の上限
     }
 
-    /// relayPath: 中継サーバーの入口。添削は v1/review、詳しく聞くは v1/explain、スクショは v1/scan、三人で話すは v1/talk（回数を別に数える）
-    private func endpoint(_ relayPath: String) -> URL {
+    /// 「三人で話す」の声（Sam とトラさんの読み上げ）。軽い方で十分自然で、速い（2026-10-28 実測 11 秒の音声に約 4 秒）
+    public static let voiceModel = "gemini-3.8-flash-lite-tts"
+
+    /// relayPath: 中継サーバーの入口。添削は v1/review、詳しく聞くは v1/explain、スクショは v1/scan、三人で話すは v1/talk、その声は v1/voice（回数を別に数える）
+    private func endpoint(_ relayPath: String, model: String) -> URL {
         switch transport {
-        case .direct: return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent")!
+        case .direct: return URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
         case .relay(let url, _, _): return url.appendingPathComponent(relayPath)
         }
     }
 
     func call(_ body: [String: Any], relayPath: String = "v1/review") async throws -> String {
-        var req = URLRequest(url: endpoint(relayPath))
+        let parts = try await send(body, relayPath: relayPath, model: Self.model)
+        return parts.compactMap { $0["text"] as? String }.joined()
+    }
+
+    /// 送って、返事の parts を返す（文字でも音声でも）
+    private func send(_ body: [String: Any], relayPath: String, model: String) async throws -> [[String: Any]] {
+        var req = URLRequest(url: endpoint(relayPath, model: model))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         switch transport {
@@ -86,8 +95,8 @@ public struct GeminiClient: Sendable {
         }
         guard let cands = json?["candidates"] as? [[String: Any]],
               let content = cands.first?["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]] else { return "" }
-        return parts.compactMap { $0["text"] as? String }.joined()
+              let parts = content["parts"] as? [[String: Any]] else { return [] }
+        return parts
     }
 
     private func classify(status: Int, message: String) -> Failure {
@@ -165,6 +174,38 @@ public struct GeminiClient: Sendable {
         ], relayPath: "v1/talk")
         guard let turn = Talk.parse(raw) else { throw Failure.parse }
         return turn
+    }
+
+    /// 「三人で話す」の声。話者ごとの文を 1 回で読み上げてもらい、WAV（24kHz・16bit・モノラル）を返す。
+    /// 話者が 2 人なら multiSpeaker、1 人なら単独の声。中継サーバーでは /v1/voice で別に数える
+    public func speech(_ parts: [VoicePart], voices: [String: String]) async throws -> Data {
+        let parts = parts.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !parts.isEmpty else { throw Failure.audio }
+        let speakers = parts.reduce(into: [String]()) { if !$0.contains($1.speaker) { $0.append($1.speaker) } }
+        let speech: [String: Any]
+        if speakers.count >= 2 {
+            speech = ["multiSpeakerVoiceConfig": ["speakerVoiceConfigs": speakers.prefix(2).map { sp in
+                ["speaker": sp, "voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voices[sp] ?? "Puck"]]] as [String: Any]
+            }]]
+        } else {
+            speech = ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voices[speakers[0]] ?? "Puck"]]]
+        }
+        let multi = speakers.count >= 2
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": parts.map { p -> [String: Any] in
+                var meta: [String: Any] = [:]
+                if multi { meta["speaker"] = p.speaker }
+                if !p.style.isEmpty { meta["style"] = p.style }
+                return meta.isEmpty ? ["text": p.text] : ["text": p.text, "speechMetadata": meta]
+            }]],
+            "generationConfig": ["responseModalities": ["AUDIO"], "speechConfig": speech],
+        ]
+        let out = try await send(body, relayPath: "v1/voice", model: Self.voiceModel)
+        guard let inline = out.compactMap({ $0["inlineData"] as? [String: Any] }).first,
+              let b64 = inline["data"] as? String, let data = Data(base64Encoded: b64), !data.isEmpty else { throw Failure.parse }
+        let mime = (inline["mimeType"] as? String ?? "").lowercased()
+        // 古い TTS は頭なしの PCM（audio/l16）を返す。再生できるよう WAV の頭を付ける
+        return mime.contains("wav") ? data : Voice.wav(pcm: data, sampleRate: 24000)
     }
 
     /// 「三人で話す」の今日の残り回数（中継サーバーが古くて答えないときは nil）
