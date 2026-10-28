@@ -305,8 +305,8 @@ final class TalkModel: ObservableObject {
     /// このターンで足した行を声に出す（トラさん → ネイティブ役の順）。文字は先に出ていて、声は後から届く。
     /// 自然な声（Gemini）が取れなければ端末の声で読む。届く前に録音を始めたら鳴らさない（Speaker の epoch）
     private func say(_ added: [TalkLine]) {
-        let parts = Voice.parts(for: added, partner: partner)
-        let collide = Voice.collideParts(for: added, partner: partner)
+        let parts = Voice.parts(for: added, partner: partner, clarity: app.clarity)
+        let collide = Voice.collideParts(for: added, partner: partner, clarity: app.clarity)
         guard !parts.isEmpty || !collide.isEmpty else { return }
         let epoch = Speaker.shared.begin()
         // トラさんは学習者に合わせて母語でも話す言語でも話すので、端末の声は文字を見て決める（日本語の字があれば日本語の声）
@@ -345,7 +345,7 @@ final class TalkModel: ObservableObject {
         let part: VoicePart
         var voices: [String: String]
         if let p {
-            part = VoicePart(speaker: Voice.native, text: Voice.sampleLine(p, language: language), style: Voice.nativeStyle(p))
+            part = VoicePart(speaker: Voice.native, text: Voice.sampleLine(p, language: language), style: Voice.nativeStyle(p, clarity: app.clarity))
             voices = Voice.voices(partner: p, tora: app.toraVoice)
         } else {
             part = VoicePart(speaker: Voice.tora, text: Voice.toraSampleLine, style: Voice.toraStyle)

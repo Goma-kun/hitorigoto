@@ -48,6 +48,8 @@ final class AppModel: ObservableObject {
     /// 「三人で話す」の相手役（言語ごとに覚える）とトラさんの声
     @Published var partnerId: String { didSet { UserDefaults.standard.set(partnerId, forKey: "talkPartner." + language) } }
     @Published var toraVoice: String { didSet { UserDefaults.standard.set(toraVoice, forKey: "talkToraVoice") } }
+    /// ネイティブ役の聞き取りやすさ（はっきり／ふつう）
+    @Published var clarity: Voice.Clarity { didSet { UserDefaults.standard.set(clarity.rawValue, forKey: "talkClarity") } }
     var partner: Partner { Partners.find(partnerId, language: targetLanguage) }
     /// 「三人で話す」で Sam とトラさんを AI の自然な声で話させる（既定で入）。切ると端末の声（通信なし）
     @Published var naturalVoice: Bool { didSet { UserDefaults.standard.set(naturalVoice, forKey: "talkNaturalVoice") } }
@@ -77,6 +79,7 @@ final class AppModel: ObservableObject {
         naturalVoice = d.object(forKey: "talkNaturalVoice") as? Bool ?? true
         partnerId = d.string(forKey: "talkPartner." + (d.string(forKey: "language") ?? TargetLanguage.default.rawValue)) ?? ""
         toraVoice = d.string(forKey: "talkToraVoice") ?? Voice.defaultToraVoice
+        clarity = Voice.Clarity(rawValue: d.string(forKey: "talkClarity") ?? "") ?? .natural
         Speaker.shared.language = language
         updateSync()
     }

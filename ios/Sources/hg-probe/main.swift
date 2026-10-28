@@ -124,14 +124,15 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
         client = GeminiClient(key: key)
     }
     let partner = Partners.find(env["HG_PARTNER"] ?? "", language: lang)
-    let parts = Voice.parts(for: lines, partner: partner)
+    let clarity = Voice.Clarity(rawValue: ProcessInfo.processInfo.environment["HG_CLARITY"] ?? "") ?? .natural
+    let parts = Voice.parts(for: lines, partner: partner, clarity: clarity)
     for p in parts { print("[\(p.speaker)] \(p.text)") }
     let sem = DispatchSemaphore(value: 0)
     Task {
         let t0 = Date()
         do {
             let voices = Voice.voices(partner: partner, tora: env["HG_TORA"] ?? Voice.defaultToraVoice)
-            let collide = Voice.collideParts(for: lines, partner: partner)
+            let collide = Voice.collideParts(for: lines, partner: partner, clarity: clarity)
             var pieces: [Data] = []
             if collide.count >= 2 {
                 // アプリと同じ: 言いかけを別々に作って重ねる

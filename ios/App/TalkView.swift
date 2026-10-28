@@ -109,6 +109,26 @@ struct TalkSheet: View {
                         }
                     }
                 }
+                Card(title: String(localized: "\(talk.nativeName) の話し方")) {
+                    HStack(spacing: 8) {
+                        ForEach(Voice.Clarity.allCases, id: \.rawValue) { c in
+                            Button {
+                                model.clarity = c
+                                Task { await talk.preview(partner: talk.partner) }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(c.label).font(.callout.weight(.semibold))
+                                    Text(c.blurb).font(.caption2).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(model.clarity == c ? Theme.accent.opacity(0.15) : Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(model.clarity == c ? Theme.accent : Theme.line, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
                 Card(title: String(localized: "トラさんの声")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {

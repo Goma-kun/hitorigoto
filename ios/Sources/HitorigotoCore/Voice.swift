@@ -96,8 +96,21 @@ public enum Voice {
         [Self.tora: toraVoices.contains(where: { $0.id == tora }) ? tora : defaultToraVoice, native: partner.voice]
     }
 
-    static func nativeStyle(_ partner: Partner) -> String {
-        "\(partner.persona) Chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
+    /// ネイティブ役の話し方。本人が「Gemini Notebook の音声解説は分かりやすかった。Taylor は本当にネイティブが話している感じ」（2026-10-29）
+    /// → 聞き取りやすさを選べるようにした。clear は番組の司会のようにはっきり・ゆっくり、natural はネイティブ同士のまま
+    public enum Clarity: String, CaseIterable, Sendable {
+        case clear, natural
+        public var label: String { self == .clear ? "はっきり" : "ふつう" }
+        public var blurb: String { self == .clear ? "ゆっくり・一語ずつ明瞭に（音声解説の司会のように）" : "ネイティブ同士の速さと崩し方のまま" }
+    }
+
+    static func nativeStyle(_ partner: Partner, clarity: Clarity = .natural) -> String {
+        switch clarity {
+        case .natural:
+            return "\(partner.persona) Chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
+        case .clear:
+            return "\(partner.persona) Chatting warmly with a friend who is still learning the language, like a friendly podcast host: noticeably slower than normal conversation, every word articulated clearly, short pauses between phrases, no mumbling or swallowed syllables, but still natural intonation and warmth, not robotic."
+        }
     }
 
     static let toraStyle = "a very old man in his 80s, a retired boxing-gym trainer from downtown Tokyo: thin, wheezy, hoarse, slightly shaky elderly voice, slow and gravelly, worn by decades of shouting. Warm and amused underneath, not angry. When the line is in English, speak fluent English in the same old hoarse voice, with a faint Japanese accent."
@@ -123,7 +136,7 @@ public enum Voice {
     /// このターンで新しく出た行から、読み上げる片を作る（行の順のまま。学習者の行は読まない）。
     /// トラさんは一言（help）に加えて、言い方そのもの（ways の 1 つ目）も声に出す。一言の中に既に入っていれば重ねない。
     /// 「同時に話し出した」言いかけ（tag collide）はここには入れない（別に作って重ねる・collideParts）
-    public static func parts(for lines: [TalkLine], partner: Partner) -> [VoicePart] {
+    public static func parts(for lines: [TalkLine], partner: Partner, clarity: Clarity = .natural) -> [VoicePart] {
         var out: [VoicePart] = []
         for l in lines where l.tag != "collide" {
             switch l.who {
@@ -135,7 +148,7 @@ public enum Voice {
                 }
                 if !t.isEmpty { out.append(VoicePart(speaker: tora, text: t, style: toraStyle)) }
             case "native":
-                if !l.text.isEmpty { out.append(VoicePart(speaker: native, text: l.text, style: nativeStyle(partner))) }
+                if !l.text.isEmpty { out.append(VoicePart(speaker: native, text: l.text, style: nativeStyle(partner, clarity: clarity))) }
             default: break
             }
         }
@@ -149,10 +162,10 @@ public enum Voice {
     }
 
     /// 同時に話し出した言いかけ（tag collide）。それぞれ別に合成して、端末で重ねて鳴らす
-    public static func collideParts(for lines: [TalkLine], partner: Partner) -> [VoicePart] {
+    public static func collideParts(for lines: [TalkLine], partner: Partner, clarity: Clarity = .natural) -> [VoicePart] {
         lines.filter { $0.tag == "collide" && !$0.text.isEmpty }.map {
             $0.who == "tora" ? VoicePart(speaker: tora, text: $0.text, style: toraStyle + " Starts a sentence, then stops mid-word, cut off.")
-                             : VoicePart(speaker: native, text: $0.text, style: nativeStyle(partner) + " Starts a sentence, then stops mid-word, cut off.")
+                             : VoicePart(speaker: native, text: $0.text, style: nativeStyle(partner, clarity: clarity) + " Starts a sentence, then stops mid-word, cut off.")
         }
     }
 
