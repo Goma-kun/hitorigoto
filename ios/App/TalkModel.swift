@@ -355,6 +355,25 @@ final class TalkModel: ObservableObject {
         Speaker.shared.speakInOrder([(part.text, p == nil ? (TargetLanguage.explanation == .ja ? "ja-JP" : "en-US") : nil)], epoch: epoch)
     }
 
+    /// ゆっくりもう一回: ネイティブ役の一言を「はっきり」の声で聞き直す（会話はふつうのまま、聞き取れなかった所だけ補う・2026-10-29）。
+    /// 録音中は鳴らさない。AI の声が取れなければ端末の声をゆっくりめに
+    @Published private(set) var slowing: String?
+    func sayClearly(_ text: String) async {
+        guard phase != .recording, !text.isEmpty else { return }
+        if slowing == text { Speaker.shared.stop(); slowing = nil; return }
+        let epoch = Speaker.shared.begin()
+        slowing = text
+        defer { if slowing == text { slowing = nil } }
+        let part = VoicePart(speaker: Voice.native, text: text, style: Voice.nativeStyle(partner, clarity: .clear))
+        if app.naturalVoice, let client = app.talkClient, let wav = try? await client.speech([part], voices: Voice.voices(partner: partner, tora: app.toraVoice)),
+           Speaker.shared.play(wav, epoch: epoch) {
+            // 鳴り終わるまで押した印を残す
+            while Speaker.shared.isPlaying, Speaker.shared.epoch == epoch { try? await Task.sleep(nanoseconds: 200_000_000) }
+            return
+        }
+        Speaker.shared.speakInOrder([(text, nil)], rate: 0.36, epoch: epoch)
+    }
+
     // MARK: - Gemini
 
     private func request(_ r: Talk.Request, audio: Data?) async -> TalkTurn? {

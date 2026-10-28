@@ -228,7 +228,7 @@ struct TalkSheet: View {
     @ViewBuilder
     private func bubble(_ l: TalkLine) -> some View {
         switch l.who {
-        case "native": NativeBubble(line: l, name: talk.nativeName)
+        case "native": NativeBubble(line: l, name: talk.nativeName, slowing: talk.slowing == l.text) { Task { await talk.sayClearly(l.text) } }
         case "tora": ToraBubble(line: l)
         default: MeBubble(line: l)
         }
@@ -488,6 +488,9 @@ struct TalkSheet: View {
 struct NativeBubble: View {
     let line: TalkLine
     let name: String
+    /// 「ゆっくりもう一回」で鳴らしている最中か・押したときの動き
+    var slowing = false
+    var slowly: () -> Void = {}
     @State private var showSub = false
 
     var body: some View {
@@ -504,6 +507,13 @@ struct NativeBubble: View {
                 }
                 HStack(spacing: 6) {
                     SpeakButton(text: line.text)
+                    // ゆっくりもう一回: 会話はふつうの速さのまま、この一言だけ「はっきり」の声で聞き直す
+                    Button(action: slowly) {
+                        Label(String(localized: "ゆっくりもう一回"), systemImage: slowing ? "tortoise.fill" : "tortoise")
+                            .font(.caption).labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini).tint(slowing ? Theme.accent : Theme.muted)
+                    .help("この一言を、ゆっくりはっきりした声でもう一回")
                     if !line.sub.isEmpty {
                         Button(showSub ? String(localized: "訳を隠す") : String(localized: "訳")) { showSub.toggle() }
                             .buttonStyle(.bordered).controlSize(.mini).tint(Theme.muted)
