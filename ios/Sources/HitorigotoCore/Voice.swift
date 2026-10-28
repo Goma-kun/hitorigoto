@@ -20,9 +20,10 @@ public enum Voice {
     /// 声の割り当て（Gemini の既定の声から）。トラさんは低く渋い声、ネイティブ役は明るい声
     public static func voices(_ language: TargetLanguage) -> [String: String] {
         switch language {
-        case .enUS, .enGB: return [tora: "Charon", native: "Puck"]
-        case .esES, .esMX: return [tora: "Charon", native: "Kore"]
-        case .jaJP: return [tora: "Charon", native: "Aoede"]
+        // トラさんは Enceladus（かすれ声）。Charon は「特徴のないおじさん」だった（本人・2026-10-28）。12 候補を AI に採点させた首位
+        case .enUS, .enGB: return [tora: "Enceladus", native: "Puck"]
+        case .esES, .esMX: return [tora: "Enceladus", native: "Kore"]
+        case .jaJP: return [tora: "Enceladus", native: "Aoede"]
         }
     }
 
@@ -38,7 +39,7 @@ public enum Voice {
         return "\(who), chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
     }
 
-    static let toraStyle = "a gruff but warm old Tokyo boxing-gym trainer, a quick low-voiced aside to his friend. Relaxed, kind, not shouting."
+    static let toraStyle = "an old Tokyo boxing-gym trainer in his 70s: hoarse, gravelly, raspy voice worn by years of shouting in the gym. Low, gruff, a little rough, but warm underneath. Relaxed downtown-Tokyo manner, talking to a friend, not shouting."
 
     /// このターンで新しく出た行から、読み上げる片を作る（トラさん → ネイティブ役の順。学習者の行は読まない）。
     /// トラさんは一言（help）に加えて、言い方そのもの（ways の 1 つ目）も声に出す。一言の中に既に入っていれば重ねない

@@ -176,7 +176,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
         do {
             let t = try await client.talk(audio: audio, mimeType: "audio/mp4", message: message, system: Talk.system(language: lang, explanation: .ja))
             let out: [String: Any] = ["heard": t.heard, "corrected": t.corrected, "reply": t.reply, "reply_sub": t.replySub, "help": t.help,
-                                      "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good, "said_ok": t.saidOk]
+                                      "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good, "said_ok": t.saidOk, "stuck": t.stuck]
             let d = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
             print(String(data: d, encoding: .utf8)!)
         } catch { print("{\"error\": \"\(error)\"}") }

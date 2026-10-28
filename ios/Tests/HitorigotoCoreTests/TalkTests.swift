@@ -168,7 +168,7 @@ final class TalkTests: XCTestCase {
         let r = Voice.parts(for: [TalkLine(who: "native", text: "A."), TalkLine(who: "native", text: "B?")], language: .enUS)
         XCTAssertEqual(r.count, 1)
         XCTAssertEqual(r.first?.text, "A. B?")
-        XCTAssertEqual(Voice.voices(.enUS)[Voice.tora], "Charon")
+        XCTAssertEqual(Voice.voices(.enUS)[Voice.tora], "Enceladus")
     }
 
     func testWavHeader() {
@@ -194,5 +194,17 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(t.alone + t.helped, 1)
         XCTAssertEqual(t.helped, 1)
         XCTAssertEqual(Talk.makeSession(id: "x", lines: lines, good: "", engine: "talk-cloud").transcript, "I'm stuck.")
+    }
+
+    // 言い淀み: stuck を読み、補ってもらった発言は「助けてもらった」に数える。指示文に (f)(g) がある
+    func testStuck() {
+        let t = Talk.parse(#"{"heard":"I have to... um... ask, uh","reply":"Oh, you have to ask him?","help":"聞かなきゃならねえって言いたいんだろ？","asks":[{"said":"聞かないといけない","ways":["I have to ask him."]}],"stuck":true}"#)
+        XCTAssertEqual(t?.stuck, true)
+        XCTAssertEqual(Talk.parse(#"{"heard":"Hi","reply":"Hey"}"#)?.stuck, false)
+        let lines = [TalkLine(who: "me", text: "I have to... um", tag: "stuck"), TalkLine(who: "me", text: "It was fun.")]
+        let tally = Talk.tally(lines, nativeLanguageIsJapanese: true)
+        XCTAssertEqual(tally.helped, 1); XCTAssertEqual(tally.alone, 1)
+        let sys = Talk.system(language: .enUS)
+        XCTAssertTrue(sys.contains("言い淀み")); XCTAssertTrue(sys.contains("雑談への参加")); XCTAssertTrue(sys.contains("\"stuck\""))
     }
 }

@@ -17,7 +17,8 @@ public struct TalkLine: Codable, Equatable, Sendable, Identifiable {
     /// me: この発言への直し（会話の邪魔をしないよう、終わってからまとめて出す）
     public var fixes: [Issue]
     /// 印。me: "repeat_ok"（トラさんの言い方を言い直せた）／"repeat_ng"（言い直したが違った）／
-    /// "consult"（トラさんへのこっそりの相談。Sam には聞こえていない・会話の発言には数えない）。それ以外は空
+    /// "consult"（トラさんへのこっそりの相談。Sam には聞こえていない・会話の発言には数えない）／
+    /// "stuck"（言い淀んで、トラさんに言い方を補ってもらった。助けてもらった分に数える）。それ以外は空
     public var tag: String
 
     public var id: String { "\(who):\(text.hashValue):\(sub.hashValue)" }
@@ -98,11 +99,13 @@ public struct TalkTurn: Equatable, Sendable {
     public var good: String
     /// 「言ってみる」のターンで、トラさんの言い方をちゃんと言えたか
     public var saidOk: Bool
+    /// 学習者が言い淀んだ・途中で止まった（トラさんが「〜って言いたいんだろ？」と割って入る）
+    public var stuck: Bool
 
     public init(heard: String = "", corrected: String = "", reply: String = "", replySub: String = "", help: String = "",
-                asks: [Ask] = [], fixes: [Issue] = [], good: String = "", saidOk: Bool = false) {
+                asks: [Ask] = [], fixes: [Issue] = [], good: String = "", saidOk: Bool = false, stuck: Bool = false) {
         self.heard = heard; self.corrected = corrected; self.reply = reply; self.replySub = replySub; self.help = help
-        self.asks = asks; self.fixes = fixes; self.good = good; self.saidOk = saidOk
+        self.asks = asks; self.fixes = fixes; self.good = good; self.saidOk = saidOk; self.stuck = stuck
     }
 }
 
@@ -171,10 +174,15 @@ public enum Talk {
 - 学習者のレベルに合わせて平易に話す。難しい語を使ったら、言い換えを添える。
 - 同じ質問を繰り返さない。学習者が言ったことを拾って、そこから広げる。
 - 三人で話している場です。トラさんが訳したり助けたりしたターンでは、ときどき（2〜3 回に 1 回くらい）トラさんにも軽く触れる（"Thanks, Tora!" "Ha, Tora's a great teacher." など短く）。毎回はしない。
+- トラさんが言い淀みを補ったターン（"stuck"）では、\(native) は**補われた中身を自分の言葉で受け取って返す**（"Oh, so you have to ask that one coworker? That's tough." のように、まず言い直して確かめ、それから続ける）。学習者は次の番でトラさんの言い方を口に出すので、新しい質問は短く 1 つまで。
+- トラさんが話題に一言添えたとき（\(mother)で言っているが、\(native) には内容が伝わっているものとして）、ときどきそれに乗る（"Tora, you too?" など 1 文）。
 
 ## 2 人目: 寅吉（トラさん・通訳役）
-- \(mother)と\(lang)の両方ができる学習者の友だち。下町のボクシングジムの老トレーナーで、一人称は「わし」、学習者は「おめえ」、べらんめえ調。叱らない。この場では面倒見のいい通訳役。
-- **出しゃばらない。** 口を出すのは次のときだけ: (a) 学習者が\(mother)で言った部分がある (b) 学習者が「トラさん」と呼びかけて聞いた (c) 学習者が明らかに詰まって短く終わった (d) 「なんて言えばいい？」と頼まれた (e) 学習者がこっそり相談してきた（言いたい事情を\(mother)で伝えてくる）
+- \(mother)と\(lang)の両方ができる学習者の友だち。下町のボクシングジムの老トレーナーで、一人称は「わし」、学習者は「おめえ」、べらんめえ調。叱らない。この場では、そばにいて面倒を見てくれる**会話の参加者**（ただの通訳機ではない）。
+- 口を出すのは次のとき: (a) 学習者が\(mother)で言った部分がある (b) 学習者が「トラさん」と呼びかけて聞いた (c) 学習者が明らかに詰まって短く終わった (d) 「なんて言えばいい？」と頼まれた (e) 学習者がこっそり相談してきた（言いたい事情を\(mother)で伝えてくる）
+- **(f) 言い淀み:** 学習者が言葉を探して止まった・途中で終わった・つなぎの音（uh, um, えっと）や同じ語の繰り返しが多い・言いかけてやめた、と音声から分かるときは、"stuck" を true にし、**言おうとしていた中身を文脈から推測して**「〜って言いたいんだろ？こう言ってみな」と "help" で切り出し、その言い方を "asks" に入れる（"said" は推測した中身・"ways" は 1〜2 通り）。推測に自信がなければ、いちばんありそうな 1 つと「違ってたら言ってくれ」の一言。
+- **(g) 雑談への参加:** 2〜3 ターンに 1 回くらい、話題そのものに自分の一言を添える（\(mother)・1 文。「わしも焼き芋は冬の楽しみだ」「それは災難だったな」など）。(a)〜(f) の助けと同じターンでもよい（助けのあとに続ける）。毎回はしない。学習者が\(lang)だけで気持ちよく話せているターンでは、助けはせず、この一言だけか何も言わない。
+- (a)〜(g) のどれでもないターンでは "help" は空、"asks" は空配列。
 - "help" は声に出して読み上げられる。耳で聞いて分かる言葉で書く（口調はそのままに、「〜でえ」「〜らあ」のような長音の崩しは控えめに）。
 - 口を出すときは "help" に\(mother)で 1〜2 文だけ。言い方そのものは "asks" に入れる（1 件につき "ways" を 1〜2 通り・学習者が言える長さで）。
 - 学習者が\(lang)だけで話せたターンでは "help" は空、"asks" は空配列。
@@ -205,7 +213,8 @@ public enum Talk {
   "asks": [ { "said": "\(mother)で言ったこと（短く）", "ways": ["いちばん自然な言い方", "別の言い方"], "ipa": ["/発音記号/", "/発音記号/"], "note": "使いどころの一言（\(mother)・トラさんの口調）" } ],
   "fixes": [ { "type": "grammar", "original": "言った形", "suggestion": "直した形", "reason": "一言（\(mother)）" } ],
   "good": "",
-  "said_ok": false
+  "said_ok": false,
+  "stuck": false
 }
 - "reply"・"corrected"・"ways"・"suggestion" は\(lang)だけ。口調を持ち込まず、自然で正しい\(lang)で。
 - "ipa" は "ways" と同じ順で、\(lang)の発音記号。学習者が目指す地域の発音で、全体を /.../ で囲む。
@@ -282,7 +291,7 @@ public enum Talk {
             lines.append("言ってみる: 添付の音声は、学習者がトラさんの言い方を口に出したものです。出した言い方: " + ways.joined(separator: " / "))
             lines.append("\"heard\" に書き起こし、\"said_ok\" に言えたかどうか。\"reply\" は相づち 1 文＋直前の質問の言い直し 1 文。\"corrected\"・\"good\" は空、\"asks\"・\"fixes\" は空配列にしてください。")
         case .speak:
-            lines.append("添付の音声が学習者の今回の発言です。\"heard\" に書き起こし、\(native) の返事と、必要ならトラさんの助けを返してください。")
+            lines.append("添付の音声が学習者の今回の発言です。\"heard\" に書き起こし、\(native) の返事と、必要ならトラさんの助けを返してください。音声の間・つなぎの音・言いかけから言い淀みが分かれば \"stuck\" を true にして、トラさんが言いたかった中身を補ってください。")
         case .hint(let wish) where !wish.isEmpty || hasAudio:
             // 相談: 言いたい中身を学習者が日本語で伝えてきた。トラさんはそれを汲んで、Sam の直前の発言への返しとして言える形にする
             lines.append("学習者が、\(native) に聞こえないようにトラさんに**こっそり相談**しました。" + (hasAudio ? "添付の音声が相談の中身です（\(mother)のことが多い）。" : "") + (wish.isEmpty ? "" : "相談の中身: 「\(wish)」"))
@@ -314,6 +323,7 @@ public enum Talk {
         t.help = Logic.asText(obj["help"])
         t.good = Logic.asText(obj["good"])
         t.saidOk = Logic.truthy(obj["said_ok"])
+        t.stuck = Logic.truthy(obj["stuck"])
         t.asks = ((obj["asks"] as? [Any]) ?? []).compactMap { a -> Ask? in
             guard let d = a as? [String: Any] else { return nil }
             let ways = Logic.asStringArray(d["ways"])
@@ -378,7 +388,7 @@ public enum Talk {
             if l.tag == "repeat_ok" { t.repeated += 1; continue }
             if l.tag == "repeat_ng" || l.tag == "consult" { continue }
             let mixed = nativeLanguageIsJapanese ? hasJapanese(l.text) : false
-            if mixed || pendingHelp { t.helped += 1 } else { t.alone += 1 }
+            if mixed || pendingHelp || l.tag == "stuck" { t.helped += 1 } else { t.alone += 1 }
             pendingHelp = false
         }
         return t

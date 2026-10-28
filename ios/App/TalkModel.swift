@@ -149,11 +149,12 @@ final class TalkModel: ObservableObject {
         // 聞き取れなかったときは学習者の行を足さず、ネイティブ役の聞き返しだけ出す
         if !turn.heard.isEmpty {
             let same = PhraseLogic.phraseKey(turn.corrected) == PhraseLogic.phraseKey(turn.heard)
-            lines.append(TalkLine(who: "me", text: turn.heard, sub: same ? "" : turn.corrected, fixes: turn.fixes))
+            // 言い淀んでトラさんに補ってもらった発言は「助けてもらった分」に数える
+            lines.append(TalkLine(who: "me", text: turn.heard, sub: same ? "" : turn.corrected, fixes: turn.fixes, tag: turn.stuck && !turn.asks.isEmpty ? "stuck" : ""))
         }
         var added: [TalkLine] = []
         if !turn.help.isEmpty || !turn.asks.isEmpty {
-            added.append(TalkLine(who: "tora", text: turn.help, asks: turn.asks))
+            added.append(TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks))
         }
         if !turn.reply.isEmpty {
             added.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
