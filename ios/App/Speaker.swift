@@ -60,6 +60,15 @@ final class Speaker: NSObject, ObservableObject {
         speaking = nil
     }
 
+    /// いま声が鳴っているか（AI の声か端末の声）
+    var isPlaying: Bool { (player?.isPlaying ?? false) || synth.isSpeaking }
+    /// 鳴っている声のどこまで聞いたか（0〜1）。AI の声なら再生位置から、端末の声なら分からないので 0.5
+    var progress: Double? {
+        if let p = player, p.isPlaying, p.duration > 0 { return min(1, p.currentTime / p.duration) }
+        if synth.isSpeaking { return 0.5 }
+        return nil
+    }
+
     /// 止めて、新しい番号を返す。この番号を play に渡すと、その間に止められていたら鳴らさない
     func begin() -> Int { stop(); return epoch }
 

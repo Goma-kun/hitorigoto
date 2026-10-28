@@ -40,6 +40,15 @@ final class TalkModel: ObservableObject {
     private var recordingRepeat = false
     /// 録音を始めたときに「相談」中だったか（声で相談）
     private var recordingConsult = false
+    /// 録音を始めたとき、ネイティブ役の声の途中だった（被り）
+    private var cutIn: CutIn?
+    /// この会話で被りをトラさんに教えてもらったか
+    private var overlapTaught = false
+    /// 「譲り合いの見本」を出すターン（1 会話に 1 回・3〜5 往復目）。出したら nil
+    private var demoAt: Int? = Int.random(in: 3...5)
+    /// 直前に送った発言が被り／見本のターンだったか（apply で印を付けるのに使う）
+    private var sentCutIn = false
+    private var sentDemo = false
     /// 相談の文字（言いたいこと・事情）
     @Published var wish = ""
     /// AI の声を用意している間 true（文字は先に出す）
@@ -110,6 +119,12 @@ final class TalkModel: ObservableObject {
         error = nil
         recordingRepeat = phase == .repeating
         recordingConsult = phase == .consulting
+        // ネイティブ役の声が鳴っている最中に話し始めた＝被り。どこまで聞いたかを添えて伝える（譲り合いの練習になる）
+        cutIn = nil
+        if phase == .listening, Speaker.shared.isPlaying, let p = Speaker.shared.progress, p < 0.9,
+           let last = lines.last(where: { $0.who == "native" }) {
+            cutIn = CutIn(line: last.text, heard: p, first: !overlapTaught)
+        }
         Speaker.shared.stop()   // 読み上げ中なら止める。録音に混ざらないように
         do {
             try await recorder.start(captions: app.captionsOn, language: app.language, micUID: app.micUID)
@@ -138,7 +153,11 @@ final class TalkModel: ObservableObject {
             guard let turn = await request(.repeat(ways: pendingWays), audio: result.audio) else { phase = back; return }
             applyRepeat(turn)
         } else {
+            sentCutIn = cutIn != nil
+            sentDemo = !sentCutIn && demoAt != nil && turns + 1 == demoAt
             guard let turn = await request(.speak, audio: result.audio) else { phase = back; return }
+            if sentDemo { demoAt = nil }
+            cutIn = nil
             apply(turn)
         }
     }
@@ -149,16 +168,16 @@ final class TalkModel: ObservableObject {
         // 聞き取れなかったときは学習者の行を足さず、ネイティブ役の聞き返しだけ出す
         if !turn.heard.isEmpty {
             let same = PhraseLogic.phraseKey(turn.corrected) == PhraseLogic.phraseKey(turn.heard)
-            // 言い淀んでトラさんに補ってもらった発言は「助けてもらった分」に数える
-            lines.append(TalkLine(who: "me", text: turn.heard, sub: same ? "" : turn.corrected, fixes: turn.fixes, tag: turn.stuck && !turn.asks.isEmpty ? "stuck" : ""))
+            // 言い淀んでトラさんに補ってもらった発言は「助けてもらった分」に数える。被りは印だけ（発言としては普通に数える）
+            let tag = turn.stuck && !turn.asks.isEmpty ? "stuck" : (sentCutIn ? "cut_in" : "")
+            lines.append(TalkLine(who: "me", text: turn.heard, sub: same ? "" : turn.corrected, fixes: turn.fixes, tag: tag))
         }
-        var added: [TalkLine] = []
-        if !turn.help.isEmpty || !turn.asks.isEmpty {
-            added.append(TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks))
-        }
-        if !turn.reply.isEmpty {
-            added.append(TalkLine(who: "native", text: turn.reply, sub: turn.replySub))
-        }
+        if sentCutIn || sentDemo { overlapTaught = true }
+        var added: [TalkLine] = turn.banter
+        let tora = (!turn.help.isEmpty || !turn.asks.isEmpty) ? TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks) : nil
+        let native = !turn.reply.isEmpty ? TalkLine(who: "native", text: turn.reply, sub: turn.replySub) : nil
+        // 見本のターンは「Sam が話を続けてから、トラさんが学習者に教える」順。それ以外はトラさん → Sam
+        if sentDemo { added += [native, tora].compactMap { $0 } } else { added += [tora, native].compactMap { $0 } }
         lines += added
         say(added)
         enterRepeatIfNeeded(turn.asks)
@@ -323,7 +342,8 @@ final class TalkModel: ObservableObject {
         case .speak: rev = rerunOf.isEmpty ? review : nil
         default: break
         }
-        let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev, hasAudio: audio != nil)
+        let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev, hasAudio: audio != nil,
+                                       cutIn: sentCutIn ? cutIn : nil, overlapDemo: sentDemo)
         do {
             let turn = try await client.talk(audio: audio, mimeType: Recorder.mimeType, message: message, system: Talk.system(language: language))
             if app.usesRelay { await app.refreshTalkQuota() }
@@ -358,6 +378,14 @@ final class TalkModel: ObservableObject {
         }
         await hint()
         if stage == "talk" { return }
+        if stage == "overlap" {
+            skipRepeat()
+            guard phase == .listening else { return }
+            phase = .thinking; sentDemo = true
+            if let turn = await request(.speak, audio: nil) { apply(turn) }
+            sentDemo = false
+            return
+        }
         if stage == "consult" { skipRepeat(); openConsult(); wish = "同僚は何人かいるけど、その人に聞かないといけない状況で困ってる"; return }
         skipRepeat()
         await end()
@@ -378,6 +406,15 @@ final class TalkModel: ObservableObject {
                 return TalkTurn(reply: "Okay, let's run it back! So, what's been the best thing you ate this week?", replySub: "よし、もう一回！今週いちばんおいしかったものって何？")
             }
             return TalkTurn(reply: "Hey! Nice to finally meet you. So, what's been the best thing you ate this week?", replySub: "やあ、やっと会えたね。今週いちばんおいしかったものって何？")
+        case .speak where UserDefaults.standard.string(forKey: "HGTalkDemo") == "overlap" && lines.filter({ $0.who == "me" && !$0.tag.hasPrefix("repeat") }).count >= 2:
+            var t = TalkTurn(heard: "I think so. He sniffs it for a long time.", corrected: "I think so. He sniffs it for a long time.",
+                             reply: "Ha, okay. So anyway—does he ever try to steal a bite?", replySub: "はは、了解。で、盗み食いしようとしたことは？",
+                             help: "今みたいに被ったら、こう言って譲るんだ。譲られたら、言いかけてたことを続けりゃいい。",
+                             asks: [Ask(said: "どうぞ、先に", ways: ["Oh, sorry—go ahead.", "No, you go first."], ipa: []),
+                                    Ask(said: "ありがとう、言いかけてたのは…", ways: ["Thanks. I was just gonna say..."], ipa: [])])
+            t.banter = [TalkLine(who: "native", text: "Oh—sorry, Tora, go ahead.", sub: "あ、ごめんトラさん、どうぞ", tag: "banter"),
+                        TalkLine(who: "tora", text: "いやいや、Sam が先だ。遠慮すんな。", tag: "banter")]
+            return t
         case .speak:
             let n = lines.filter { $0.who == "me" && !$0.tag.hasPrefix("repeat") }.count
             if n == 0 {

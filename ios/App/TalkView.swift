@@ -539,6 +539,8 @@ struct MeBubble: View {
                     Tag(text: String(localized: "トラさんにこっそり"), fg: Theme.warn, bg: Theme.warnBg)
                 } else if line.tag == "stuck" {
                     Tag(text: String(localized: "言い淀み → トラさんが補った"), fg: Theme.warn, bg: Theme.warnBg)
+                } else if line.tag == "cut_in" {
+                    Tag(text: String(localized: "話の途中で話し始めた（被り）"), fg: Theme.info, bg: Theme.infoBg)
                 }
                 Text(line.text).font(.body).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)

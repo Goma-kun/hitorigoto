@@ -207,4 +207,24 @@ final class TalkTests: XCTestCase {
         let sys = Talk.system(language: .enUS)
         XCTAssertTrue(sys.contains("言い淀み")); XCTAssertTrue(sys.contains("雑談への参加")); XCTAssertTrue(sys.contains("\"stuck\""))
     }
+
+    // 被り: 遮った発言とどこまで聞いたかが指示文に入る。見本のターンは banter を読む（who の揺れも吸収）
+    func testOverlap() {
+        let m = Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true,
+                                 cutIn: CutIn(line: "Do you usually grab one on your way home?", heard: 0.3, first: true))
+        XCTAssertTrue(m.contains("被り")); XCTAssertTrue(m.contains("30%")); XCTAssertTrue(m.contains("初めての被り"))
+        XCTAssertTrue(Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true, cutIn: CutIn(line: "x", heard: 0.5, first: false)).contains("2 回目以降"))
+        XCTAssertTrue(Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true, overlapDemo: true).contains("譲り合いの見本"))
+        XCTAssertFalse(Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true).contains("被り"))
+        let t = Talk.parse(#"{"heard":"Yes","reply":"Okay.","banter":[{"who":"Sam","text":"Oh—sorry, Tora, go ahead.","sub":"どうぞ"},{"who":"tora","text":"いやいや Sam が先だ","sub":"x"},{"who":"native","text":""}]}"#)
+        XCTAssertEqual(t?.banter.map(\.who), ["native", "tora"])
+        XCTAssertEqual(t?.banter.first?.sub, "どうぞ")
+        XCTAssertEqual(t?.banter.last?.sub, "")
+        XCTAssertEqual(t?.banter.first?.tag, "banter")
+        // 被りの行は普通の発言として数える・声は banter の順で読む
+        XCTAssertEqual(Talk.tally([TalkLine(who: "me", text: "Sorry, go ahead.", tag: "cut_in")], nativeLanguageIsJapanese: true).alone, 1)
+        let parts = Voice.parts(for: (t?.banter ?? []) + [TalkLine(who: "native", text: "So anyway?")], language: .enUS)
+        XCTAssertEqual(parts.map(\.speaker), [Voice.native, Voice.tora, Voice.native])
+        XCTAssertTrue(Talk.system(language: .enUS).contains("## 被り"))
+    }
 }

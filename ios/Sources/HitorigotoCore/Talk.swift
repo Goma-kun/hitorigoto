@@ -18,7 +18,8 @@ public struct TalkLine: Codable, Equatable, Sendable, Identifiable {
     public var fixes: [Issue]
     /// 印。me: "repeat_ok"（トラさんの言い方を言い直せた）／"repeat_ng"（言い直したが違った）／
     /// "consult"（トラさんへのこっそりの相談。Sam には聞こえていない・会話の発言には数えない）／
-    /// "stuck"（言い淀んで、トラさんに言い方を補ってもらった。助けてもらった分に数える）。それ以外は空
+    /// "stuck"（言い淀んで、トラさんに言い方を補ってもらった。助けてもらった分に数える）／
+    /// "cut_in"（ネイティブ役の話の途中で話し始めた＝被った）。それ以外は空
     public var tag: String
 
     public var id: String { "\(who):\(text.hashValue):\(sub.hashValue)" }
@@ -101,12 +102,25 @@ public struct TalkTurn: Equatable, Sendable {
     public var saidOk: Bool
     /// 学習者が言い淀んだ・途中で止まった（トラさんが「〜って言いたいんだろ？」と割って入る）
     public var stuck: Bool
+    /// 二人の短いやり取り（被って譲り合う見本など）。help・reply より前に、この順で出す。who は native／tora
+    public var banter: [TalkLine]
 
     public init(heard: String = "", corrected: String = "", reply: String = "", replySub: String = "", help: String = "",
                 asks: [Ask] = [], fixes: [Issue] = [], good: String = "", saidOk: Bool = false, stuck: Bool = false) {
         self.heard = heard; self.corrected = corrected; self.reply = reply; self.replySub = replySub; self.help = help
-        self.asks = asks; self.fixes = fixes; self.good = good; self.saidOk = saidOk; self.stuck = stuck
+        self.asks = asks; self.fixes = fixes; self.good = good; self.saidOk = saidOk; self.stuck = stuck; self.banter = []
     }
+}
+
+/// 学習者がネイティブ役の話の途中で話し始めた（被った）ときの様子
+public struct CutIn: Equatable, Sendable {
+    /// 途中で遮られたネイティブ役の発言（全文）
+    public var line: String
+    /// どこまで聞いていたか（0〜1）
+    public var heard: Double
+    /// この会話で初めての被りか（初めてならトラさんが譲り方・譲られ方の言い方を教える）
+    public var first: Bool
+    public init(line: String, heard: Double, first: Bool) { self.line = line; self.heard = heard; self.first = first }
 }
 
 public enum Talk {
@@ -198,6 +212,13 @@ public enum Talk {
 - \(native) の "reply" は短い相づち 1 文のあと、**直前に自分がした質問をもう一度 1 文で**（新しい質問はしない。学習者はこれから答える）。
 - "help" は言えていなければ、どこが違ったかを\(mother)で 1 文だけ。言えていれば空。"asks"・"fixes" は空配列。
 
+## 被り（話し出しが重なったとき）
+三人で話すと、話し出すタイミングが重なることがあります。それも会話の一部として扱います。
+- **学習者が \(native) の話の途中で話し始めた**（メッセージに「被り」とあるターン）: \(native) は怒らず、まず譲る（"Oh—sorry, go ahead." "No no, you first." のように短く）。そのうえで、学習者が言ったことに返事をする。学習者が "Sorry, go ahead." "Oh, sorry—you were saying?" のように\(native) に譲り返してきたら、遮られた発言の**続き**を言ってから話を進める。途中で止まった発言の内容を、まるごと言い直さない（続きだけ）。
+- 初めての被りのターンでは、トラさんが "help" で「被っちまったな。こういうときの言い方を覚えとけ」と切り出し、"asks" に譲る言い方（"said": 「どうぞ、先に」→ "Oh, sorry—go ahead." / "No, you go first."）と、譲られたときの返し（"said": 「ありがとう、言いかけてたのは…」→ "Thanks. I was just gonna say..."）を 1 件ずつ入れる。2 回目からは、トラさんは口を出さない（学習者が\(lang)で譲ったり返したりできていれば、"help" で一言ほめてよい）。
+- **\(native) とトラさんが同時に話し出した見本**（メッセージに「譲り合いの見本」とあるターン）: "banter" に、\(native) とトラさんが被って譲り合う短いやり取りを 2〜3 行で入れる（例: \(native) "Oh—sorry, Tora, go ahead." → トラさん「いやいや、Sam が先だ。遠慮すんな」→ \(native) "Ha, okay."）。そのあと "reply" で\(native) が話を続け、トラさんは "help" で「今みたいに被ったら、こう言って譲るんだ」と学習者に向けて言い、"asks" に譲る言い方と譲られたときの返しを入れる。
+- 被りではないターンでは "banter" は空配列。
+
 ## 聞こえた内容（"heard"）
 - 音声が届いたら、学習者が言ったことをそのまま書き起こす。\(mother)の部分は\(mother)のまま。言い直し・つなぎの音（uh, um）は省いてよい。
 - 聞き取れる発話が無ければ "heard" を空にし、\(native) は "Sorry, I didn't catch that." のように聞き返す。
@@ -214,7 +235,8 @@ public enum Talk {
   "fixes": [ { "type": "grammar", "original": "言った形", "suggestion": "直した形", "reason": "一言（\(mother)）" } ],
   "good": "",
   "said_ok": false,
-  "stuck": false
+  "stuck": false,
+  "banter": [ { "who": "native または tora", "text": "短い一言（native は\(lang)・tora は\(mother)）", "sub": "native の一言の\(mother)訳" } ]
 }
 - "reply"・"corrected"・"ways"・"suggestion" は\(lang)だけ。口調を持ち込まず、自然で正しい\(lang)で。
 - "ipa" は "ways" と同じ順で、\(lang)の発音記号。学習者が目指す地域の発音で、全体を /.../ で囲む。
@@ -234,6 +256,7 @@ public enum Talk {
     /// ユーザーメッセージ。これまでの会話を文字で渡し、今回なにをしてほしいかを最後に書く
     public static func userMessage(request: Request, history: [TalkLine], language: TargetLanguage, targets: [String] = [],
                                    review: TalkReview? = nil, hasAudio: Bool = false,
+                                   cutIn: CutIn? = nil, overlapDemo: Bool = false,
                                    explanation: TargetLanguage.Explanation = TargetLanguage.explanation) -> String {
         let native = nativeName(language)
         let lang = language.promptName
@@ -264,6 +287,7 @@ public enum Talk {
                 case "tora": lines.append("トラさん: \(l.text)" + (l.asks.isEmpty ? "" : "（言い方: " + l.asks.flatMap(\.ways).joined(separator: " / ") + "）"))
                 default:
                     if l.tag == "consult" { lines.append("学習者（トラさんにこっそり相談・\(native) には聞こえていない）: \(l.text)") }
+                    else if l.tag == "cut_in" { lines.append("学習者（\(native) の話の途中で話し始めた）: \(l.text)") }
                     else { lines.append("学習者: \(l.text)") }
                 }
             }
@@ -291,6 +315,13 @@ public enum Talk {
             lines.append("言ってみる: 添付の音声は、学習者がトラさんの言い方を口に出したものです。出した言い方: " + ways.joined(separator: " / "))
             lines.append("\"heard\" に書き起こし、\"said_ok\" に言えたかどうか。\"reply\" は相づち 1 文＋直前の質問の言い直し 1 文。\"corrected\"・\"good\" は空、\"asks\"・\"fixes\" は空配列にしてください。")
         case .speak:
+            if let c = cutIn {
+                let pct = Int((c.heard * 100).rounded())
+                lines.append("**被り:** 学習者は、\(native) の直前の発言「\(c.line)」を \(pct)% ほど聞いたところで話し始めました（\(native) の声は途中で止まっています）。" + (c.first ? "この会話で初めての被りです。トラさんは譲り方・譲られ方の言い方を教えてください。" : "2 回目以降の被りです。トラさんは口を出しません（学習者が\(lang)で譲ったり返したりできていれば一言ほめてよい）。"))
+            }
+            if overlapDemo {
+                lines.append("**譲り合いの見本:** このターンは、学習者の発言に返事をする前に、\(native) とトラさんが同時に話し出して譲り合う短いやり取りを \"banter\" に入れてください。そのあと \"reply\" で\(native) が返事をし、トラさんは \"help\" と \"asks\" で、被ったときの譲る言い方と譲られたときの返しを学習者に教えてください。")
+            }
             lines.append("添付の音声が学習者の今回の発言です。\"heard\" に書き起こし、\(native) の返事と、必要ならトラさんの助けを返してください。音声の間・つなぎの音・言いかけから言い淀みが分かれば \"stuck\" を true にして、トラさんが言いたかった中身を補ってください。")
         case .hint(let wish) where !wish.isEmpty || hasAudio:
             // 相談: 言いたい中身を学習者が日本語で伝えてきた。トラさんはそれを汲んで、Sam の直前の発言への返しとして言える形にする
@@ -324,6 +355,14 @@ public enum Talk {
         t.good = Logic.asText(obj["good"])
         t.saidOk = Logic.truthy(obj["said_ok"])
         t.stuck = Logic.truthy(obj["stuck"])
+        t.banter = ((obj["banter"] as? [Any]) ?? []).compactMap { b -> TalkLine? in
+            guard let d = b as? [String: Any] else { return nil }
+            let who = Logic.asText(d["who"]).lowercased().contains("tora") ? "tora" : "native"
+            let text = Logic.asText(d["text"])
+            guard !text.isEmpty else { return nil }
+            return TalkLine(who: who, text: text, sub: who == "native" ? Logic.asText(d["sub"]) : "", tag: "banter")
+        }
+        t.banter = Array(t.banter.prefix(4))
         t.asks = ((obj["asks"] as? [Any]) ?? []).compactMap { a -> Ask? in
             guard let d = a as? [String: Any] else { return nil }
             let ways = Logic.asStringArray(d["ways"])

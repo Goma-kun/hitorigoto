@@ -24,6 +24,7 @@ enum Theme {
     static let bad       = dynamic(light: 0xB91C1C, dark: 0xF87171)
     static let badBg     = dynamic(light: 0xFEE2E2, dark: 0x3B1414)
     static let info      = dynamic(light: 0x0369A1, dark: 0x38BDF8)
+    static let infoBg    = dynamic(light: 0xE0F2FE, dark: 0x0C2A3A)
     static let rec       = dynamic(light: 0xDC2626, dark: 0xEF4444)
     /// 検索で見つかった箇所。ダークでも埋もれないよう、ブラウザの「ページ内検索」と同じ黄色に黒文字
     static let mark      = dynamic(light: 0xFDE047, dark: 0xFDE047)

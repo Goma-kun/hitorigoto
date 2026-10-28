@@ -155,6 +155,9 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
     let rerunPath = take("--rerun")          // さっきの会話（TalkLine の JSON 配列）→「もう一回」のはじまり
     let reviewPath = take("--review")        // 前回の会話の記録（Session の JSON）→ 翌日の Sam が振る
     let isHint = args.contains("--hint"), isClose = args.contains("--close")
+    let cutLine = take("--cutin")            // 被り: 途中で遮った Sam の発言（全文）
+    let cutHeard = Double(take("--cutin-heard") ?? "0.3") ?? 0.3
+    let isDemo = args.contains("--demo")     // 譲り合いの見本のターン
     let env = ProcessInfo.processInfo.environment
     let client: GeminiClient
     if env["HG_RELAY"] == "1" {
@@ -170,13 +173,15 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
     let request: Talk.Request = topic.map { .open(topic: $0, rerun: rerun) } ?? (!repeatWays.isEmpty ? .repeat(ways: repeatWays) : (isHint ? .hint(wish: env["HG_WISH"] ?? "") : (isClose ? .close : .speak)))
     let audio = audioPath.flatMap { FileManager.default.contents(atPath: $0) }
     let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
-    let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), review: review, hasAudio: audio != nil, explanation: .ja)
+    let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), review: review, hasAudio: audio != nil,
+                                   cutIn: cutLine.map { CutIn(line: $0, heard: cutHeard, first: !args.contains("--not-first")) }, overlapDemo: isDemo, explanation: .ja)
     let sem = DispatchSemaphore(value: 0)
     Task {
         do {
             let t = try await client.talk(audio: audio, mimeType: "audio/mp4", message: message, system: Talk.system(language: lang, explanation: .ja))
             let out: [String: Any] = ["heard": t.heard, "corrected": t.corrected, "reply": t.reply, "reply_sub": t.replySub, "help": t.help,
-                                      "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good, "said_ok": t.saidOk, "stuck": t.stuck]
+                                      "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good, "said_ok": t.saidOk, "stuck": t.stuck,
+                                      "banter": t.banter.map { ["who": $0.who, "text": $0.text, "sub": $0.sub] }]
             let d = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
             print(String(data: d, encoding: .utf8)!)
         } catch { print("{\"error\": \"\(error)\"}") }
