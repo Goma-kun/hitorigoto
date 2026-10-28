@@ -114,7 +114,7 @@ struct SessionCard: View {
                     DisclosureGroup {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(Array(talk.enumerated()), id: \.offset) { _, l in
-                                let who = l.who == "native" ? Talk.nativeName(model.targetLanguage) : (l.who == "tora" ? String(localized: "トラさん") : String(localized: "自分"))
+                                let who = l.who == "native" ? model.partner.name : (l.who == "tora" ? String(localized: "トラさん") : String(localized: "自分"))
                                 let extra = l.who == "tora" && !l.asks.isEmpty ? "（" + l.asks.flatMap(\.ways).joined(separator: " / ") + "）" : ""
                                 if !l.text.isEmpty || !extra.isEmpty {
                                     Text(hl("\(who): \(l.text)\(extra)")).font(.caption).foregroundStyle(l.who == "me" ? Theme.text : Theme.muted)

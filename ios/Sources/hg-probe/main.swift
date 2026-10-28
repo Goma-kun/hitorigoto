@@ -123,13 +123,25 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
         let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         client = GeminiClient(key: key)
     }
-    let parts = Voice.parts(for: lines, language: lang)
+    let partner = Partners.find(env["HG_PARTNER"] ?? "", language: lang)
+    let parts = Voice.parts(for: lines, partner: partner)
     for p in parts { print("[\(p.speaker)] \(p.text)") }
     let sem = DispatchSemaphore(value: 0)
     Task {
         let t0 = Date()
         do {
-            let wav = try await client.speech(parts, voices: Voice.voices(lang))
+            let voices = Voice.voices(partner: partner, tora: env["HG_TORA"] ?? Voice.defaultToraVoice)
+            let collide = Voice.collideParts(for: lines, partner: partner)
+            var pieces: [Data] = []
+            if collide.count >= 2 {
+                // アプリと同じ: 言いかけを別々に作って重ねる
+                async let a = client.speech([collide[0]], voices: voices)
+                async let b = client.speech([collide[1]], voices: voices)
+                pieces.append(Voice.collide(try await a, try await b))
+                print("collide: [\(collide[0].speaker)] \(collide[0].text) × [\(collide[1].speaker)] \(collide[1].text)")
+            }
+            if !parts.isEmpty { pieces.append(try await client.speech(parts, voices: voices)) }
+            let wav = pieces.count == 1 ? pieces[0] : Voice.join(pieces)
             try wav.write(to: URL(fileURLWithPath: out))
             print(String(format: "ok %.1fs %d bytes → %@", Date().timeIntervalSince(t0), wav.count, out))
         } catch { print("error: \(error)") }
@@ -181,7 +193,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
             let t = try await client.talk(audio: audio, mimeType: "audio/mp4", message: message, system: Talk.system(language: lang, explanation: .ja))
             let out: [String: Any] = ["heard": t.heard, "corrected": t.corrected, "reply": t.reply, "reply_sub": t.replySub, "help": t.help,
                                       "asks": encode(t.asks), "fixes": encode(t.fixes), "good": t.good, "said_ok": t.saidOk, "stuck": t.stuck,
-                                      "banter": t.banter.map { ["who": $0.who, "text": $0.text, "sub": $0.sub] }]
+                                      "banter": t.banter.map { ["who": $0.who, "text": $0.text, "sub": $0.sub, "tag": $0.tag] }]
             let d = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .withoutEscapingSlashes])
             print(String(data: d, encoding: .utf8)!)
         } catch { print("{\"error\": \"\(error)\"}") }

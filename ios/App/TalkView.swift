@@ -12,7 +12,7 @@ struct TalkCard: View {
                     .frame(width: 44, height: 44).background(Theme.accentBg, in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text("三人で話す").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
-                    Text(String(localized: "\(Talk.nativeName(model.targetLanguage)) とトラさんと気楽におしゃべり。詰まったら日本語で OK"))
+                    Text(String(localized: "\(model.partner.name) とトラさんと気楽におしゃべり。詰まったら日本語で OK"))
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
                 Spacer(minLength: 4)
@@ -96,6 +96,29 @@ struct TalkSheet: View {
                 Card(title: String(localized: "話したいこと（空なら \(talk.nativeName) が決めます）")) {
                     TextField(String(localized: "例: 今日の仕事、週末のこと、うちの猫"), text: $talk.topic)
                         .textFieldStyle(.roundedBorder)
+                }
+                Card(title: String(localized: "相手")) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Partners.list(model.targetLanguage)) { p in
+                                VoiceChip(name: p.name, blurb: p.blurb, selected: model.partnerId == p.id || (model.partnerId.isEmpty && p.id == Partners.list(model.targetLanguage)[0].id),
+                                          previewing: talk.previewing == p.id, color: Theme.info) {
+                                    model.partnerId = p.id
+                                } preview: { Task { await talk.preview(partner: p) } }
+                            }
+                        }
+                    }
+                }
+                Card(title: String(localized: "トラさんの声")) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Voice.toraVoices) { v in
+                                VoiceChip(name: v.label, blurb: "", selected: model.toraVoice == v.id, previewing: talk.previewing == v.id, color: Theme.warn) {
+                                    model.toraVoice = v.id
+                                } preview: { Task { await talk.preview(tora: v.id) } }
+                            }
+                        }
+                    }
                 }
                 Card {
                     Toggle(isOn: $model.naturalVoice) {
@@ -555,6 +578,37 @@ struct MeBubble: View {
             .padding(10)
             .background(Theme.accentBg, in: RoundedRectangle(cornerRadius: 12))
         }
+    }
+}
+
+/// 声を選ぶチップ（名前＋一言＋試聴）
+struct VoiceChip: View {
+    let name: String
+    let blurb: String
+    let selected: Bool
+    let previewing: Bool
+    let color: Color
+    let select: () -> Void
+    let preview: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button(action: select) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name).font(.callout.weight(selected ? .bold : .semibold)).foregroundStyle(selected ? color : Theme.text)
+                    if !blurb.isEmpty { Text(blurb).font(.caption2).foregroundStyle(Theme.muted) }
+                }
+            }
+            .buttonStyle(.plain)
+            Button(action: preview) {
+                Image(systemName: previewing ? "speaker.wave.2.fill" : "play.circle").font(.title3).foregroundStyle(previewing ? color : Theme.muted)
+            }
+            .buttonStyle(.plain)
+            .help("試聴します")
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(selected ? color.opacity(0.12) : Theme.card, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? color.opacity(0.6) : Theme.line, lineWidth: selected ? 1.5 : 1))
     }
 }
 

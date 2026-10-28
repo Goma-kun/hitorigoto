@@ -140,14 +140,8 @@ public enum Talk {
         case close
     }
 
-    /// ネイティブ役の名前（言語ごと）
-    public static func nativeName(_ language: TargetLanguage) -> String {
-        switch language {
-        case .enUS, .enGB: return "Sam"
-        case .esES, .esMX: return "Lucía"
-        case .jaJP: return "ゆき"
-        }
-    }
+    /// ネイティブ役の既定の名前（言語ごと）。相手を選んでいるときは Partner.name を使う
+    public static func nativeName(_ language: TargetLanguage) -> String { Partners.list(language)[0].name }
 
     /// 話題の種（学習者が決めていないときに 1 つ引く）。ネイティブ役はここから自然に切り出す
     public static let topics: [String] = [
@@ -167,9 +161,10 @@ public enum Talk {
     // MARK: - 指示文
 
     /// システム指示。ネイティブ役とトラさんの二人を 1 回の応答で演じ分けさせる
-    public static func system(language: TargetLanguage, explanation: TargetLanguage.Explanation = TargetLanguage.explanation) -> String {
+    public static func system(language: TargetLanguage, partner: Partner? = nil, explanation: TargetLanguage.Explanation = TargetLanguage.explanation) -> String {
         let lang = language.promptName
-        let native = nativeName(language)
+        let partner = partner ?? Partners.list(language)[0]
+        let native = partner.name
         let mother = explanation == .ja ? "日本語" : "英語"
         var s = """
 あなたは「独り言」アプリの会話練習で、**二人の人物を同時に演じます**。学習者を入れて三人の会話です。
@@ -181,7 +176,7 @@ public enum Talk {
 \(language.variantNote)
 
 ## 1 人目: \(native)（ネイティブ役）
-- \(lang)のネイティブスピーカー。トラさんの友だちで、学習者とは今日仲良くなったところ。気さくで聞き上手。
+- \(lang)のネイティブスピーカー。人物像: \(partner.persona) トラさんの友だちで、学習者とは今日仲良くなったところ。聞き上手。人物像どおりの口調と話題の選び方で。
 - \(mother)は分かりません。学習者が\(mother)で言った部分は、トラさんが訳して伝えてくれたものとして、その**中身**に返事をします（訳の話はしない）。
 - 返事は\(lang)だけで、1〜3 文。必ず最後は質問か、話を広げる一言で、学習者に話す番を渡す。
 - 学習者の言い間違いは指摘しない。代わりに、返事の中で正しい形を自然に使って返す（さりげなく）。
@@ -216,7 +211,7 @@ public enum Talk {
 三人で話すと、話し出すタイミングが重なることがあります。それも会話の一部として扱います。
 - **学習者が \(native) の話の途中で話し始めた**（メッセージに「被り」とあるターン）: \(native) は怒らず、まず譲る（"Oh—sorry, go ahead." "No no, you first." のように短く）。そのうえで、学習者が言ったことに返事をする。学習者が "Sorry, go ahead." "Oh, sorry—you were saying?" のように\(native) に譲り返してきたら、遮られた発言の**続き**を言ってから話を進める。途中で止まった発言の内容を、まるごと言い直さない（続きだけ）。
 - 初めての被りのターンでは、トラさんが "help" で「被っちまったな。こういうときの言い方を覚えとけ」と切り出し、"asks" に譲る言い方（"said": 「どうぞ、先に」→ "Oh, sorry—go ahead." / "No, you go first."）と、譲られたときの返し（"said": 「ありがとう、言いかけてたのは…」→ "Thanks. I was just gonna say..."）を 1 件ずつ入れる。2 回目からは、トラさんは口を出さない（学習者が\(lang)で譲ったり返したりできていれば、"help" で一言ほめてよい）。
-- **\(native) とトラさんが同時に話し出した見本**（メッセージに「譲り合いの見本」とあるターン）: "banter" に、\(native) とトラさんが被って譲り合う短いやり取りを 2〜3 行で入れる（例: \(native) "Oh—sorry, Tora, go ahead." → トラさん「いやいや、Sam が先だ。遠慮すんな」→ \(native) "Ha, okay."）。そのあと "reply" で\(native) が話を続け、トラさんは "help" で「今みたいに被ったら、こう言って譲るんだ」と学習者に向けて言い、"asks" に譲る言い方と譲られたときの返しを入れる。
+- **\(native) とトラさんが同時に話し出した見本**（メッセージに「譲り合いの見本」とあるターン）: "banter" の最初の 2 行は、二人が**同時に言いかけて途中で止まった言葉**（"cut": true・それぞれ 4〜7 語で、文の途中で切れた形。例: \(native) "Oh, that reminds me, I was gonna—" ／トラさん「そういやよ、わしも昔—」）。音はアプリが重ねて鳴らす。そのあと譲り合う短いやり取りを 2〜3 行（例: \(native) "Oh—sorry, Tora, go ahead." → トラさん「いやいや、\(native) が先だ。遠慮すんな」→ \(native) "Ha, okay."）。そのあと "reply" で\(native) が話を続け、トラさんは "help" で「今みたいに被ったら、こう言って譲るんだ」と学習者に向けて言い、"asks" に譲る言い方と譲られたときの返しを入れる。
 - 被りではないターンでは "banter" は空配列。
 
 ## 聞こえた内容（"heard"）
@@ -236,7 +231,7 @@ public enum Talk {
   "good": "",
   "said_ok": false,
   "stuck": false,
-  "banter": [ { "who": "native または tora", "text": "短い一言（native は\(lang)・tora は\(mother)）", "sub": "native の一言の\(mother)訳" } ]
+  "banter": [ { "who": "native または tora", "text": "短い一言（native は\(lang)・tora は\(mother)）", "sub": "native の一言の\(mother)訳", "cut": false } ]
 }
 - "reply"・"corrected"・"ways"・"suggestion" は\(lang)だけ。口調を持ち込まず、自然で正しい\(lang)で。
 - "ipa" は "ways" と同じ順で、\(lang)の発音記号。学習者が目指す地域の発音で、全体を /.../ で囲む。
@@ -256,9 +251,9 @@ public enum Talk {
     /// ユーザーメッセージ。これまでの会話を文字で渡し、今回なにをしてほしいかを最後に書く
     public static func userMessage(request: Request, history: [TalkLine], language: TargetLanguage, targets: [String] = [],
                                    review: TalkReview? = nil, hasAudio: Bool = false,
-                                   cutIn: CutIn? = nil, overlapDemo: Bool = false,
+                                   cutIn: CutIn? = nil, overlapDemo: Bool = false, partner: Partner? = nil,
                                    explanation: TargetLanguage.Explanation = TargetLanguage.explanation) -> String {
-        let native = nativeName(language)
+        let native = (partner ?? Partners.list(language)[0]).name
         let lang = language.promptName
         let mother = explanation == .ja ? "日本語" : "英語"
         var lines: [String] = []
@@ -360,9 +355,9 @@ public enum Talk {
             let who = Logic.asText(d["who"]).lowercased().contains("tora") ? "tora" : "native"
             let text = Logic.asText(d["text"])
             guard !text.isEmpty else { return nil }
-            return TalkLine(who: who, text: text, sub: who == "native" ? Logic.asText(d["sub"]) : "", tag: "banter")
+            return TalkLine(who: who, text: text, sub: who == "native" ? Logic.asText(d["sub"]) : "", tag: Logic.truthy(d["cut"]) ? "collide" : "banter")
         }
-        t.banter = Array(t.banter.prefix(4))
+        t.banter = Array(t.banter.prefix(6))
         t.asks = ((obj["asks"] as? [Any]) ?? []).compactMap { a -> Ask? in
             guard let d = a as? [String: Any] else { return nil }
             let ways = Logic.asStringArray(d["ways"])

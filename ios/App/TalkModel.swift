@@ -64,7 +64,8 @@ final class TalkModel: ObservableObject {
 
     var recorder: Recorder { app.recorder }
     var language: TargetLanguage { app.targetLanguage }
-    var nativeName: String { Talk.nativeName(language) }
+    var partner: Partner { app.partner }
+    var nativeName: String { partner.name }
     /// 母語が日本語で、話す言語が日本語でないとき、発言に日本語が混ざっていたら「助けてもらった分」に数える
     private var countsJapanese: Bool { TargetLanguage.explanation == .ja && language != .jaJP }
     var tally: Talk.Tally { Talk.tally(lines, nativeLanguageIsJapanese: countsJapanese) }
@@ -304,8 +305,9 @@ final class TalkModel: ObservableObject {
     /// このターンで足した行を声に出す（トラさん → ネイティブ役の順）。文字は先に出ていて、声は後から届く。
     /// 自然な声（Gemini）が取れなければ端末の声で読む。届く前に録音を始めたら鳴らさない（Speaker の epoch）
     private func say(_ added: [TalkLine]) {
-        let parts = Voice.parts(for: added, language: language)
-        guard !parts.isEmpty else { return }
+        let parts = Voice.parts(for: added, partner: partner)
+        let collide = Voice.collideParts(for: added, partner: partner)
+        guard !parts.isEmpty || !collide.isEmpty else { return }
         let epoch = Speaker.shared.begin()
         let toraLang = TargetLanguage.explanation == .ja ? "ja-JP" : "en-US"
         let fallback: [(text: String, language: String?)] = parts.map { ($0.text, $0.speaker == Voice.tora ? toraLang : nil) }
@@ -316,12 +318,41 @@ final class TalkModel: ObservableObject {
         guard let client else { Speaker.shared.speakInOrder(fallback, epoch: epoch); return }
         voiceLoading = true
         voiceEpoch = epoch
+        let voices = Voice.voices(partner: partner, tora: app.toraVoice)
         Task {
-            let wav = try? await client.speech(parts, voices: Voice.voices(language))
+            // 同時に話し出した言いかけは別々に作って重ねる（見本のターンだけ）。本体の声と並行して取る
+            async let main: Data? = parts.isEmpty ? nil : (try? await client.speech(parts, voices: voices))
+            async let c0: Data? = collide.count >= 1 ? (try? await client.speech([collide[0]], voices: voices)) : nil
+            async let c1: Data? = collide.count >= 2 ? (try? await client.speech([collide[1]], voices: voices)) : nil
+            let (m, a, b) = await (main, c0, c1)
             if voiceEpoch == epoch { voiceLoading = false }
+            var pieces: [Data] = []
+            if let a, let b { pieces.append(Voice.collide(a, b)) } else if let a { pieces.append(a) }
+            if let m { pieces.append(m) }
+            let wav = pieces.count == 1 ? pieces[0] : (pieces.isEmpty ? nil : Voice.join(pieces))
             if let wav, Speaker.shared.play(wav, epoch: epoch) { return }
             Speaker.shared.speakInOrder(fallback, epoch: epoch)
         }
+    }
+
+    /// 試聴: 相手役（またはトラさん）の声を一言鳴らす。AI の声が取れなければ端末の声
+    @Published private(set) var previewing: String?
+    func preview(partner p: Partner? = nil, tora: String? = nil) async {
+        let epoch = Speaker.shared.begin()
+        let key = p?.id ?? tora ?? ""
+        previewing = key
+        defer { if previewing == key { previewing = nil } }
+        let part: VoicePart
+        var voices: [String: String]
+        if let p {
+            part = VoicePart(speaker: Voice.native, text: Voice.sampleLine(p, language: language), style: Voice.nativeStyle(p))
+            voices = Voice.voices(partner: p, tora: app.toraVoice)
+        } else {
+            part = VoicePart(speaker: Voice.tora, text: Voice.toraSampleLine, style: Voice.toraStyle)
+            voices = Voice.voices(partner: partner, tora: tora ?? app.toraVoice)
+        }
+        if app.naturalVoice, let client = app.talkClient, let wav = try? await client.speech([part], voices: voices), Speaker.shared.play(wav, epoch: epoch) { return }
+        Speaker.shared.speakInOrder([(part.text, p == nil ? (TargetLanguage.explanation == .ja ? "ja-JP" : "en-US") : nil)], epoch: epoch)
     }
 
     // MARK: - Gemini
@@ -343,9 +374,9 @@ final class TalkModel: ObservableObject {
         default: break
         }
         let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev, hasAudio: audio != nil,
-                                       cutIn: sentCutIn ? cutIn : nil, overlapDemo: sentDemo)
+                                       cutIn: sentCutIn ? cutIn : nil, overlapDemo: sentDemo, partner: partner)
         do {
-            let turn = try await client.talk(audio: audio, mimeType: Recorder.mimeType, message: message, system: Talk.system(language: language))
+            let turn = try await client.talk(audio: audio, mimeType: Recorder.mimeType, message: message, system: Talk.system(language: language, partner: partner))
             if app.usesRelay { await app.refreshTalkQuota() }
             return turn
         } catch let f as GeminiClient.Failure {
@@ -412,7 +443,9 @@ final class TalkModel: ObservableObject {
                              help: "今みたいに被ったら、こう言って譲るんだ。譲られたら、言いかけてたことを続けりゃいい。",
                              asks: [Ask(said: "どうぞ、先に", ways: ["Oh, sorry—go ahead.", "No, you go first."], ipa: []),
                                     Ask(said: "ありがとう、言いかけてたのは…", ways: ["Thanks. I was just gonna say..."], ipa: [])])
-            t.banter = [TalkLine(who: "native", text: "Oh—sorry, Tora, go ahead.", sub: "あ、ごめんトラさん、どうぞ", tag: "banter"),
+            t.banter = [TalkLine(who: "native", text: "Oh, that reminds me, I was gonna—", sub: "", tag: "collide"),
+                        TalkLine(who: "tora", text: "そういやよ、わしも昔—", tag: "collide"),
+                        TalkLine(who: "native", text: "Oh—sorry, Tora, go ahead.", sub: "あ、ごめんトラさん、どうぞ", tag: "banter"),
                         TalkLine(who: "tora", text: "いやいや、Sam が先だ。遠慮すんな。", tag: "banter")]
             return t
         case .speak:

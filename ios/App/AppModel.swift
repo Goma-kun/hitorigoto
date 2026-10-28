@@ -30,7 +30,10 @@ final class AppModel: ObservableObject {
     @Published var dailyTotal: Int { didSet { UserDefaults.standard.set(dailyTotal, forKey: "dailyTotal") } }
     @Published var dailyNew: Int { didSet { UserDefaults.standard.set(dailyNew, forKey: "dailyNew") } }
     @Published var captionsOn: Bool { didSet { UserDefaults.standard.set(captionsOn, forKey: "captionsOn") } }
-    @Published var language: String { didSet { UserDefaults.standard.set(language, forKey: "language"); Speaker.shared.language = language } }
+    @Published var language: String { didSet {
+        UserDefaults.standard.set(language, forKey: "language"); Speaker.shared.language = language
+        partnerId = UserDefaults.standard.string(forKey: "talkPartner." + language) ?? ""
+    } }
     /// 録音に使うマイク（Mac）。空なら Mac の既定に合わせる
     @Published var micUID: String { didSet { UserDefaults.standard.set(micUID, forKey: "micUID") } }
     /// 添削のエンジン。"cloud"＝開発者の中継サーバー経由で Gemini（キー不要・1 日の回数制限あり・既定）
@@ -42,6 +45,10 @@ final class AppModel: ObservableObject {
     @Published var explainQuota: GeminiClient.Quota?
     /// 「三人で話す」の今日の回数（1 ターン 1 回・添削とは別枠）
     @Published var talkQuota: GeminiClient.Quota?
+    /// 「三人で話す」の相手役（言語ごとに覚える）とトラさんの声
+    @Published var partnerId: String { didSet { UserDefaults.standard.set(partnerId, forKey: "talkPartner." + language) } }
+    @Published var toraVoice: String { didSet { UserDefaults.standard.set(toraVoice, forKey: "talkToraVoice") } }
+    var partner: Partner { Partners.find(partnerId, language: targetLanguage) }
     /// 「三人で話す」で Sam とトラさんを AI の自然な声で話させる（既定で入）。切ると端末の声（通信なし）
     @Published var naturalVoice: Bool { didSet { UserDefaults.standard.set(naturalVoice, forKey: "talkNaturalVoice") } }
     /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
@@ -68,6 +75,8 @@ final class AppModel: ObservableObject {
         engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
         syncEnabled = d.object(forKey: "iCloudSync") as? Bool ?? true
         naturalVoice = d.object(forKey: "talkNaturalVoice") as? Bool ?? true
+        partnerId = d.string(forKey: "talkPartner." + (d.string(forKey: "language") ?? TargetLanguage.default.rawValue)) ?? ""
+        toraVoice = d.string(forKey: "talkToraVoice") ?? Voice.defaultToraVoice
         Speaker.shared.language = language
         updateSync()
     }

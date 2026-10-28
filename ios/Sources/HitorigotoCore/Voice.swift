@@ -3,6 +3,7 @@ import Foundation
 // 「三人で話す」の声。端末の読み上げは明らかに機械の声で、トラさんは黙ったまま文字だけだった（本人指摘・2026-10-28）。
 // Gemini の TTS で、そのターンに話す二人（トラさん → ネイティブ役）の声を 1 回でまとめて作る。
 // 声が取れないとき（通信・回数切れ・設定で切ったとき）は端末の声に落とす（App 側の Speaker）
+// 相手役は名前つきで選べる（本人の要望・2026-10-28「他のアプリでよくあるように、Sam・Jim・Nick・Elizabeth…」）
 
 /// 読み上げる 1 片。speaker は "Tora" か "Native"
 public struct VoicePart: Equatable, Sendable {
@@ -13,39 +14,110 @@ public struct VoicePart: Equatable, Sendable {
     public init(speaker: String, text: String, style: String = "") { self.speaker = speaker; self.text = text; self.style = style }
 }
 
+/// ネイティブ役（相手）。名前・声・人物像の組。人物像は指示文（口調）と声の指示の両方に使う
+public struct Partner: Identifiable, Equatable, Sendable {
+    public var id: String
+    public var name: String
+    /// Gemini TTS の声の名前（既定の 30 声か、拡張ライブラリの id）
+    public var voice: String
+    public var female: Bool
+    public var age: Int
+    /// 出身（英語・指示文にそのまま）
+    public var from: String
+    /// 人柄（英語・声の指示と人物像に）
+    public var vibe: String
+    /// 画面に出す一言（日本語）
+    public var blurb: String
+
+    public init(id: String, name: String, voice: String, female: Bool, age: Int, from: String, vibe: String, blurb: String) {
+        self.id = id; self.name = name; self.voice = voice; self.female = female; self.age = age; self.from = from; self.vibe = vibe; self.blurb = blurb
+    }
+
+    /// 人物像（英語・1 文）。指示文の「1 人目」と声の指示に使う
+    public var persona: String { "\(name), a \(age)-year-old \(female ? "woman" : "man") from \(from). \(vibe)." }
+}
+
+/// トラさんの声の候補（本人が選ぶ）。2026-10-28 に 12 本＋6 本を合成して AI に採点させたもの
+public struct ToraVoice: Identifiable, Equatable, Sendable {
+    public var id: String       // Gemini の声の名前
+    public var label: String    // 画面の短い名前
+    public init(id: String, label: String) { self.id = id; self.label = label }
+}
+
+public enum Partners {
+    /// 言語ごとの相手役。先頭が既定
+    public static func list(_ language: TargetLanguage) -> [Partner] {
+        switch language {
+        case .enUS, .enGB:
+            return [
+                Partner(id: "sam", name: "Sam", voice: "Puck", female: false, age: 32, from: "the West Coast", vibe: "Friendly, relaxed and curious, laughs easily", blurb: "32 歳・西海岸・気さく"),
+                Partner(id: "jim", name: "Jim", voice: "en-us-olin", female: false, age: 44, from: "the South", vibe: "Warm, easygoing and a little slow-talking, like a good neighbor", blurb: "44 歳・南部・おっとり"),
+                Partner(id: "nick", name: "Nick", voice: "en-us-rami", female: false, age: 29, from: "the East Coast", vibe: "Upbeat, chatty and quick, asks lots of questions", blurb: "29 歳・東海岸・テンポ速め"),
+                Partner(id: "elizabeth", name: "Elizabeth", voice: "en-us-jori", female: true, age: 38, from: "the Northwest", vibe: "Calm, warm and a good listener, speaks clearly", blurb: "38 歳・北西部・落ち着き"),
+                Partner(id: "catherine", name: "Catherine", voice: "en-us-tari", female: true, age: 35, from: "the Midwest", vibe: "Kind, cheerful and encouraging", blurb: "35 歳・中西部・明るい"),
+                Partner(id: "taylor", name: "Taylor", voice: "en-us-sola", female: true, age: 31, from: "the West Coast", vibe: "Laid-back, playful and easy to talk to", blurb: "31 歳・西海岸・ゆるい"),
+            ]
+        case .esES, .esMX:
+            return [
+                Partner(id: "lucia", name: "Lucía", voice: "Kore", female: true, age: 30, from: language == .esES ? "Madrid" : "Mexico City", vibe: "Warm, cheerful and patient", blurb: "30 歳・明るい"),
+                Partner(id: "mateo", name: "Mateo", voice: "Charon", female: false, age: 36, from: language == .esES ? "Sevilla" : "Guadalajara", vibe: "Easygoing, friendly and relaxed", blurb: "36 歳・おだやか"),
+            ]
+        case .jaJP:
+            return [
+                Partner(id: "yuki", name: "ゆき", voice: "Aoede", female: true, age: 28, from: "Tokyo", vibe: "Warm, cheerful and patient", blurb: "28 歳・東京・明るい"),
+                Partner(id: "kenta", name: "けんた", voice: "Charon", female: false, age: 34, from: "Osaka", vibe: "Easygoing, friendly and relaxed", blurb: "34 歳・大阪・おだやか"),
+            ]
+        }
+    }
+
+    /// id で探す。無ければ先頭（既定）
+    public static func find(_ id: String, language: TargetLanguage) -> Partner {
+        let l = list(language)
+        return l.first(where: { $0.id == id }) ?? l[0]
+    }
+}
+
 public enum Voice {
     public static let tora = "Tora"
     public static let native = "Native"
 
-    /// 声の割り当て（Gemini の既定の声から）。トラさんは低く渋い声、ネイティブ役は明るい声
-    public static func voices(_ language: TargetLanguage) -> [String: String] {
-        switch language {
-        // トラさんは Enceladus（かすれ声）。Charon は「特徴のないおじさん」だった（本人・2026-10-28）。12 候補を AI に採点させた首位
-        case .enUS, .enGB: return [tora: "Enceladus", native: "Puck"]
-        case .esES, .esMX: return [tora: "Enceladus", native: "Kore"]
-        case .jaJP: return [tora: "Enceladus", native: "Aoede"]
-        }
+    /// トラさんの声の候補。先頭が既定（本人「じいさんっぽい人がいい」・2026-10-28 に候補を聞いてもらって決める）
+    public static let toraVoices: [ToraVoice] = [
+        ToraVoice(id: "ja-jp-advisor-9", label: "枯れた声"),
+        ToraVoice(id: "Algenib", label: "渋い低音"),
+        ToraVoice(id: "Enceladus", label: "かすれ声"),
+        ToraVoice(id: "ja-jp-podcaster-7", label: "張りのある声"),
+        ToraVoice(id: "ja-jp-training-4", label: "落ち着いた声"),
+    ]
+    public static let defaultToraVoice = toraVoices[0].id
+
+    /// 声の割り当て（話者名 → Gemini の声）
+    public static func voices(partner: Partner, tora: String = defaultToraVoice) -> [String: String] {
+        [Self.tora: toraVoices.contains(where: { $0.id == tora }) ? tora : defaultToraVoice, native: partner.voice]
     }
 
-    static func nativeStyle(_ language: TargetLanguage) -> String {
-        let who: String
-        switch language {
-        case .enUS: who = "a friendly, relaxed American in their 30s"
-        case .enGB: who = "a friendly, relaxed Londoner in their 30s"
-        case .esES: who = "a warm, cheerful woman from Madrid"
-        case .esMX: who = "a warm, cheerful woman from Mexico City"
-        case .jaJP: who = "a warm, cheerful Japanese woman from Tokyo"
-        }
-        return "\(who), chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
+    static func nativeStyle(_ partner: Partner) -> String {
+        "\(partner.persona) Chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
     }
 
-    static let toraStyle = "an old Tokyo boxing-gym trainer in his 70s: hoarse, gravelly, raspy voice worn by years of shouting in the gym. Low, gruff, a little rough, but warm underneath. Relaxed downtown-Tokyo manner, talking to a friend, not shouting."
+    static let toraStyle = "a very old man in his 80s, a retired boxing-gym trainer from downtown Tokyo: thin, wheezy, hoarse, slightly shaky elderly voice, slow and gravelly, worn by decades of shouting. Warm and amused underneath, not angry."
 
-    /// このターンで新しく出た行から、読み上げる片を作る（トラさん → ネイティブ役の順。学習者の行は読まない）。
-    /// トラさんは一言（help）に加えて、言い方そのもの（ways の 1 つ目）も声に出す。一言の中に既に入っていれば重ねない
-    public static func parts(for lines: [TalkLine], language: TargetLanguage) -> [VoicePart] {
+    /// 試聴用の一言
+    public static func sampleLine(_ partner: Partner, language: TargetLanguage) -> String {
+        switch language {
+        case .enUS, .enGB: return "Hey! I'm \(partner.name). Nice to meet you. So, what's been the best thing you ate this week?"
+        case .esES, .esMX: return "¡Hola! Soy \(partner.name). Mucho gusto. ¿Qué es lo mejor que has comido esta semana?"
+        case .jaJP: return "こんにちは、\(partner.name)です。よろしくね。今週いちばんおいしかったものは何？"
+        }
+    }
+    public static let toraSampleLine = "おう、わしが寅吉だ。焼き芋はこう言うんだ。a baked sweet potato。遠慮せずに言ってみな。"
+
+    /// このターンで新しく出た行から、読み上げる片を作る（行の順のまま。学習者の行は読まない）。
+    /// トラさんは一言（help）に加えて、言い方そのもの（ways の 1 つ目）も声に出す。一言の中に既に入っていれば重ねない。
+    /// 「同時に話し出した」言いかけ（tag collide）はここには入れない（別に作って重ねる・collideParts）
+    public static func parts(for lines: [TalkLine], partner: Partner) -> [VoicePart] {
         var out: [VoicePart] = []
-        for l in lines {
+        for l in lines where l.tag != "collide" {
             switch l.who {
             case "tora":
                 var t = l.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -55,7 +127,7 @@ public enum Voice {
                 }
                 if !t.isEmpty { out.append(VoicePart(speaker: tora, text: t, style: toraStyle)) }
             case "native":
-                if !l.text.isEmpty { out.append(VoicePart(speaker: native, text: l.text, style: nativeStyle(language))) }
+                if !l.text.isEmpty { out.append(VoicePart(speaker: native, text: l.text, style: nativeStyle(partner))) }
             default: break
             }
         }
@@ -68,6 +140,16 @@ public enum Voice {
         return merged
     }
 
+    /// 同時に話し出した言いかけ（tag collide）。それぞれ別に合成して、端末で重ねて鳴らす
+    public static func collideParts(for lines: [TalkLine], partner: Partner) -> [VoicePart] {
+        lines.filter { $0.tag == "collide" && !$0.text.isEmpty }.map {
+            $0.who == "tora" ? VoicePart(speaker: tora, text: $0.text, style: toraStyle + " Starts a sentence, then stops mid-word, cut off.")
+                             : VoicePart(speaker: native, text: $0.text, style: nativeStyle(partner) + " Starts a sentence, then stops mid-word, cut off.")
+        }
+    }
+
+    // MARK: - WAV の加工（24kHz・16bit・モノラル前提。Gemini の TTS はこの形で返す）
+
     /// 頭なしの PCM（16bit・モノラル）に WAV の頭を付ける
     public static func wav(pcm: Data, sampleRate: Int) -> Data {
         var d = Data()
@@ -79,5 +161,47 @@ public enum Voice {
         d.append("data".data(using: .ascii)!); u32(UInt32(pcm.count))
         d.append(pcm)
         return d
+    }
+
+    /// WAV から PCM（16bit の標本列）を取り出す。"data" チャンクを探す（頭が 44 バイトでなくてもよい）
+    public static func pcm(_ wav: Data) -> [Int16] {
+        guard wav.count > 12, let dataTag = "data".data(using: .ascii), let r = wav.range(of: dataTag, in: 12..<wav.count) else { return [] }
+        let start = r.upperBound + 4
+        guard start < wav.count else { return [] }
+        let body = wav.subdata(in: start..<wav.count)
+        let n = body.count / 2
+        return body.withUnsafeBytes { raw -> [Int16] in
+            let p = raw.bindMemory(to: Int16.self)
+            return (0..<n).map { Int16(littleEndian: p[$0]) }
+        }
+    }
+
+    public static let sampleRate = 24000
+
+    /// 二人が同時に話し出して、途中でぷつっと止まる音。a が先に始まり、offset 秒遅れて b が重なる。
+    /// それぞれ自分の開始から cut 秒で切る（最後の 0.12 秒は小さくしていく）。重ねたところは音が割れないように少し下げる
+    public static func collide(_ a: Data, _ b: Data, offset: Double = 0.35, cut: Double = 1.3) -> Data {
+        let pa = pcm(a), pb = pcm(b)
+        let off = Int(offset * Double(sampleRate)), len = Int(cut * Double(sampleRate)), fade = Int(0.12 * Double(sampleRate))
+        let la = min(pa.count, len), lb = min(pb.count, len)
+        let total = max(la, off + lb)
+        guard total > 0 else { return a }
+        var out = [Int32](repeating: 0, count: total)
+        func gain(_ i: Int, _ l: Int) -> Double { i >= l - fade ? Double(l - i) / Double(fade) : 1 }
+        for i in 0..<la { out[i] += Int32(Double(pa[i]) * gain(i, la) * 0.85) }
+        for i in 0..<lb { out[off + i] += Int32(Double(pb[i]) * gain(i, lb) * 0.85) }
+        let pcm16 = out.map { Int16(clamping: $0) }
+        return wav(pcm: pcm16.withUnsafeBufferPointer { Data(buffer: $0) }, sampleRate: sampleRate)
+    }
+
+    /// 複数の WAV を、間（秒）を挟んでつなぐ
+    public static func join(_ wavs: [Data], gap: Double = 0.4) -> Data {
+        let silence = [Int16](repeating: 0, count: Int(gap * Double(sampleRate)))
+        var all: [Int16] = []
+        for (i, w) in wavs.enumerated() {
+            if i > 0 { all += silence }
+            all += pcm(w)
+        }
+        return wav(pcm: all.withUnsafeBufferPointer { Data(buffer: $0) }, sampleRate: sampleRate)
     }
 }

@@ -157,18 +157,20 @@ final class TalkTests: XCTestCase {
             TalkLine(who: "tora", text: "焼き芋はこう言うんでえ。", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato", "a roasted sweet potato"])]),
             TalkLine(who: "native", text: "Nice! Do you grab one often?"),
         ]
-        let p = Voice.parts(for: lines, language: .enUS)
+        let p = Voice.parts(for: lines, partner: Partners.list(.enUS)[0])
         XCTAssertEqual(p.map(\.speaker), [Voice.tora, Voice.native])
         XCTAssertEqual(p[0].text, "焼き芋はこう言うんでえ。 a baked sweet potato")
         XCTAssertFalse(p[0].style.isEmpty)
         // 一言の中に言い方が入っていれば重ねない
-        let q = Voice.parts(for: [TalkLine(who: "tora", text: "a baked sweet potato って言いな", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato"])])], language: .enUS)
+        let q = Voice.parts(for: [TalkLine(who: "tora", text: "a baked sweet potato って言いな", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato"])])], partner: Partners.list(.enUS)[0])
         XCTAssertEqual(q.first?.text, "a baked sweet potato って言いな")
         // 同じ人が続いたら 1 片に
-        let r = Voice.parts(for: [TalkLine(who: "native", text: "A."), TalkLine(who: "native", text: "B?")], language: .enUS)
+        let r = Voice.parts(for: [TalkLine(who: "native", text: "A."), TalkLine(who: "native", text: "B?")], partner: Partners.list(.enUS)[0])
         XCTAssertEqual(r.count, 1)
         XCTAssertEqual(r.first?.text, "A. B?")
-        XCTAssertEqual(Voice.voices(.enUS)[Voice.tora], "Enceladus")
+        XCTAssertEqual(Voice.voices(partner: Partners.list(.enUS)[0])[Voice.tora], Voice.defaultToraVoice)
+        XCTAssertEqual(Voice.voices(partner: Partners.find("jim", language: .enUS), tora: "Algenib")[Voice.native], "en-us-olin")
+        XCTAssertEqual(Voice.voices(partner: Partners.list(.enUS)[0], tora: "nonsense")[Voice.tora], Voice.defaultToraVoice)
     }
 
     func testWavHeader() {
@@ -223,8 +225,36 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(t?.banter.first?.tag, "banter")
         // 被りの行は普通の発言として数える・声は banter の順で読む
         XCTAssertEqual(Talk.tally([TalkLine(who: "me", text: "Sorry, go ahead.", tag: "cut_in")], nativeLanguageIsJapanese: true).alone, 1)
-        let parts = Voice.parts(for: (t?.banter ?? []) + [TalkLine(who: "native", text: "So anyway?")], language: .enUS)
+        let parts = Voice.parts(for: (t?.banter ?? []) + [TalkLine(who: "native", text: "So anyway?")], partner: Partners.list(.enUS)[0])
         XCTAssertEqual(parts.map(\.speaker), [Voice.native, Voice.tora, Voice.native])
         XCTAssertTrue(Talk.system(language: .enUS).contains("## 被り"))
+    }
+
+    // 相手役: id で引ける・無ければ既定・人物像が指示文に入る
+    func testPartners() {
+        XCTAssertEqual(Partners.list(.enUS).count, 6)
+        XCTAssertEqual(Partners.find("taylor", language: .enUS).name, "Taylor")
+        XCTAssertEqual(Partners.find("", language: .enUS).name, "Sam")
+        XCTAssertEqual(Talk.nativeName(.esES), "Lucía")
+        let sys = Talk.system(language: .enUS, partner: Partners.find("elizabeth", language: .enUS))
+        XCTAssertTrue(sys.contains("Elizabeth, a 38-year-old woman from the Northwest"))
+        XCTAssertTrue(Talk.userMessage(request: .open(topic: "x"), history: [], language: .enUS, partner: Partners.find("nick", language: .enUS)).contains("Nick が挨拶"))
+    }
+
+    // 同時に話し出す見本: cut の行は collide になり、通常の読み上げから外れて別に作る。WAV の重ね・つなぎ
+    func testCollide() {
+        let t = Talk.parse(#"{"heard":"Yes","reply":"Okay.","banter":[{"who":"native","text":"Oh, I was gonna—","cut":true},{"who":"tora","text":"そういやよ—","cut":true},{"who":"native","text":"Sorry, go ahead."}]}"#)
+        XCTAssertEqual(t?.banter.map(\.tag), ["collide", "collide", "banter"])
+        let p = Partners.list(.enUS)[0]
+        XCTAssertEqual(Voice.collideParts(for: t!.banter, partner: p).map(\.speaker), [Voice.native, Voice.tora])
+        XCTAssertEqual(Voice.parts(for: t!.banter, partner: p).map(\.text), ["Sorry, go ahead."])
+        // 2 秒の音と 2 秒の音を 0.35 秒ずらして 1.3 秒ずつで切る → 1.65 秒
+        let tone = [Int16](repeating: 1000, count: Voice.sampleRate * 2)
+        let w = Voice.wav(pcm: tone.withUnsafeBufferPointer { Data(buffer: $0) }, sampleRate: Voice.sampleRate)
+        XCTAssertEqual(Voice.pcm(w).count, Voice.sampleRate * 2)
+        let c = Voice.collide(w, w)
+        XCTAssertEqual(Voice.pcm(c).count, Int(1.65 * Double(Voice.sampleRate)))
+        XCTAssertEqual(Voice.pcm(c)[Int(0.5 * Double(Voice.sampleRate))], 1700)   // 重なった所は 0.85 倍ずつの和
+        XCTAssertEqual(Voice.pcm(Voice.join([w, w], gap: 0.5)).count, Voice.sampleRate * 4 + Voice.sampleRate / 2)
     }
 }
