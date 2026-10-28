@@ -58,6 +58,7 @@ final class Speaker: NSObject, ObservableObject {
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         player?.stop(); player = nil
         speaking = nil
+        playingFile = nil
     }
 
     /// いま声が鳴っているか（AI の声か端末の声）
@@ -67,6 +68,21 @@ final class Speaker: NSObject, ObservableObject {
         if let p = player, p.isPlaying, p.duration > 0 { return min(1, p.currentTime / p.duration) }
         if synth.isSpeaking { return 0.5 }
         return nil
+    }
+
+    /// 復習の音声など、ファイルを鳴らす。鳴っている間は playingFile にその URL が入る
+    @Published private(set) var playingFile: URL?
+    func playFile(_ url: URL) {
+        stop()
+        guard let p = try? AVAudioPlayer(contentsOf: url) else { return }
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        #endif
+        p.delegate = self
+        player = p
+        playingFile = url
+        p.play()
     }
 
     /// 止めて、新しい番号を返す。この番号を play に渡すと、その間に止められていたら鳴らさない
@@ -116,6 +132,12 @@ final class Speaker: NSObject, ObservableObject {
         let v = vs.first(where: { $0.quality == .premium }) ?? vs.first(where: { $0.quality == .enhanced }) ?? AVSpeechSynthesisVoice(language: lang)
         cache[lang] = v
         return v
+    }
+}
+
+extension Speaker: AVAudioPlayerDelegate {
+    nonisolated func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in if self.player === p { self.playingFile = nil; self.player = nil } }
     }
 }
 

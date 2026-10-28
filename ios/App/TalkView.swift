@@ -31,6 +31,9 @@ struct TalkSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject var talk: TalkModel
     @State private var confirmClose = false
+    /// 自分や友人の声（相手役の候補に並ぶ）
+    @ObservedObject private var voices = CustomVoices.shared
+    @State private var addingVoice = false
 
     var body: some View {
         NavigationStack {
@@ -62,6 +65,7 @@ struct TalkSheet: View {
         .interactiveDismissDisabled(talk.active)
         .task {
             await model.refreshTalkQuota()
+            await voices.refreshStale(client: model.talkClient)
             #if DEBUG
             if let stage = UserDefaults.standard.string(forKey: "HGTalkDemo") { await talk.demo(stage) }
             #endif
@@ -100,15 +104,44 @@ struct TalkSheet: View {
                 Card(title: String(localized: "相手")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(Partners.list(model.targetLanguage)) { p in
-                                VoiceChip(name: p.name, blurb: p.blurb, selected: model.partnerId == p.id || (model.partnerId.isEmpty && p.id == Partners.list(model.targetLanguage)[0].id),
-                                          previewing: talk.previewing == p.id, color: Theme.info) {
+                            let all = Partners.list(model.targetLanguage, custom: voices.partners)
+                            ForEach(all) { p in
+                                VoiceChip(name: p.name, blurb: p.blurb, selected: model.partnerId == p.id || (model.partnerId.isEmpty && p.id == all[0].id),
+                                          previewing: talk.previewing == p.id, color: p.isCustom ? Theme.accent : Theme.info) {
                                     model.partnerId = p.id
                                 } preview: { Task { await talk.preview(partner: p) } }
+                                .contextMenu {
+                                    if p.isCustom, let v = voices.voice(forPartner: p.id) {
+                                        Button(role: .destructive) {
+                                            voices.remove(v.id)
+                                            if model.partnerId == p.id { model.partnerId = "" }
+                                        } label: { Label("この声を消す", systemImage: "trash") }
+                                    }
+                                }
                             }
+                            // 自分や友人の声を足す（2026-10-29 本人の要望）
+                            Button { addingVoice = true } label: {
+                                Label("声を足す", systemImage: "person.crop.circle.badge.plus")
+                                    .font(.callout.weight(.semibold)).foregroundStyle(Theme.accent)
+                                    .padding(.horizontal, 10).padding(.vertical, 11)
+                                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.accent.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                            }
+                            .buttonStyle(.plain)
+                            .help("自分や友人の声を録って、相手役にします")
+                        }
+                    }
+                    if let v = voices.voice(forPartner: model.partnerId) {
+                        if voices.refreshing.contains(v.id) {
+                            Text("\(v.name) の声の鍵を作り直しています…").font(.caption).foregroundStyle(Theme.muted)
+                        } else if let why = voices.refreshFailed[v.id] {
+                            Text(why).font(.caption).foregroundStyle(Theme.bad)
+                        } else {
+                            Text("\(v.name) の声は端末の中だけにあります。長押しで消せます。").font(.caption2).foregroundStyle(Theme.faint)
                         }
                     }
                 }
+                .sheet(isPresented: $addingVoice) { AddVoiceSheet(talk: talk).environmentObject(model) }
                 Card(title: String(localized: "\(talk.nativeName) の話し方")) {
                     HStack(spacing: 8) {
                         ForEach(Voice.Clarity.allCases, id: \.rawValue) { c in
@@ -435,6 +468,7 @@ struct TalkSheet: View {
                     .font(.caption).foregroundStyle(Theme.text)
             }
             Note(text: talk.saved == nil ? String(localized: "記録には残していません（何も話していないため）。") : String(localized: "記録に残しました。「履歴」からいつでも読み返せます。"))
+            if let s = talk.saved { RecapRow(session: model.snapshot.sessions.first { $0.id == s.id } ?? s) }
         }
         if !talk.good.isEmpty {
             Card(title: String(localized: "わしが買ってやる点")) { Text(talk.good).font(.callout).foregroundStyle(Theme.good) }

@@ -270,4 +270,54 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(sys.contains("トラさん自身が答える"))
         XCTAssertTrue(sys.contains("help_sub"))
     }
+    // 復習の音声: 台本の指示文に記録の中身が入る・読み取り・片の区切り・ファイル名
+    func testRecap() {
+        let p = Partners.find("taylor", language: .enUS)
+        let lines = [TalkLine(who: "native", text: "Hey! Did you just wake up?"),
+                     TalkLine(who: "me", text: "Yes, I drink coffee.", sub: "Yes, I'm drinking coffee.", fixes: [Issue(type: "grammar", original: "I drink", suggestion: "I'm drinking", reason: "今やってる最中だ")]),
+                     TalkLine(who: "tora", text: "こう言ってみな", asks: [Ask(said: "眠い", ways: ["I'm sleepy."])])]
+        let session = Talk.makeSession(id: "2026-10-29T00:00:00.000Z", lines: lines, good: "よく言えた", engine: "probe")
+        let msg = Recap.userMessage(session: session, partner: p, language: .enUS)
+        XCTAssertTrue(msg.contains("Taylor: Hey!"))
+        XCTAssertTrue(msg.contains("「眠い」 → I'm sleepy."))
+        XCTAssertTrue(msg.contains("I drink → I'm drinking"))
+        XCTAssertTrue(msg.contains("よく言えた"))
+        XCTAssertTrue(Recap.system(language: .enUS, partner: p).contains("2 回"))
+        let script = Recap.parse(#"{"lines":[{"who":"tora","text":"復習だ"},{"who":"native","text":"I'm sleepy."},{"who":"native","text":"I'm sleepy."},{"who":"tora","text":"眠いときはこれだ"}]}"#)
+        XCTAssertEqual(script.map(\.who), ["tora", "native", "native", "tora"])
+        let chunks = Recap.chunks(script, partner: p)
+        XCTAssertEqual(chunks.count, 1)
+        XCTAssertEqual(chunks[0].map(\.speaker), [Voice.tora, Voice.native, Voice.tora])   // 同じ人の連続はまとまる
+        XCTAssertEqual(chunks[0][1].text, "I'm sleepy. I'm sleepy.")
+        XCTAssertEqual(Recap.chunks(script, partner: p, maxChars: 10).count, 4)
+        XCTAssertEqual(Recap.fileName(for: session.id), "recap_2026-10-29T00-00-00.000Z.m4a")
+        XCTAssertTrue(Recap.parse("x").isEmpty)
+    }
+    // 自分や友人の声: 組み込みの後ろに並ぶ・id で引ける・消えたら既定に戻る・人物像は年齢や出身を作らない・複製の声の見分け・同意の文
+    func testCustomVoices() {
+        let mine = Voice.customPartner(id: "abc", name: "ヒロ", female: false, blurb: "大学の友人", voice: "voicekey_xyz")
+        XCTAssertEqual(mine.id, "custom:abc")
+        XCTAssertTrue(mine.isCustom)
+        XCTAssertFalse(Partners.find("sam", language: .enUS).isCustom)
+        let all = Partners.list(.enUS, custom: [mine])
+        XCTAssertEqual(all.last?.id, "custom:abc")
+        XCTAssertEqual(all.count, Partners.builtin(.enUS).count + 1)
+        XCTAssertEqual(Partners.find("custom:abc", language: .enUS, custom: [mine]).voice, "voicekey_xyz")
+        XCTAssertEqual(Partners.find("custom:abc", language: .enUS).id, "sam")     // 消した声を選んだままなら既定
+        XCTAssertEqual(mine.persona, "ヒロ, a man who is a friend of the learner. Friendly, relaxed and natural, talks like a close friend.")
+        XCTAssertFalse(mine.persona.contains("0-year-old"))
+        XCTAssertTrue(Voice.isReplicated("voicekey_abc"))
+        XCTAssertTrue(Voice.isReplicated("voice_abc"))
+        XCTAssertFalse(Voice.isReplicated("Puck"))
+        XCTAssertFalse(Voice.isReplicated("en-us-olin"))
+        XCTAssertEqual(Voice.voices(partner: mine)[Voice.native], "voicekey_xyz")
+        // 同意の文は Google の指定どおり（一字も変えない）
+        XCTAssertEqual(Voice.consentStatement("ja-JP"), "私はこの音声の所有者であり、Googleがこの音声を使用して音声合成モデルを作成することを承認します。")
+        XCTAssertEqual(Voice.consentStatement("en-US"), "I am the owner of this voice and I consent to Google using this voice to create a synthetic voice model.")
+        XCTAssertEqual(Voice.consentStatement("fr-FR"), Voice.consentStatement("en-US"))
+        // 鍵は返りのどこにあっても拾う
+        XCTAssertEqual(GeminiClient.findVoiceKey(in: ["replicated_voice": ["key": "voicekey_q1", "model": "x"]]), "voicekey_q1")
+        XCTAssertEqual(GeminiClient.findVoiceKey(in: ["replicatedVoice": ["id": "voice_77"]]), "voice_77")
+        XCTAssertNil(GeminiClient.findVoiceKey(in: ["name": "Puck"]))
+    }
 }

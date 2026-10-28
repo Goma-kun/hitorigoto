@@ -88,6 +88,8 @@ final class TalkModel: ObservableObject {
         startedAt = Date()
         lines = []; good = ""; saved = nil; rerunOf = []; previousTally = nil
         let t = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 自分や友人の声の鍵が古ければ、話し始める前に作り直す（7 日で切れる）
+        await CustomVoices.shared.ensureFresh(partnerId: partner.id, client: app.talkClient)
         await open(.open(topic: t.isEmpty ? (Talk.topics.randomElement() ?? "今日あったこと") : t))
     }
 
@@ -292,6 +294,8 @@ final class TalkModel: ObservableObject {
         }
         saved = app.finishTalk(lines: lines, good: good, startedAt: startedAt)
         phase = .ended
+        // 復習の音声は裏で作る（終わった画面と履歴に、できたら印が付く）
+        if let id = saved?.id { Task { await app.makeRecap(for: id) } }
     }
 
     /// 閉じるとき（途中でも）。録音中なら止める。記録はしない

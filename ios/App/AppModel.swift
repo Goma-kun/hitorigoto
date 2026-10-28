@@ -45,12 +45,14 @@ final class AppModel: ObservableObject {
     @Published var explainQuota: GeminiClient.Quota?
     /// 「三人で話す」の今日の回数（1 ターン 1 回・添削とは別枠）
     @Published var talkQuota: GeminiClient.Quota?
+    /// 「声を足す」（自分や友人の声の複製）の今日の回数
+    @Published var cloneQuota: GeminiClient.Quota?
     /// 「三人で話す」の相手役（言語ごとに覚える）とトラさんの声
     @Published var partnerId: String { didSet { UserDefaults.standard.set(partnerId, forKey: "talkPartner." + language) } }
     @Published var toraVoice: String { didSet { UserDefaults.standard.set(toraVoice, forKey: "talkToraVoice") } }
     /// ネイティブ役の聞き取りやすさ（はっきり／ふつう）
     @Published var clarity: Voice.Clarity { didSet { UserDefaults.standard.set(clarity.rawValue, forKey: "talkClarity") } }
-    var partner: Partner { Partners.find(partnerId, language: targetLanguage) }
+    var partner: Partner { Partners.find(partnerId, language: targetLanguage, custom: CustomVoices.shared.partners) }
     /// 「三人で話す」で Sam とトラさんを AI の自然な声で話させる（既定で入）。切ると端末の声（通信なし）
     @Published var naturalVoice: Bool { didSet { UserDefaults.standard.set(naturalVoice, forKey: "talkNaturalVoice") } }
     /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
@@ -138,6 +140,43 @@ final class AppModel: ObservableObject {
         sync?.localChanged(snapshot)
     }
 
+    // MARK: - 復習の音声
+
+    /// いま復習の音声を作っている記録の id
+    @Published var recapMaking: Set<String> = []
+    /// 作れなかった記録の id → 理由（履歴で「もう一度」を出す）
+    @Published var recapFailed: [String: String] = [:]
+
+    /// その記録の復習の音声を作る（台本 → 二人の声 → m4a）。終わると記録に recap が付く。
+    /// AI の声が切られているとき・鍵が無いときは作らない（端末の声では掛け合いが機械的になるため）
+    func makeRecap(for sessionId: String) async {
+        guard naturalVoice, let client = talkClient, !recapMaking.contains(sessionId),
+              let session = snapshot.sessions.first(where: { $0.id == sessionId }), session.talk != nil else { return }
+        recapMaking.insert(sessionId); recapFailed[sessionId] = nil
+        defer { recapMaking.remove(sessionId) }
+        let partner = Partners.find(partnerId, language: targetLanguage, custom: CustomVoices.shared.partners)
+        do {
+            let lines = try await client.recapScript(message: Recap.userMessage(session: session, partner: partner, language: targetLanguage),
+                                                     system: Recap.system(language: targetLanguage, partner: partner))
+            let voices = Voice.voices(partner: partner, tora: toraVoice)
+            var pieces: [Data] = []
+            for chunk in Recap.chunks(lines, partner: partner) {
+                pieces.append(try await client.speech(chunk, voices: voices))
+            }
+            guard !pieces.isEmpty, let dir = RecapAudio.dir else { throw GeminiClient.Failure.audio }
+            let wav = pieces.count == 1 ? pieces[0] : Voice.join(pieces, gap: 0.6)
+            let name = Recap.fileName(for: sessionId)
+            try RecapAudio.writeM4A(wav: wav, to: dir.appendingPathComponent(name))
+            if let i = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) {
+                snapshot.sessions[i].recap = name
+                if latestSession?.id == sessionId { latestSession = snapshot.sessions[i] }
+                save()
+            }
+        } catch {
+            recapFailed[sessionId] = String(localized: "復習の音声を作れませんでした。")
+        }
+    }
+
     // MARK: - トラさんに詳しく聞く
 
     /// その直しについて、これまでのやり取り（無ければ空）
@@ -210,6 +249,11 @@ final class AppModel: ObservableObject {
     func refreshTalkQuota() async {
         guard usesRelay else { talkQuota = nil; return }
         talkQuota = await GeminiClient(transport: Relay.transport).talkQuota()
+    }
+
+    func refreshCloneQuota() async {
+        guard usesRelay else { cloneQuota = nil; return }
+        cloneQuota = await GeminiClient(transport: Relay.transport).cloneQuota()
     }
 
     /// 会話を終えたら 1 回の記録として残す。今日の表現が会話の中で出ていれば、独り言と同じように判定して記録する
@@ -509,6 +553,7 @@ final class AppModel: ObservableObject {
         case .audio: return String(localized: "音声が空か大きすぎます。")
         case .quota(_, let limit): return String(localized: "今日の無料の添削（\(limit) 回）を使い切りました。日付が変わると戻ります。自分の Gemini キーを登録すると回数の制限なく使えます。")
         case .relayBusy: return String(localized: "今日はアクセスが集中しています。明日またどうぞ。")
+        case .consentRejected, .voiceRejected: return CustomVoices.describe(f)
         case .silent:
             // 実際に録ったマイクの名前を出す（Mac の既定とは限らない）
             let name = mic.isEmpty ? Platform.inputDeviceName : mic

@@ -134,10 +134,12 @@ public struct Session: Codable, Equatable, Sendable {
     public var explains: [ExplainThread]?
     /// アプリ版だけ: 「三人で話す」の会話そのもの（ネイティブ役・トラさん・学習者の順に並ぶ）。独り言の記録では nil
     public var talk: [TalkLine]?
+    /// アプリ版だけ: 「三人で話す」の復習の音声（m4a）のファイル名。端末の中だけにあり、他の端末には同期されない
+    public var recap: String?
 
     enum CodingKeys: String, CodingKey {
         case id, folded, transcript, asrTranscript = "asr_transcript", correctedText = "corrected_text"
-        case issues, moreFixes = "more_fixes", good, pronunciation, targets, asks, engine, explains, talk
+        case issues, moreFixes = "more_fixes", good, pronunciation, targets, asks, engine, explains, talk, recap
     }
 
     public init(id: String, folded: Bool? = nil, transcript: String? = nil, asrTranscript: String? = nil,
@@ -165,6 +167,7 @@ public struct Session: Codable, Equatable, Sendable {
         engine = try c.decodeIfPresent(String.self, forKey: .engine)
         explains = try c.decodeIfPresent([ExplainThread].self, forKey: .explains)
         talk = try c.decodeIfPresent([TalkLine].self, forKey: .talk)
+        recap = try c.decodeIfPresent(String.self, forKey: .recap)
     }
 }
 

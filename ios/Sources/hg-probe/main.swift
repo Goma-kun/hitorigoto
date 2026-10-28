@@ -152,6 +152,97 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
     exit(0)
 }
 
+// ---- 実 API（clone）----
+// `hg-probe clone --source talk.wav --consent consent.wav [--say "Hello"] [--out out.wav]`
+// 自分の声を複製して鍵（voicekey_…）を出す。--say を付けると、その鍵で一言しゃべらせて WAV に書く。
+// WAV は何 Hz でもよい（24kHz・モノラル・16bit に直してから送る: afconvert -f WAVE -d LEI16@24000 -c 1 in.wav out.wav）。
+// 同意の文は Voice.consentStatement（--lang ja / en）を本人がそのまま読んだもの。HG_RELAY=1 なら中継の /v1/voice-clone・/v1/speak を通る
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "clone" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let env = ProcessInfo.processInfo.environment
+    if args.contains("--statement") { print(Voice.consentStatement(take("--lang") ?? "ja")); exit(0) }
+    guard let sp = take("--source"), let cp = take("--consent"),
+          let source = FileManager.default.contents(atPath: sp), let consent = FileManager.default.contents(atPath: cp) else {
+        print("--source と --consent（どちらも WAV）が要ります。--statement で同意の文を出します"); exit(1)
+    }
+    let say = take("--say")
+    let out = take("--out") ?? "clone.wav"
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        do {
+            let t0 = Date()
+            let key: String
+            if let k = env["HG_VOICEKEY"] { key = k } else { key = try await client.createVoice(source: source, consent: consent) }
+            print(String(format: "voicekey (%d chars) %.1fs: %@", key.count, Date().timeIntervalSince(t0), key))
+            if let say {
+                let t1 = Date()
+                let partner = Voice.customPartner(id: "probe", name: env["HG_NAME"] ?? "Me", female: env["HG_FEMALE"] == "1", blurb: "", voice: key)
+                let part = VoicePart(speaker: Voice.native, text: say, style: Voice.nativeStyle(partner, clarity: .natural))
+                let wav = try await client.speech([part], voices: Voice.voices(partner: partner))
+                try wav.write(to: URL(fileURLWithPath: out))
+                print(String(format: "ok %.1fs  %.1fs of audio → %@", Date().timeIntervalSince(t1), Double(Voice.pcm(wav).count) / Double(Voice.sampleRate), out))
+            }
+        } catch { print("error: \(error)") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
+// ---- 実 API（recap）----
+// `hg-probe recap --history h.json --out recap.wav` 会話の記録（TalkLine の JSON 配列）から復習の音声を作る。
+// 台本だけ見たいときは --out を省く。HG_PARTNER / HG_TORA / HG_RELAY は voice と同じ
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "recap" {
+    let args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
+    let lines: [TalkLine] = take("--history").flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
+    guard !lines.isEmpty else { print("--history が要ります"); exit(1) }
+    let env = ProcessInfo.processInfo.environment
+    let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
+    let partner = Partners.find(env["HG_PARTNER"] ?? "", language: lang)
+    let session = Talk.makeSession(id: "probe", lines: lines, good: env["HG_GOOD"] ?? "", engine: "probe")
+    let client: GeminiClient
+    if env["HG_RELAY"] == "1" {
+        client = GeminiClient(transport: .relay(url: URL(string: env["HG_RELAY_URL"] ?? "https://hitorigoto-relay.jsphdn.workers.dev")!, deviceId: env["HG_DEVICE_ID"] ?? "0A1B2C3D-0000-4000-8000-0000000000AA", appKey: env["HG_RELAY_APPKEY"] ?? ""))
+    } else {
+        let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        client = GeminiClient(key: key)
+    }
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        do {
+            let t0 = Date()
+            let script = try await client.recapScript(message: Recap.userMessage(session: session, partner: partner, language: lang),
+                                                      system: Recap.system(language: lang, partner: partner, explanation: .ja))
+            for l in script { print("[\(l.who == "tora" ? "Tora" : partner.name)] \(l.text)") }
+            let words = script.map(\.text).joined(separator: " ").split(separator: " ").count
+            print("lines \(script.count)  words \(words)  script \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+            if let out = take("--out") {
+                let voices = Voice.voices(partner: partner, tora: env["HG_TORA"] ?? Voice.defaultToraVoice)
+                var pieces: [Data] = []
+                for c in Recap.chunks(script, partner: partner) { pieces.append(try await client.speech(c, voices: voices)) }
+                let wav = pieces.count == 1 ? pieces[0] : Voice.join(pieces, gap: 0.6)
+                try wav.write(to: URL(fileURLWithPath: out))
+                print("ok \(pieces.count) chunks  \(String(format: "%.1f", Double(Voice.pcm(wav).count) / Double(Voice.sampleRate)))s  \(String(format: "%.1f", Date().timeIntervalSince(t0)))s → \(out)")
+            }
+        } catch { print("error: \(error)") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（talk）----
 // `hg-probe talk --open "話題"` / `hg-probe talk --audio turn.m4a [--history h.json]` 三人で話すの 1 ターンを本物の Gemini に投げる。
 // --history は TalkLine の JSON 配列（省略可）。--hint / --close も可。結果は JSON で返す

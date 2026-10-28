@@ -21,3 +21,6 @@ android/.kotlin/
 
 # 中継サーバーの合言葉（ios/tools/gen_relay_secret.sh が作る。絶対に入れない）
 ios/App/RelaySecret.swift
+
+# wrangler dev のローカル状態
+server/.wrangler/

@@ -3131,6 +3131,416 @@
           }
         }
       }
+    },
+    "%@ の声の鍵を作り直しています…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaking the speaking key for %@'s voice…"
+          }
+        }
+      }
+    },
+    "%@ の声は端末の中だけにあります。長押しで消せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@'s voice is kept only on this device. Long-press to delete."
+          }
+        }
+      }
+    },
+    "%lld 秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld s"
+          }
+        }
+      }
+    },
+    "%lld 秒で自動的に止まります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops automatically at %lld seconds"
+          }
+        }
+      }
+    },
+    "1. ふだんの話し声（%lld〜%lld 秒）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Everyday speech (%lld–%lld seconds)"
+          }
+        }
+      }
+    },
+    "2. 同意の文を読む": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Read the consent statement"
+          }
+        }
+      }
+    },
+    "AI の設定（おまかせか、自分のキー）を確かめてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your AI settings (the default service or your own key)."
+          }
+        }
+      }
+    },
+    "English": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "Google の声の複製には、声の本人がこの文をそのまま読んだ声が要ります。一字も変えずに、はっきり読んでください。友人の声を足すときは、その人に読んでもらってください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google's voice replication needs the voice's owner to read this statement exactly. Read it clearly, word for word. To add a friend's voice, have them read it."
+          }
+        }
+      }
+    },
+    "いまはまだ声の似せ方が粗いことがあります。静かな部屋で、いつもの調子で録ると近づきます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The likeness can still be rough. Recording in a quiet room, in your usual tone, gets closer."
+          }
+        }
+      }
+    },
+    "この声は登録できませんでした。話し声は 10〜30 秒、同じ人の声を同じマイクで録ってください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This voice could not be registered. Record 10–30 seconds of speech from the same person with the same microphone."
+          }
+        }
+      }
+    },
+    "この声を消す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this voice"
+          }
+        }
+      }
+    },
+    "この声を登録する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register this voice"
+          }
+        }
+      }
+    },
+    "この音声ファイルは読めませんでした。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This audio file could not be read."
+          }
+        }
+      }
+    },
+    "だれの声？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whose voice?"
+          }
+        }
+      }
+    },
+    "ファイルから": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From a file"
+          }
+        }
+      }
+    },
+    "マイクの使用が許可されていません。設定で許可してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone access is not allowed. Please allow it in Settings."
+          }
+        }
+      }
+    },
+    "一言（例: 大学の友人）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A note (e.g. college friend)"
+          }
+        }
+      }
+    },
+    "今はアクセスが集中しています。しばらくしてからどうぞ。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The service is busy right now. Please try again later."
+          }
+        }
+      }
+    },
+    "今日の「声を足す」の回数を使い切りました。明日またどうぞ。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've used today's voice registrations. Please try again tomorrow."
+          }
+        }
+      }
+    },
+    "今日はあと %lld 回登録できます（%lld 回まで）。登録には 10 秒ほどかかります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld registrations left today (up to %lld). Registering takes about 10 seconds."
+          }
+        }
+      }
+    },
+    "内容は何でも。今日あったことなどを、いつもの調子で話してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anything goes. Talk about your day in your usual tone."
+          }
+        }
+      }
+    },
+    "同意の文が、画面のとおりに読めていないようです。静かな所で、文を一字も変えずにはっきり読んで、もう一度お試しください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The consent statement doesn't seem to match the text on screen. In a quiet place, read it clearly word for word and try again."
+          }
+        }
+      }
+    },
+    "名前（例: 自分、ヒロ）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name (e.g. Me, Hiro)"
+          }
+        }
+      }
+    },
+    "声を作っています…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating the voice…"
+          }
+        }
+      }
+    },
+    "声を足す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a voice"
+          }
+        }
+      }
+    },
+    "女性": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Female"
+          }
+        }
+      }
+    },
+    "日本語で読む": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read in Japanese"
+          }
+        }
+      }
+    },
+    "止める": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        }
+      }
+    },
+    "男性": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Male"
+          }
+        }
+      }
+    },
+    "登録できませんでした: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't register: %@"
+          }
+        }
+      }
+    },
+    "短すぎます。%lld 秒以上話してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too short. Please speak for at least %lld seconds."
+          }
+        }
+      }
+    },
+    "聞く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play"
+          }
+        }
+      }
+    },
+    "自分や友人の声": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your own or a friend's voice"
+          }
+        }
+      }
+    },
+    "自分や友人の声で、相手役に話してもらえます。声は端末の中に置き、Google 側には残しません（話すための鍵だけを作り、7 日ごとに作り直します）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your conversation partner can speak in your own or a friend's voice. The recordings stay on this device and are not kept by Google (only a speaking key is created, and it is remade every 7 days)."
+          }
+        }
+      }
+    },
+    "自分や友人の声を録って、相手役にします": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record your own or a friend's voice to use as the partner"
+          }
+        }
+      }
+    },
+    "通信できませんでした: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't connect: %@"
+          }
+        }
+      }
+    },
+    "録った声が見つかりません。消して、もう一度登録してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recorded voice could not be found. Delete it and register again."
+          }
+        }
+      }
+    },
+    "録り直す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record again"
+          }
+        }
+      }
+    },
+    "録音する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record"
+          }
+        }
+      }
+    },
+    "音が短すぎる、または大きすぎます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio is too short or too large."
+          }
+        }
+      }
     }
   }
 }

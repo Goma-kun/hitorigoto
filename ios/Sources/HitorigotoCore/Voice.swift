@@ -33,8 +33,14 @@ public struct Partner: Identifiable, Equatable, Sendable {
         self.id = id; self.name = name; self.voice = voice; self.female = female; self.age = age; self.from = from; self.vibe = vibe; self.blurb = blurb
     }
 
-    /// 人物像（英語・1 文）。指示文の「1 人目」と声の指示に使う
-    public var persona: String { "\(name), a \(age)-year-old \(female ? "woman" : "man") from \(from). \(vibe)." }
+    /// 人物像（英語・1 文）。指示文の「1 人目」と声の指示に使う。
+    /// 自分や友人の声（出身なし）は、年齢・出身を作らず「学習者の友人」とだけ言う
+    public var persona: String {
+        if from.isEmpty { return "\(name), a \(female ? "woman" : "man") who is a friend of the learner. \(vibe)." }
+        return "\(name), a \(age)-year-old \(female ? "woman" : "man") from \(from). \(vibe)."
+    }
+    /// 自分や友人の声（Gemini の声の複製）で話す相手役か
+    public var isCustom: Bool { id.hasPrefix(Voice.customPrefix) }
 }
 
 /// トラさんの声の候補（本人が選ぶ）。2026-10-28 に 12 本＋6 本を合成して AI に採点させたもの
@@ -45,8 +51,13 @@ public struct ToraVoice: Identifiable, Equatable, Sendable {
 }
 
 public enum Partners {
-    /// 言語ごとの相手役。先頭が既定
-    public static func list(_ language: TargetLanguage) -> [Partner] {
+    /// 言語ごとの相手役。先頭が既定。custom は自分や友人の声で作った相手役（App 側が持つ・最後に並ぶ）
+    public static func list(_ language: TargetLanguage, custom: [Partner] = []) -> [Partner] {
+        builtin(language) + custom
+    }
+
+    /// 組み込みの相手役
+    public static func builtin(_ language: TargetLanguage) -> [Partner] {
         switch language {
         case .enUS, .enGB:
             return [
@@ -70,9 +81,9 @@ public enum Partners {
         }
     }
 
-    /// id で探す。無ければ先頭（既定）
-    public static func find(_ id: String, language: TargetLanguage) -> Partner {
-        let l = list(language)
+    /// id で探す。無ければ先頭（既定）。消した自分の声を選んだままでも既定に戻る
+    public static func find(_ id: String, language: TargetLanguage, custom: [Partner] = []) -> Partner {
+        let l = list(language, custom: custom)
         return l.first(where: { $0.id == id }) ?? l[0]
     }
 }
@@ -80,6 +91,35 @@ public enum Partners {
 public enum Voice {
     public static let tora = "Tora"
     public static let native = "Native"
+
+    // MARK: - 自分や友人の声（Gemini の声の複製・2026-10-29 本人の要望「自分や友人の声をアップロードして相手役に」）
+    //
+    // Gemini の Voices API は、10〜30 秒の話し声と「同意の文を読んだ声」の 2 本から声を複製する（店の声と同じ TTS モデルで話せる）。
+    // 同意の文は Google が定めたもので一字も変えてはいけない（違うと "Consent flow failed" で弾かれる・2026-10-29 実測）。
+    // 鍵（voicekey_…）は端末だけが持ち、Google 側には残さない（store=false）。鍵は 7 日で切れるので、録った声から作り直す（App 側）
+
+    /// 自分や友人の声で作った相手役の id の頭
+    public static let customPrefix = "custom:"
+    /// その声の名前が複製の声（鍵）か。複製の声は 1 回の合成で 1 人しか話せないので、呼ぶ側が分ける
+    public static func isReplicated(_ voice: String) -> Bool { voice.hasPrefix("voicekey_") || voice.hasPrefix("voice_") }
+
+    /// 自分や友人の声の相手役を作る。vibe が空なら気さくな友人
+    public static func customPartner(id: String, name: String, female: Bool, blurb: String, voice: String, vibe: String = "") -> Partner {
+        Partner(id: customPrefix + id, name: name, voice: voice, female: female, age: 0, from: "",
+                vibe: vibe.isEmpty ? "Friendly, relaxed and natural, talks like a close friend" : vibe, blurb: blurb)
+    }
+
+    /// 声の複製に要る同意の文（Google の指定・一字も変えない）。ja / en / es 以外は英語
+    public static func consentStatement(_ locale: String) -> String {
+        if locale.hasPrefix("ja") { return "私はこの音声の所有者であり、Googleがこの音声を使用して音声合成モデルを作成することを承認します。" }
+        if locale.hasPrefix("es") { return "Soy el propietario de esta voz y doy mi consentimiento para que Google la utilice para crear un modelo de voz sintética." }
+        return "I am the owner of this voice and I consent to Google using this voice to create a synthetic voice model."
+    }
+
+    /// 録る声の長さ（秒）。話し声は 10〜30 秒（Google の指定）、同意の文は読み終わるまで（長くても 20 秒）
+    public static let sampleMinSeconds = 10
+    public static let sampleMaxSeconds = 30
+    public static let consentMaxSeconds = 20
 
     /// トラさんの声の候補。先頭が既定（本人「じいさんっぽい人がいい」・2026-10-28 に候補を聞いてもらって決める）
     public static let toraVoices: [ToraVoice] = [
@@ -104,7 +144,7 @@ public enum Voice {
         public var blurb: String { self == .clear ? "ゆっくり・一語ずつ明瞭に（音声解説の司会のように）" : "ネイティブ同士の速さと崩し方のまま" }
     }
 
-    static func nativeStyle(_ partner: Partner, clarity: Clarity = .natural) -> String {
+    public static func nativeStyle(_ partner: Partner, clarity: Clarity = .natural) -> String {
         switch clarity {
         case .natural:
             return "\(partner.persona) Chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."

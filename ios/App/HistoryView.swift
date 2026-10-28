@@ -125,6 +125,7 @@ struct SessionCard: View {
                     } label: {
                         Text("会話を読み返す").font(.caption.weight(.bold)).foregroundStyle(Theme.accent)
                     }
+                    RecapRow(session: session)
                 }
                 if !session.issues.isEmpty {
                     Text("直すべし").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)

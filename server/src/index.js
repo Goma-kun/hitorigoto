@@ -16,7 +16,10 @@
 //   /v1/scan    スクショ 1 枚から表現集の候補を取り出す（画像つき・2026-10-25）。端末ごと SCAN_PER_DAY 回・全体 SCAN_GLOBAL_PER_DAY 回
 //   /v1/talk    「三人で話す」の 1 ターン（短い音声か文字・2026-10-28）。端末ごと TALK_PER_DAY 回・全体 TALK_GLOBAL_PER_DAY 回
 //   /v1/voice   「三人で話す」の声（Sam とトラさんの読み上げ・文字だけ送って音声が返る・2026-10-28）。端末ごと VOICE_PER_DAY 回・全体 VOICE_GLOBAL_PER_DAY 回
-//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan"、talk の分は "talk"、voice の分は "voice" に入れて返す）
+//   /v1/speak   自分や友人の声（複製）で 1 片を読む（Gemini の interactions の入口・文字と鍵だけ・2026-10-29）。voice と同じ財布で数える
+//   /v1/voice-clone  自分や友人の声を複製する（話し声＋同意の文の WAV 2 本・Gemini の voices の入口・2026-10-29）。端末ごと CLONE_PER_DAY 回・全体 CLONE_GLOBAL_PER_DAY 回。
+//               store は必ず false に書き換える（利用者の声を Google 側のこのプロジェクトに残さない）
+//   /v1/quota   今日の回数（explain の分は "explain"、scan の分は "scan"、talk の分は "talk"、voice の分は "voice"、clone の分は "clone" に入れて返す）
 //
 // 月の予算（2026-10-13 本人「月に最大 1 万円程度に抑える」）:
 //   1 回ごとに見込みの原価（REVIEW_COST_YEN / EXPLAIN_COST_YEN）を月の帳簿 m:YYYYMM に足し、MONTHLY_BUDGET_YEN に達したら止める。
@@ -30,6 +33,9 @@ const GEMINI = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}
 // 三人で話すの声（TTS）。アプリの GeminiClient.voiceModel と揃える
 const VOICE_MODEL = 'gemini-3.8-flash-lite-tts';
 const GEMINI_VOICE = `https://generativelanguage.googleapis.com/v1beta/models/${VOICE_MODEL}:generateContent`;
+// 複製の声で話す入口（generateContent では複製の声を指せない）と、声を複製する入口（モデル名は付けない・付けると弾かれる）
+const GEMINI_SPEAK = 'https://generativelanguage.googleapis.com/v1beta/interactions';
+const GEMINI_VOICES = 'https://generativelanguage.googleapis.com/v1beta/voices';
 
 // 日本時間の日付（YYYYMMDD）。回数はこの単位で数える
 function jstDay(now = new Date()) {
@@ -106,24 +112,33 @@ export default {
     const vKey = `v:${device}:${day}`;
     const vgKey = `gv:${day}`;
 
+    const cLimit = Number(env.CLONE_PER_DAY || '5');
+    const cGlobalLimit = Number(env.CLONE_GLOBAL_PER_DAY || '40');
+    const cKey = `c:${device}:${day}`;
+    const cgKey = `gc:${day}`;
+
     if (url.pathname === '/v1/quota' && request.method === 'GET') {
       const used = await count(env, dKey, ttl);
       const eUsed = await count(env, eKey, ttl);
       const sUsed = await count(env, sKey, ttl);
       const tUsed = await count(env, tKey, ttl);
       const vUsed = await count(env, vKey, ttl);
+      const cUsed = await count(env, cKey, ttl);
       return json({ used, limit, remaining: Math.max(0, limit - used), resetsInSeconds: ttl,
         explain: { used: eUsed, limit: eLimit, remaining: Math.max(0, eLimit - eUsed) },
         scan: { used: sUsed, limit: sLimit, remaining: Math.max(0, sLimit - sUsed) },
         talk: { used: tUsed, limit: tLimit, remaining: Math.max(0, tLimit - tUsed) },
-        voice: { used: vUsed, limit: vLimit, remaining: Math.max(0, vLimit - vUsed) } });
+        voice: { used: vUsed, limit: vLimit, remaining: Math.max(0, vLimit - vUsed) },
+        clone: { used: cUsed, limit: cLimit, remaining: Math.max(0, cLimit - cUsed) } });
     }
 
     const isExplain = url.pathname === '/v1/explain';
     const isScan = url.pathname === '/v1/scan';
     const isTalk = url.pathname === '/v1/talk';
     const isVoice = url.pathname === '/v1/voice';
-    if ((url.pathname !== '/v1/review' && !isExplain && !isScan && !isTalk && !isVoice) || request.method !== 'POST') {
+    const isSpeak = url.pathname === '/v1/speak';
+    const isClone = url.pathname === '/v1/voice-clone';
+    if ((url.pathname !== '/v1/review' && !isExplain && !isScan && !isTalk && !isVoice && !isSpeak && !isClone) || request.method !== 'POST') {
       return json({ error: { code: 'not_found', message: 'そのような入口はありません' } }, 404);
     }
     // 詳しく聞くは別の財布で数える（添削の 3 回を食わない）
@@ -154,6 +169,20 @@ export default {
         maxBody: Number(env.VOICE_MAX_BODY_BYTES || '32768'), textOnly: true, upstream: GEMINI_VOICE,
         quotaMessage: '今日の「三人で話す」の声の回数を使い切りました' });
     }
+    // 複製の声で 1 片を読む。声と同じ財布。送るのは文字と鍵だけ（鍵は長いので本文の上限は声より広く）
+    if (isSpeak) {
+      return relay(request, env, { dKey: vKey, gKey: vgKey, ttl, limit: vLimit, globalLimit: vGlobalLimit,
+        costYen: Number(env.VOICE_COST_YEN || '1'),
+        maxBody: Number(env.SPEAK_MAX_BODY_BYTES || '262144'), textOnly: true, upstream: GEMINI_SPEAK, shape: 'speak',
+        quotaMessage: '今日の「三人で話す」の声の回数を使い切りました' });
+    }
+    // 声の複製。WAV 2 本（30 秒＋20 秒・24kHz で 2.4MB ほど・base64 で 3.2MB）。別の財布・回数は少なく
+    if (isClone) {
+      return relay(request, env, { dKey: cKey, gKey: cgKey, ttl, limit: cLimit, globalLimit: cGlobalLimit,
+        costYen: Number(env.CLONE_COST_YEN || '3'),
+        maxBody: Number(env.CLONE_MAX_BODY_BYTES || '8000000'), textOnly: false, upstream: GEMINI_VOICES, shape: 'clone',
+        quotaMessage: '今日の「声を足す」の回数を使い切りました' });
+    }
     return relay(request, env, { dKey, gKey, ttl, limit, globalLimit,
       costYen: Number(env.REVIEW_COST_YEN || '10'),
       maxBody: Number(env.MAX_BODY_BYTES || '8000000'), textOnly: false,
@@ -161,8 +190,41 @@ export default {
   },
 };
 
+// 本文の形を確かめて、Gemini に渡してよい鍵だけ残す。shape: generate（いつもの generateContent）／speak（interactions）／clone（voices）
+// 通らなければ理由の文字を返す
+function shapeBody(parsed, shape, textOnly) {
+  if (shape === 'speak') {
+    const allowed = new Set(['input', 'response_format', 'generation_config']);
+    for (const k of Object.keys(parsed)) if (!allowed.has(k)) delete parsed[k];
+    parsed.model = VOICE_MODEL;                       // モデルはこちらで決める
+    if (!Array.isArray(parsed.input) || parsed.input.length === 0) return 'input がありません';
+    for (const it of parsed.input) if (!it || it.type !== 'text' || typeof it.text !== 'string') return '文字だけを送ってください';
+    return null;
+  }
+  if (shape === 'clone') {
+    for (const k of Object.keys(parsed)) if (k !== 'voice') delete parsed[k];
+    parsed.store = false;                             // 利用者の声を Google 側に残さない
+    const v = parsed.voice;
+    if (!v || v.type !== 'replicated' || !v.replicated) return 'voice がありません';
+    delete v.model; delete v.display_name; delete v.displayName;
+    const r = v.replicated;
+    for (const k of ['source_audio', 'consent_audio']) {
+      if (!r[k] || typeof r[k].data !== 'string' || r[k].data.length < 1000) return `${k} がありません`;
+      r[k] = { mime_type: 'audio/wav', data: r[k].data };
+    }
+    parsed.voice = { type: 'replicated', replicated: { source_audio: r.source_audio, consent_audio: r.consent_audio } };
+    return null;
+  }
+  const allowed = new Set(['systemInstruction', 'contents', 'generationConfig', 'tools']);
+  for (const k of Object.keys(parsed)) if (!allowed.has(k)) delete parsed[k];
+  if (!Array.isArray(parsed.contents)) return 'contents がありません';
+  // 詳しく聞くは文字だけ。音声や画像（inlineData / fileData）は通さない
+  if (textOnly && JSON.stringify(parsed.contents).match(/"(inlineData|fileData)"/)) return '文字だけを送ってください';
+  return null;
+}
+
 // 回数を数えて Gemini に転送する（添削と詳しく聞くで共通）
-async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYen, maxBody, textOnly, quotaMessage, upstream = GEMINI }) {
+async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYen, maxBody, textOnly, quotaMessage, upstream = GEMINI, shape = 'generate' }) {
     const len = Number(request.headers.get('content-length') || '0');
     if (len > maxBody) return json({ error: { code: 'too_large', message: '音声が大きすぎます' } }, 413);
 
@@ -189,13 +251,8 @@ async function relay(request, env, { dKey, gKey, ttl, limit, globalLimit, costYe
     // 形だけ確かめる（中身はアプリが決める）。Gemini に渡してよい鍵だけ通す
     let parsed;
     try { parsed = JSON.parse(body); } catch { return json({ error: { code: 'bad_request', message: 'JSON ではありません' } }, 400); }
-    const allowed = new Set(['systemInstruction', 'contents', 'generationConfig', 'tools']);
-    for (const k of Object.keys(parsed)) if (!allowed.has(k)) delete parsed[k];
-    if (!Array.isArray(parsed.contents)) return json({ error: { code: 'bad_request', message: 'contents がありません' } }, 400);
-    // 詳しく聞くは文字だけ。音声や画像（inlineData / fileData）は通さない
-    if (textOnly && JSON.stringify(parsed.contents).match(/"(inlineData|fileData)"/)) {
-      return json({ error: { code: 'bad_request', message: '文字だけを送ってください' } }, 400);
-    }
+    const bad = shapeBody(parsed, shape, textOnly);
+    if (bad) return json({ error: { code: 'bad_request', message: bad } }, 400);
 
     // 先に数える（失敗しても 1 回と数える。同じ音声の送り直しは Gemini 側が落ちたときだけ戻す）
     const nowUsed = await bump(env, dKey, ttl);
