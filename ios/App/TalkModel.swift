@@ -175,7 +175,7 @@ final class TalkModel: ObservableObject {
         }
         if sentCutIn || sentDemo { overlapTaught = true }
         var added: [TalkLine] = turn.banter
-        let tora = (!turn.help.isEmpty || !turn.asks.isEmpty) ? TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks) : nil
+        let tora = (!turn.help.isEmpty || !turn.asks.isEmpty) ? TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks, note: turn.helpSub) : nil
         let native = !turn.reply.isEmpty ? TalkLine(who: "native", text: turn.reply, sub: turn.replySub) : nil
         // 見本のターンは「Sam が話を続けてから、トラさんが学習者に教える」順。それ以外はトラさん → Sam
         if sentDemo { added += [native, tora].compactMap { $0 } } else { added += [tora, native].compactMap { $0 } }
@@ -309,8 +309,8 @@ final class TalkModel: ObservableObject {
         let collide = Voice.collideParts(for: added, partner: partner)
         guard !parts.isEmpty || !collide.isEmpty else { return }
         let epoch = Speaker.shared.begin()
-        let toraLang = TargetLanguage.explanation == .ja ? "ja-JP" : "en-US"
-        let fallback: [(text: String, language: String?)] = parts.map { ($0.text, $0.speaker == Voice.tora ? toraLang : nil) }
+        // トラさんは学習者に合わせて母語でも話す言語でも話すので、端末の声は文字を見て決める（日本語の字があれば日本語の声）
+        let fallback: [(text: String, language: String?)] = parts.map { ($0.text, $0.speaker == Voice.tora ? Voice.fallbackLanguage(for: $0.text) : nil) }
         var client = app.naturalVoice ? app.talkClient : nil
         #if DEBUG
         if DevHooks.fakeTalk { client = nil }

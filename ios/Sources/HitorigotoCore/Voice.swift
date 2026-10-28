@@ -100,7 +100,15 @@ public enum Voice {
         "\(partner.persona) Chatting casually with a new friend who is learning the language. Natural and lively, a little slower and clearer than usual."
     }
 
-    static let toraStyle = "a very old man in his 80s, a retired boxing-gym trainer from downtown Tokyo: thin, wheezy, hoarse, slightly shaky elderly voice, slow and gravelly, worn by decades of shouting. Warm and amused underneath, not angry."
+    static let toraStyle = "a very old man in his 80s, a retired boxing-gym trainer from downtown Tokyo: thin, wheezy, hoarse, slightly shaky elderly voice, slow and gravelly, worn by decades of shouting. Warm and amused underneath, not angry. When the line is in English, speak fluent English in the same old hoarse voice, with a faint Japanese accent."
+
+    /// 端末の声で読むときの言語。トラさんは学習者に合わせて母語でも話す言語でも話すので、文字を見て決める。
+    /// 日本語の字があれば ja-JP、無ければ nil（＝設定の「話す言語」の声）。説明が英語の設定で話す言語が英語でないときは en-US
+    public static func fallbackLanguage(for text: String) -> String? {
+        if text.unicodeScalars.contains(where: { (0x3040...0x30FF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) }) { return "ja-JP" }
+        if TargetLanguage.explanation == .en, !TargetLanguage.default.locale.hasPrefix("en") { return "en-US" }
+        return nil
+    }
 
     /// 試聴用の一言
     public static func sampleLine(_ partner: Partner, language: TargetLanguage) -> String {

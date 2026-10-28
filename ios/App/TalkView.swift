@@ -512,6 +512,10 @@ struct ToraBubble: View {
                 Text("トラさん").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
                 if !line.text.isEmpty {
                     Text(line.text).font(.callout).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                    // 話す言語で返したときは、その訳を小さく添える
+                    if !line.note.isEmpty {
+                        Text(line.note).font(.caption).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 ForEach(Array(line.asks.enumerated()), id: \.offset) { i, a in
                     if i > 0 || !line.text.isEmpty { Divider().overlay(Theme.line) }

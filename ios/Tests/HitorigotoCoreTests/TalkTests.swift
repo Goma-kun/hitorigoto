@@ -257,4 +257,17 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(Voice.pcm(c)[Int(0.5 * Double(Voice.sampleRate))], 1700)   // 重なった所は 0.85 倍ずつの和
         XCTAssertEqual(Voice.pcm(Voice.join([w, w], gap: 0.5)).count, Voice.sampleRate * 4 + Voice.sampleRate / 2)
     }
+    // トラさんは学習者に合わせて話す言語でも返す: help_sub が訳として残り、端末の声は字で言語を決める
+    func testToraLanguage() {
+        let t = Talk.parse(#"{"heard":"How about you, Tora?","reply":"Oh nice!","help":"Me? I'm right here in Tokyo with you, kid.","help_sub":"わしか？おめえと同じ東京にいるぜ。"}"#)
+        XCTAssertEqual(t?.helpSub, "わしか？おめえと同じ東京にいるぜ。")
+        let line = TalkLine(who: "tora", text: t!.help, note: t!.helpSub)
+        let back = try! JSONDecoder().decode(TalkLine.self, from: try! JSONEncoder().encode(line))
+        XCTAssertEqual(back.note, line.note)
+        XCTAssertEqual(Voice.fallbackLanguage(for: "わしか？東京だ。"), "ja-JP")
+        XCTAssertNil(Voice.fallbackLanguage(for: "Me? Tokyo, kid."))
+        let sys = Talk.system(language: .enUS)
+        XCTAssertTrue(sys.contains("トラさん自身が答える"))
+        XCTAssertTrue(sys.contains("help_sub"))
+    }
 }

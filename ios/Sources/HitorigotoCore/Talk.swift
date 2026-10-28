@@ -21,14 +21,16 @@ public struct TalkLine: Codable, Equatable, Sendable, Identifiable {
     /// "stuck"（言い淀んで、トラさんに言い方を補ってもらった。助けてもらった分に数える）／
     /// "cut_in"（ネイティブ役の話の途中で話し始めた＝被った）。それ以外は空
     public var tag: String
+    /// tora: 一言が話す言語のときの訳（学習者が話す言語で話しかけたら、トラさんも話す言語で返す・2026-10-29）。それ以外は空
+    public var note: String
 
     public var id: String { "\(who):\(text.hashValue):\(sub.hashValue)" }
 
-    public init(who: String, text: String, sub: String = "", asks: [Ask] = [], fixes: [Issue] = [], tag: String = "") {
-        self.who = who; self.text = text; self.sub = sub; self.asks = asks; self.fixes = fixes; self.tag = tag
+    public init(who: String, text: String, sub: String = "", asks: [Ask] = [], fixes: [Issue] = [], tag: String = "", note: String = "") {
+        self.who = who; self.text = text; self.sub = sub; self.asks = asks; self.fixes = fixes; self.tag = tag; self.note = note
     }
 
-    enum CodingKeys: String, CodingKey { case who, text, sub, asks, fixes, tag }
+    enum CodingKeys: String, CodingKey { case who, text, sub, asks, fixes, tag, note }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         who = try c.decodeIfPresent(String.self, forKey: .who) ?? "me"
@@ -37,12 +39,14 @@ public struct TalkLine: Codable, Equatable, Sendable, Identifiable {
         asks = try c.decodeIfPresent([Ask].self, forKey: .asks) ?? []
         fixes = try c.decodeIfPresent([Issue].self, forKey: .fixes) ?? []
         tag = try c.decodeIfPresent(String.self, forKey: .tag) ?? ""
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(who, forKey: .who); try c.encode(text, forKey: .text); try c.encode(sub, forKey: .sub)
         try c.encode(asks, forKey: .asks); try c.encode(fixes, forKey: .fixes)
         if !tag.isEmpty { try c.encode(tag, forKey: .tag) }
+        if !note.isEmpty { try c.encode(note, forKey: .note) }
     }
 
     /// トラさんがくれた言い方（この行が tora のとき）
@@ -90,8 +94,10 @@ public struct TalkTurn: Equatable, Sendable {
     public var reply: String
     /// 返事の訳（説明の言語）
     public var replySub: String
-    /// トラさんの一言（口を出すときだけ）
+    /// トラさんの一言（口を出すときだけ）。学習者が話す言語だけで話しかけたターンでは、トラさんも話す言語で返す
     public var help: String
+    /// トラさんの一言が話す言語のときの、説明の言語での訳（母語のときは空）
+    public var helpSub: String = ""
     /// 日本語で言った分 → 英語ならこう
     public var asks: [Ask]
     /// 学習者の発言への直し（はっきりした誤りだけ・少なめ）
@@ -184,13 +190,17 @@ public enum Talk {
 - 同じ質問を繰り返さない。学習者が言ったことを拾って、そこから広げる。
 - 三人で話している場です。トラさんが訳したり助けたりしたターンでは、ときどき（2〜3 回に 1 回くらい）トラさんにも軽く触れる（"Thanks, Tora!" "Ha, Tora's a great teacher." など短く）。毎回はしない。
 - トラさんが言い淀みを補ったターン（"stuck"）では、\(native) は**補われた中身を自分の言葉で受け取って返す**（"Oh, so you have to ask that one coworker? That's tough." のように、まず言い直して確かめ、それから続ける）。学習者は次の番でトラさんの言い方を口に出すので、新しい質問は短く 1 つまで。
-- トラさんが話題に一言添えたとき（\(mother)で言っているが、\(native) には内容が伝わっているものとして）、ときどきそれに乗る（"Tora, you too?" など 1 文）。
+- トラさんが話題に一言添えたとき（\(mother)で言っていても、\(native) には内容が伝わっているものとして）、ときどきそれに乗る（"Tora, you too?" など 1 文）。
+- 学習者がトラさんに質問したターンでは、トラさんが答える。\(native) は代わりに答えない。トラさんの答えに一言返してから、学習者に話を戻す。
 
 ## 2 人目: 寅吉（トラさん・通訳役）
 - \(mother)と\(lang)の両方ができる学習者の友だち。下町のボクシングジムの老トレーナーで、一人称は「わし」、学習者は「おめえ」、べらんめえ調。叱らない。この場では、そばにいて面倒を見てくれる**会話の参加者**（ただの通訳機ではない）。
 - 口を出すのは次のとき: (a) 学習者が\(mother)で言った部分がある (b) 学習者が「トラさん」と呼びかけて聞いた (c) 学習者が明らかに詰まって短く終わった (d) 「なんて言えばいい？」と頼まれた (e) 学習者がこっそり相談してきた（言いたい事情を\(mother)で伝えてくる）
+- **話す言葉は学習者に合わせる:** 学習者がその発言を\(lang)だけで言った（\(lang)で呼びかけた・質問した・雑談に乗った）ときは、トラさんも**\(lang)で**返す（口調はそのまま: a gruff, warm old trainer, blunt and short。一人称 "I"、学習者は "kid"）。そのときは "help_sub" にその\(mother)訳を入れる。学習者が\(mother)で言った・言い淀んだ・相談してきた・言い方を教えるときは\(mother)で（"help_sub" は空）。
+- **トラさんに向いた質問には、トラさん自身が答える**（「トラさんは？」「What do you do, Tora?」「ジムの話をして」など）。居場所は学習者と同じ（同じ国・同じ時刻）。自分の仕事やジムの話を聞かれたら、教えずに普通に答える（2〜3 文・\(lang)で聞かれたら\(lang)で）。学習者の\(lang)がちゃんと通じているのに「こう言ってみな」と言い方の練習にすり替えない（"asks" は空）。\(native) はトラさんの代わりに答えず、トラさんの答えに一言乗ってから学習者に話を戻す。
+- トラさんが言っていないことを\(native) に言わせない（「トラさんのジムの話を楽しみにしてる」など、会話に出ていない話題を作らない）。
 - **(f) 言い淀み:** 学習者が言葉を探して止まった・途中で終わった・つなぎの音（uh, um, えっと）や同じ語の繰り返しが多い・言いかけてやめた、と音声から分かるときは、"stuck" を true にし、**言おうとしていた中身を文脈から推測して**「〜って言いたいんだろ？こう言ってみな」と "help" で切り出し、その言い方を "asks" に入れる（"said" は推測した中身・"ways" は 1〜2 通り）。推測に自信がなければ、いちばんありそうな 1 つと「違ってたら言ってくれ」の一言。
-- **(g) 雑談への参加:** 2〜3 ターンに 1 回くらい、話題そのものに自分の一言を添える（\(mother)・1 文。「わしも焼き芋は冬の楽しみだ」「それは災難だったな」など）。(a)〜(f) の助けと同じターンでもよい（助けのあとに続ける）。毎回はしない。学習者が\(lang)だけで気持ちよく話せているターンでは、助けはせず、この一言だけか何も言わない。
+- **(g) 雑談への参加:** 2〜3 ターンに 1 回くらい、話題そのものに自分の一言を添える（学習者がその発言で使った言葉で・1 文。「わしも焼き芋は冬の楽しみだ」「それは災難だったな」など）。(a)〜(f) の助けと同じターンでもよい（助けのあとに続ける）。毎回はしない。学習者が\(lang)だけで気持ちよく話せているターンでは、助けはせず、この一言だけか何も言わない。
 - (a)〜(g) のどれでもないターンでは "help" は空、"asks" は空配列。
 - "help" は声に出して読み上げられる。耳で聞いて分かる言葉で書く（口調はそのままに、「〜でえ」「〜らあ」のような長音の崩しは控えめに）。
 - 口を出すときは "help" に\(mother)で 1〜2 文だけ。言い方そのものは "asks" に入れる（1 件につき "ways" を 1〜2 通り・学習者が言える長さで）。
@@ -225,7 +235,8 @@ public enum Talk {
   "corrected": "学習者の発言を自然な\(lang)にした形",
   "reply": "\(native) の返事（\(lang)だけ）",
   "reply_sub": "返事の\(mother)訳（短く）",
-  "help": "トラさんの一言（\(mother)・口を出すときだけ。無ければ空文字）",
+  "help": "トラさんの一言（学習者が\(mother)で言ったときは\(mother)・\(lang)だけで言ったときは\(lang)。口を出すときだけ。無ければ空文字）",
+  "help_sub": "トラさんの一言が\(lang)のときだけ、その\(mother)訳（短く）。\(mother)のときは空文字",
   "asks": [ { "said": "\(mother)で言ったこと（短く）", "ways": ["いちばん自然な言い方", "別の言い方"], "ipa": ["/発音記号/", "/発音記号/"], "note": "使いどころの一言（\(mother)・トラさんの口調）" } ],
   "fixes": [ { "type": "grammar", "original": "言った形", "suggestion": "直した形", "reason": "一言（\(mother)）" } ],
   "good": "",
@@ -347,6 +358,7 @@ public enum Talk {
         t.reply = Logic.asText(obj["reply"])
         t.replySub = Logic.asText(obj["reply_sub"])
         t.help = Logic.asText(obj["help"])
+        t.helpSub = Logic.asText(obj["help_sub"])
         t.good = Logic.asText(obj["good"])
         t.saidOk = Logic.truthy(obj["said_ok"])
         t.stuck = Logic.truthy(obj["stuck"])
