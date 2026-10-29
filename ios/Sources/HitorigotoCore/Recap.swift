@@ -102,7 +102,8 @@ public enum Recap {
                 : VoicePart(speaker: Voice.native, text: l.text, style: Voice.nativeStyle(partner, clarity: .clear))
             if count + l.text.count > maxChars, !cur.isEmpty { out.append(cur); cur = []; count = 0 }
             if let last = cur.last, last.speaker == part.speaker {
-                cur[cur.count - 1] = VoicePart(speaker: last.speaker, text: last.text + " " + part.text, style: last.style)
+                // 同じ人の続く行は段落で区切る（2 回言う言い方の間に、読み上げで間が入るように）
+                cur[cur.count - 1] = VoicePart(speaker: last.speaker, text: last.text + "\n\n" + part.text, style: last.style)
             } else {
                 cur.append(part)
             }

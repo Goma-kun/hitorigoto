@@ -288,7 +288,7 @@ final class TalkTests: XCTestCase {
         let chunks = Recap.chunks(script, partner: p)
         XCTAssertEqual(chunks.count, 1)
         XCTAssertEqual(chunks[0].map(\.speaker), [Voice.tora, Voice.native, Voice.tora])   // 同じ人の連続はまとまる
-        XCTAssertEqual(chunks[0][1].text, "I'm sleepy. I'm sleepy.")
+        XCTAssertEqual(chunks[0][1].text, "I'm sleepy.\n\nI'm sleepy.")   // 2 回の間に段落（読み上げの間）
         XCTAssertEqual(Recap.chunks(script, partner: p, maxChars: 10).count, 4)
         XCTAssertEqual(Recap.fileName(for: session.id), "recap_2026-10-29T00-00-00.000Z.m4a")
         XCTAssertTrue(Recap.parse("x").isEmpty)
