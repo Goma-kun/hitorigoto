@@ -328,6 +328,29 @@ final class TalkModel: ObservableObject {
         let voices = Voice.voices(partner: partner, tora: app.toraVoice)
         let lead = leadFirst ? [parts[0]] : []
         let rest = leadFirst ? Array(parts.dropFirst()) : parts
+        // 直接キーのときは、声を届いた端から鳴らす（最初の音まで約 1 秒。まとめて待つと 3〜4 秒・本人の要望 2026-10-29）。
+        // トラさん → ネイティブ役の順に流し、ネイティブ役の分はトラさんが鳴っている間に先に取り始めて貯めておく
+        if collide.isEmpty, client.canStream(parts, voices: voices) {
+            Task {
+                let restStream: AsyncThrowingStream<Data, Error>? = rest.isEmpty ? nil : Self.buffered(client.speechStream(rest, voices: voices))
+                let onFirst = { [weak self] in if self?.voiceEpoch == epoch { self?.voiceLoading = false } }
+                var pieces: [(stream: AsyncThrowingStream<Data, Error>, lead: Bool, fallback: [(text: String, language: String?)])] = []
+                if !lead.isEmpty { pieces.append((client.speechStream(lead, voices: voices), true, [fallback[0]])) }
+                if let restStream { pieces.append((restStream, false, Array(fallback.dropFirst(lead.isEmpty ? 0 : 1)))) }
+                for (i, piece) in pieces.enumerated() {
+                    let ok = await Speaker.shared.playStream(piece.stream, epoch: epoch, lead: piece.lead, onFirst: onFirst)
+                    guard Speaker.shared.epoch == epoch else { return }   // その間に止められた（録音を始めた等）
+                    if !ok, Speaker.shared.stream.seconds == 0 {
+                        // 声が取れなかった: この片から先は端末の声で
+                        if voiceEpoch == epoch { voiceLoading = false }
+                        Speaker.shared.speakInOrder(pieces[i...].flatMap(\.fallback), epoch: epoch, leadFirst: piece.lead)
+                        return
+                    }
+                }
+                if voiceEpoch == epoch { voiceLoading = false }
+            }
+            return
+        }
         Task {
             // 同時に話し出した言いかけは別々に作って重ねる（見本のターンだけ）。本体の声と並行して取る
             async let l: Data? = lead.isEmpty ? nil : (try? await client.speech(lead, voices: voices))
@@ -349,6 +372,17 @@ final class TalkModel: ObservableObject {
             let wav = pieces.count == 1 ? pieces[0] : (pieces.isEmpty ? nil : Voice.join(pieces))
             if let wav, Speaker.shared.play(wav, epoch: epoch, leadEnd: leadEnd) { return }
             Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst)
+        }
+    }
+
+    /// 流れを先に読み始めて貯めておく（トラさんが鳴っている間にネイティブ役の声を取り終えるため）
+    private static func buffered(_ source: AsyncThrowingStream<Data, Error>) -> AsyncThrowingStream<Data, Error> {
+        AsyncThrowingStream { c in
+            let t = Task {
+                do { for try await x in source { c.yield(x) }; c.finish() }
+                catch { c.finish(throwing: error) }
+            }
+            c.onTermination = { _ in t.cancel() }
         }
     }
 

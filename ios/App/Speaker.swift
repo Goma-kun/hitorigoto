@@ -52,10 +52,26 @@ final class Speaker: NSObject, ObservableObject {
         synth.speak(u)
     }
 
+    /// 届いた端から鳴らす方（三人で話す・直接キーのとき）
+    let stream = StreamPlayer()
+
+    /// 流れで届く声を鳴らす。lead なら「飛ばせる前半（トラさん）」として leadPlaying を立てる。
+    /// 鳴り切ったら true。epoch が古ければ鳴らさない
+    func playStream(_ chunks: AsyncThrowingStream<Data, Error>, epoch: Int, lead: Bool, onFirst: @escaping () -> Void) async -> Bool {
+        guard epoch == self.epoch else { return false }
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        player?.stop(); player = nil
+        leadPlaying = lead
+        let ok = await stream.play(chunks, onFirst: onFirst)
+        if lead { leadPlaying = false }
+        return ok
+    }
+
     func stop() {
         epoch += 1
         queue = []
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        stream.stop()
         player?.stop(); player = nil
         speaking = nil
         playingFile = nil
@@ -65,11 +81,11 @@ final class Speaker: NSObject, ObservableObject {
     }
 
     /// いま声が鳴っているか（AI の声か端末の声）
-    var isPlaying: Bool { (player?.isPlaying ?? false) || synth.isSpeaking }
-    /// 鳴っている声のどこまで聞いたか（0〜1）。AI の声なら再生位置から、端末の声なら分からないので 0.5
+    var isPlaying: Bool { (player?.isPlaying ?? false) || synth.isSpeaking || stream.isPlaying }
+    /// 鳴っている声のどこまで聞いたか（0〜1）。AI の声なら再生位置から、流れで鳴らしている間と端末の声は分からないので 0.5
     var progress: Double? {
         if let p = player, p.isPlaying, p.duration > 0 { return min(1, p.currentTime / p.duration) }
-        if synth.isSpeaking { return 0.5 }
+        if synth.isSpeaking || stream.isPlaying { return 0.5 }
         return nil
     }
 
@@ -128,6 +144,12 @@ final class Speaker: NSObject, ObservableObject {
     /// 前半（トラさんの説明）を飛ばして、続き（ネイティブ役）から鳴らす。続きが無ければ止める。
     /// 端末の声で読んでいるときは、いま読んでいる文を止めて次の文へ
     func skip() {
+        if stream.isPlaying {
+            // 流れで鳴らしている前半を止めるだけ。続き（ネイティブ役）は呼び出し側の順送りで鳴る
+            stream.stop()
+            leadPlaying = false
+            return
+        }
         if let p = player, p.isPlaying {
             if let end = leadEnd, end < p.duration - 0.05 { p.currentTime = end } else { stop() }
             leadPlaying = false

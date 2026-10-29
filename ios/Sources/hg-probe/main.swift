@@ -141,7 +141,16 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
                 pieces.append(Voice.collide(try await a, try await b))
                 print("collide: [\(collide[0].speaker)] \(collide[0].text) × [\(collide[1].speaker)] \(collide[1].text)")
             }
-            if env["HG_SPLIT"] == "1", parts.count >= 2, parts[0].speaker == Voice.tora {
+            if env["HG_STREAM"] == "1" {
+                // アプリの「届いた端から鳴らす」と同じ入口。最初の断片までの秒と、全体の秒を出す
+                var pcm = Data(); var n = 0; var first: Double?
+                for try await chunk in client.speechStream(parts, voices: voices) {
+                    if first == nil { first = Date().timeIntervalSince(t0) }
+                    n += 1; pcm += chunk
+                }
+                print(String(format: "stream: first chunk %.2fs  chunks %d  audio %.1fs", first ?? -1, n, Double(pcm.count) / 48000))
+                pieces.append(Voice.wav(pcm: pcm, sampleRate: 24000))
+            } else if env["HG_SPLIT"] == "1", parts.count >= 2, parts[0].speaker == Voice.tora {
                 // アプリと同じ: トラさん先行のターンはトラさんの分を別に作ってつなぐ（飛ばせるように）
                 async let a = client.speech([parts[0]], voices: voices)
                 async let b = client.speech(Array(parts.dropFirst()), voices: voices)

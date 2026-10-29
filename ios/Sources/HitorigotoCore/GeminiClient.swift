@@ -6,6 +6,8 @@ public struct GeminiClient: Sendable {
 
     /// モデルは拡張機能・まもるくんと揃える
     public static let model = "gemini-3.6-flash"
+    /// 三人で話すの考える量。速さを測るときは環境変数 HG_THINKING（minimal / low …）で変えられる
+    public static var talkThinking: String { ProcessInfo.processInfo.environment["HG_THINKING"] ?? "low" }
     /// inlineData で送れる全体上限（20MB）に対する安全側の目安
     public static let audioMaxBytes = 18 * 1024 * 1024
 
@@ -193,7 +195,7 @@ public struct GeminiClient: Sendable {
         let raw = try await call([
             "systemInstruction": ["parts": [["text": system]]],
             "contents": [["role": "user", "parts": parts]],
-            "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": Self.talkThinking], "responseMimeType": "application/json"],
             "tools": [],
         ], relayPath: "v1/talk")
         guard let turn = Talk.parse(raw) else { throw Failure.parse }
@@ -215,6 +217,78 @@ public struct GeminiClient: Sendable {
 
     /// 「三人で話す」の声。話者ごとの文を 1 回で読み上げてもらい、WAV（24kHz・16bit・モノラル）を返す。
     /// 話者が 2 人なら multiSpeaker、1 人なら単独の声。中継サーバーでは /v1/voice で別に数える
+    /// 声を届いた端から受け取れるか（直接キーのときだけ。中継サーバーはまとめて返す・複製の声は別の入口）
+    public func canStream(_ parts: [VoicePart], voices: [String: String]) -> Bool {
+        guard case .direct(let k) = transport, !k.isEmpty else { return false }
+        return !parts.contains { Voice.isReplicated(voices[$0.speaker] ?? "") }
+    }
+
+    /// 声を流れで受け取る（streamGenerateContent・SSE）。断片は頭なしの PCM（24kHz・16bit・モノラル）。
+    /// 最初の断片が 0.8 秒ほどで届くので、まとめて待つより 2〜3 秒早く鳴り始める（2026-10-29 実測）
+    public func speechStream(_ parts: [VoicePart], voices: [String: String]) -> AsyncThrowingStream<Data, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let parts = parts.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                    guard !parts.isEmpty, case .direct(let key) = transport, !key.isEmpty else { throw Failure.audio }
+                    var req = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.voiceModel):streamGenerateContent?alt=sse")!)
+                    req.httpMethod = "POST"
+                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    req.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+                    req.timeoutInterval = 120
+                    req.httpBody = try JSONSerialization.data(withJSONObject: Self.speechBody(parts, voices: voices))
+                    let (bytes, response) = try await session.bytes(for: req)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    guard (200..<300).contains(status) else { throw Failure.server("HTTP \(status)") }
+                    var got = false
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data:") else { continue }
+                        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        guard let d = payload.data(using: .utf8),
+                              let json = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
+                              let cands = json["candidates"] as? [[String: Any]],
+                              let content = cands.first?["content"] as? [String: Any],
+                              let ps = content["parts"] as? [[String: Any]] else { continue }
+                        for p in ps {
+                            if let inline = p["inlineData"] as? [String: Any], let b64 = inline["data"] as? String, let pcm = Data(base64Encoded: b64), !pcm.isEmpty {
+                                got = true
+                                continuation.yield(pcm)
+                            }
+                        }
+                    }
+                    if !got { throw Failure.audio }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// 読み上げの依頼の本文（まとめて受ける speech と流れで受ける speechStream で同じ）
+    static func speechBody(_ parts: [VoicePart], voices: [String: String]) -> [String: Any] {
+        let speakers = parts.reduce(into: [String]()) { if !$0.contains($1.speaker) { $0.append($1.speaker) } }
+        let speech: [String: Any]
+        if speakers.count >= 2 {
+            speech = ["multiSpeakerVoiceConfig": ["speakerVoiceConfigs": speakers.prefix(2).map { sp in
+                ["speaker": sp, "voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voices[sp] ?? "Puck"]]] as [String: Any]
+            }]]
+        } else {
+            speech = ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": voices[speakers[0]] ?? "Puck"]]]
+        }
+        let multi = speakers.count >= 2
+        return [
+            "contents": [["role": "user", "parts": parts.map { p -> [String: Any] in
+                var meta: [String: Any] = [:]
+                if multi { meta["speaker"] = p.speaker }
+                if !p.style.isEmpty { meta["style"] = p.style }
+                return meta.isEmpty ? ["text": p.text] : ["text": p.text, "speechMetadata": meta]
+            }]],
+            "generationConfig": ["responseModalities": ["AUDIO"], "speechConfig": speech],
+        ]
+    }
+
     public func speech(_ parts: [VoicePart], voices: [String: String]) async throws -> Data {
         let parts = parts.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard !parts.isEmpty else { throw Failure.audio }
