@@ -255,6 +255,9 @@ public enum Voice {
         return wav(pcm: pcm16.withUnsafeBufferPointer { Data(buffer: $0) }, sampleRate: sampleRate)
     }
 
+    /// WAV の長さ（秒）
+    public static func duration(_ wav: Data) -> Double { Double(pcm(wav).count) / Double(sampleRate) }
+
     /// 複数の WAV を、間（秒）を挟んでつなぐ
     public static func join(_ wavs: [Data], gap: Double = 0.4) -> Data {
         let silence = [Int16](repeating: 0, count: Int(gap * Double(sampleRate)))

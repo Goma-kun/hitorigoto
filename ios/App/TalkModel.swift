@@ -319,25 +319,43 @@ final class TalkModel: ObservableObject {
         #if DEBUG
         if DevHooks.fakeTalk { client = nil }
         #endif
-        guard let client else { Speaker.shared.speakInOrder(fallback, epoch: epoch); return }
+        // トラさんが先に話すターンは、トラさんの分を別に作る（飛ばせるように・2026-10-29 本人の要望）。並行して取るので待ち時間は変わらない
+        let leadFirst = parts.first?.speaker == Voice.tora
+        lastToraId = added.last(where: { $0.who == "tora" && $0.tag != "collide" })?.id
+        guard let client else { Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst); return }
         voiceLoading = true
         voiceEpoch = epoch
         let voices = Voice.voices(partner: partner, tora: app.toraVoice)
+        let lead = leadFirst ? [parts[0]] : []
+        let rest = leadFirst ? Array(parts.dropFirst()) : parts
         Task {
             // 同時に話し出した言いかけは別々に作って重ねる（見本のターンだけ）。本体の声と並行して取る
-            async let main: Data? = parts.isEmpty ? nil : (try? await client.speech(parts, voices: voices))
+            async let l: Data? = lead.isEmpty ? nil : (try? await client.speech(lead, voices: voices))
+            async let main: Data? = rest.isEmpty ? nil : (try? await client.speech(rest, voices: voices))
             async let c0: Data? = collide.count >= 1 ? (try? await client.speech([collide[0]], voices: voices)) : nil
             async let c1: Data? = collide.count >= 2 ? (try? await client.speech([collide[1]], voices: voices)) : nil
-            let (m, a, b) = await (main, c0, c1)
+            let (t, m, a, b) = await (l, main, c0, c1)
             if voiceEpoch == epoch { voiceLoading = false }
+            // トラさんの分が取れなかったら全部端末の声に（順番が崩れないように）
+            if !lead.isEmpty, t == nil { Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst); return }
             var pieces: [Data] = []
             if let a, let b { pieces.append(Voice.collide(a, b)) } else if let a { pieces.append(a) }
+            var leadEnd: TimeInterval?
+            if let t {
+                leadEnd = pieces.map(Voice.duration).reduce(0, +) + Double(pieces.count) * 0.4 + Voice.duration(t)
+                pieces.append(t)
+            }
             if let m { pieces.append(m) }
             let wav = pieces.count == 1 ? pieces[0] : (pieces.isEmpty ? nil : Voice.join(pieces))
-            if let wav, Speaker.shared.play(wav, epoch: epoch) { return }
-            Speaker.shared.speakInOrder(fallback, epoch: epoch)
+            if let wav, Speaker.shared.play(wav, epoch: epoch, leadEnd: leadEnd) { return }
+            Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst)
         }
     }
+
+    /// いちばん新しいトラさんの行（この行の吹き出しにだけ「飛ばす」を出す）
+    @Published private(set) var lastToraId: String?
+    /// トラさんの説明を飛ばして、ネイティブ役の返事から聞く（本人の要望・2026-10-29「まどろっこしい」）
+    func skipTora() { Speaker.shared.skip() }
 
     /// 試聴: 相手役（またはトラさん）の声を一言鳴らす。AI の声が取れなければ端末の声
     @Published private(set) var previewing: String?

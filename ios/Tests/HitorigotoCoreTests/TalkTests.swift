@@ -293,6 +293,23 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(Recap.fileName(for: session.id), "recap_2026-10-29T00-00-00.000Z.m4a")
         XCTAssertTrue(Recap.parse("x").isEmpty)
     }
+
+    /// トラさんは基本英語で話し、言い方を示すと言ったら必ず asks に入る（無ければ corrected を言い方にする）
+    func testToraEnglishAndPromisedPhrase() {
+        let s = Talk.system(language: .enUS, partner: Partners.list(.enUS)[0])
+        XCTAssertTrue(s.contains("トラさんは基本英語で話す"))
+        XCTAssertTrue(s.contains("必ず \"asks\" に入れる"))
+        XCTAssertTrue(Talk.promisesPhrase("You'd say it like this, kid."))
+        XCTAssertTrue(Talk.promisesPhrase("こう言ってみな"))
+        XCTAssertFalse(Talk.promisesPhrase("Nice one, kid."))
+        // 言い方を示すと言ったのに asks が空 → corrected を言い方に
+        let t = Talk.parse(#"{"heard":"I go gym yesterday","corrected":"I went to the gym yesterday.","reply":"Nice!","help":"You'd say it like this, kid.","help_sub":"こう言うんだ","asks":[]}"#)
+        XCTAssertEqual(t?.asks.map(\.ways), [["I went to the gym yesterday."]])
+        XCTAssertEqual(t?.asks.first?.said, "I go gym yesterday")
+        // 言い方を示していない・corrected が同じなら足さない
+        XCTAssertEqual(Talk.parse(#"{"heard":"Hi","corrected":"Hi","reply":"Hey","help":"You'd say it like this.","asks":[]}"#)?.asks.count, 0)
+        XCTAssertEqual(Talk.parse(#"{"heard":"I go gym","corrected":"I go to the gym","reply":"Hey","help":"Good one, kid.","asks":[]}"#)?.asks.count, 0)
+    }
     // 自分や友人の声: 組み込みの後ろに並ぶ・id で引ける・消えたら既定に戻る・人物像は年齢や出身を作らない・複製の声の見分け・同意の文
     func testCustomVoices() {
         let mine = Voice.customPartner(id: "abc", name: "ヒロ", female: false, blurb: "大学の友人", voice: "voicekey_xyz")

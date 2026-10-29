@@ -59,6 +59,9 @@ final class Speaker: NSObject, ObservableObject {
         player?.stop(); player = nil
         speaking = nil
         playingFile = nil
+        leadPlaying = false
+        leadEnd = nil
+        leadTimer?.invalidate(); leadTimer = nil
     }
 
     /// いま声が鳴っているか（AI の声か端末の声）
@@ -88,23 +91,61 @@ final class Speaker: NSObject, ObservableObject {
     /// 止めて、新しい番号を返す。この番号を play に渡すと、その間に止められていたら鳴らさない
     func begin() -> Int { stop(); return epoch }
 
-    /// AI の声（WAV）を鳴らす。epoch が古ければ（その後に止められていれば）何もしない。鳴らせたら true
+    /// AI の声（WAV）を鳴らす。epoch が古ければ（その後に止められていれば）何もしない。鳴らせたら true。
+    /// leadEnd は「飛ばせる前半（トラさんの説明）」が終わる秒。渡すと、その間は leadPlaying が true になり、skip() でそこまで飛ぶ
     @discardableResult
-    func play(_ wav: Data, epoch: Int) -> Bool {
+    func play(_ wav: Data, epoch: Int, leadEnd: TimeInterval? = nil) -> Bool {
         guard epoch == self.epoch, let p = try? AVAudioPlayer(data: wav) else { return false }
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
+        p.delegate = self
         player = p
+        self.leadEnd = leadEnd
         p.play()
+        if leadEnd != nil { watchLead() }
         return true
     }
 
-    /// 端末の声で、いくつかの文を順に読む（言語は文ごと）。epoch が古ければ読まない
-    func speakInOrder(_ items: [(text: String, language: String?)], rate: Float = 0.46, epoch: Int) {
+    /// 飛ばせる前半（トラさんの説明）が鳴っている間 true（吹き出しの「飛ばす」を出すのに使う）
+    @Published private(set) var leadPlaying = false
+    private var leadEnd: TimeInterval?
+    private var leadTimer: Timer?
+
+    private func watchLead() {
+        leadTimer?.invalidate()
+        leadPlaying = true
+        leadTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] t in
+            Task { @MainActor in
+                guard let self else { t.invalidate(); return }
+                let still = (self.player?.isPlaying ?? false) && (self.player?.currentTime ?? 0) < (self.leadEnd ?? 0)
+                if !still { self.leadPlaying = false; t.invalidate(); self.leadTimer = nil }
+            }
+        }
+    }
+
+    /// 前半（トラさんの説明）を飛ばして、続き（ネイティブ役）から鳴らす。続きが無ければ止める。
+    /// 端末の声で読んでいるときは、いま読んでいる文を止めて次の文へ
+    func skip() {
+        if let p = player, p.isPlaying {
+            if let end = leadEnd, end < p.duration - 0.05 { p.currentTime = end } else { stop() }
+            leadPlaying = false
+            return
+        }
+        if synth.isSpeaking {
+            synth.stopSpeaking(at: .immediate)
+            leadPlaying = false
+            if !queue.isEmpty { sayNext(rate: nextRate) }
+        }
+    }
+
+    /// 端末の声で、いくつかの文を順に読む（言語は文ごと）。epoch が古ければ読まない。
+    /// leadFirst なら最初の文は「飛ばせる前半」（トラさん）として leadPlaying を立てる
+    func speakInOrder(_ items: [(text: String, language: String?)], rate: Float = 0.46, epoch: Int, leadFirst: Bool = false) {
         guard epoch == self.epoch else { return }
         queue = items.map { ($0.text, $0.language) }
+        leadPlaying = leadFirst && !queue.isEmpty
         sayNext(rate: rate)
     }
 
@@ -137,7 +178,7 @@ final class Speaker: NSObject, ObservableObject {
 
 extension Speaker: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in if self.player === p { self.playingFile = nil; self.player = nil } }
+        Task { @MainActor in if self.player === p { self.playingFile = nil; self.player = nil; self.leadPlaying = false } }
     }
 }
 
@@ -145,6 +186,7 @@ extension Speaker: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) {
         Task { @MainActor in
             self.speaking = nil
+            self.leadPlaying = false   // 前半（トラさん）が読み終わった
             if !self.queue.isEmpty { self.sayNext(rate: self.nextRate) }
         }
     }

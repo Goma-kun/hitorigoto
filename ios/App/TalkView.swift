@@ -262,7 +262,7 @@ struct TalkSheet: View {
     private func bubble(_ l: TalkLine) -> some View {
         switch l.who {
         case "native": NativeBubble(line: l, name: talk.nativeName, slowing: talk.slowing == l.text) { Task { await talk.sayClearly(l.text) } }
-        case "tora": ToraBubble(line: l)
+        case "tora": ToraBubble(line: l, skippable: talk.lastToraId == l.id) { talk.skipTora() }
         default: MeBubble(line: l)
         }
     }
@@ -565,7 +565,11 @@ struct NativeBubble: View {
 /// トラさんの吹き出し（左・顔つき）。「英語ならこう」は言い方ごとに読み上げと表現集へ
 struct ToraBubble: View {
     @EnvironmentObject var model: AppModel
+    @ObservedObject private var speaker = Speaker.shared
     let line: TalkLine
+    /// いちばん新しいトラさんの行なら、説明が鳴っている間「飛ばす」を出す（本人の要望・2026-10-29）
+    var skippable = false
+    var skip: () -> Void = {}
     @State private var added: Set<String> = []
 
     var body: some View {
@@ -573,7 +577,17 @@ struct ToraBubble: View {
             Image("Tange").resizable().scaledToFill().frame(width: 34, height: 34).clipShape(Circle())
                 .overlay(Circle().stroke(Theme.warn.opacity(0.5), lineWidth: 1.5))
             VStack(alignment: .leading, spacing: 6) {
-                Text("トラさん").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
+                HStack(spacing: 8) {
+                    Text("トラさん").font(.caption2.weight(.bold)).foregroundStyle(Theme.faint)
+                    Spacer(minLength: 0)
+                    if skippable, speaker.leadPlaying {
+                        Button(action: skip) {
+                            Label(String(localized: "飛ばす"), systemImage: "forward.end.fill").font(.caption2.weight(.semibold))
+                        }
+                        .buttonStyle(.bordered).controlSize(.mini).tint(Theme.warn)
+                        .help("トラさんの説明を飛ばして、相手の返事から聞きます")
+                    }
+                }
                 if !line.text.isEmpty {
                     Text(line.text).font(.callout).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     // 話す言語で返したときは、その訳を小さく添える
