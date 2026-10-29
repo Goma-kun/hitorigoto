@@ -485,9 +485,9 @@ final class TalkModel: ObservableObject {
                              asks: [Ask(said: "どうぞ、先に", ways: ["Oh, sorry—go ahead.", "No, you go first."], ipa: []),
                                     Ask(said: "ありがとう、言いかけてたのは…", ways: ["Thanks. I was just gonna say..."], ipa: [])])
             t.banter = [TalkLine(who: "native", text: "Oh, that reminds me, I was gonna—", sub: "", tag: "collide"),
-                        TalkLine(who: "tora", text: "そういやよ、わしも昔—", tag: "collide"),
+                        TalkLine(who: "tora", text: "Oh, that reminds me, back when I—", tag: "collide"),
                         TalkLine(who: "native", text: "Oh—sorry, Tora, go ahead.", sub: "あ、ごめんトラさん、どうぞ", tag: "banter"),
-                        TalkLine(who: "tora", text: "いやいや、Sam が先だ。遠慮すんな。", tag: "banter")]
+                        TalkLine(who: "tora", text: "No no, you first, Sam.", tag: "banter")]
             return t
         case .speak:
             let n = lines.filter { $0.who == "me" && !$0.tag.hasPrefix("repeat") }.count

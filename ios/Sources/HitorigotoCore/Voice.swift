@@ -172,7 +172,7 @@ public enum Voice {
         case .jaJP: return "こんにちは、\(partner.name)です。よろしくね。今週いちばんおいしかったものは何？"
         }
     }
-    public static let toraSampleLine = "おう、わしが寅吉だ。焼き芋はこう言うんだ。a baked sweet potato。遠慮せずに言ってみな。"
+    public static let toraSampleLine = "おう、俺が寅吉だ。焼き芋はこう言うんだ。a baked sweet potato。気楽に言ってみろよ。"
 
     /// このターンで新しく出た行から、読み上げる片を作る（行の順のまま。学習者の行は読まない）。
     /// トラさんは一言（help）に加えて、言い方そのもの（ways の 1 つ目）も声に出す。一言の中に既に入っていれば重ねない。
