@@ -226,11 +226,15 @@ public enum Voice {
     }
 
     /// WAV から PCM（16bit の標本列）を取り出す。"data" チャンクを探す（頭が 44 バイトでなくてもよい）
+    /// "data" のあとに別のチャンク（Gemini は C2PA の来歴データを約 6KB 付けてくる）が続くことがあるので、大きさの欄を守る。
+    /// 守らないと、その分が音として読まれて「ぶつっ」という雑音になる（本人指摘・2026-10-29）
     public static func pcm(_ wav: Data) -> [Int16] {
         guard wav.count > 12, let dataTag = "data".data(using: .ascii), let r = wav.range(of: dataTag, in: 12..<wav.count) else { return [] }
         let start = r.upperBound + 4
         guard start < wav.count else { return [] }
-        let body = wav.subdata(in: start..<wav.count)
+        let declared = Int(wav.subdata(in: r.upperBound..<start).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) }.littleEndian)
+        let end = (declared > 0 && start + declared <= wav.count) ? start + declared : wav.count
+        let body = wav.subdata(in: start..<end)
         let n = body.count / 2
         return body.withUnsafeBytes { raw -> [Int16] in
             let p = raw.bindMemory(to: Int16.self)

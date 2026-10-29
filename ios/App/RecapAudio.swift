@@ -14,8 +14,9 @@ enum RecapAudio {
 
     /// その記録の音声。ファイルが無ければ nil（別の端末で作った記録など）
     static func url(for session: Session) -> URL? {
-        guard let name = session.recap, let d = dir else { return nil }
-        let u = d.appendingPathComponent(name)
+        guard let d = dir else { return nil }
+        // 記録に名前が無くても、その id のファイルがあれば使う（同期で名前が消えた記録の救済・2026-10-29）
+        let u = d.appendingPathComponent(session.recap ?? Recap.fileName(for: session.id))
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 

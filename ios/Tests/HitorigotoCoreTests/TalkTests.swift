@@ -337,4 +337,23 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(GeminiClient.findVoiceKey(in: ["replicatedVoice": ["id": "voice_77"]]), "voice_77")
         XCTAssertNil(GeminiClient.findVoiceKey(in: ["name": "Puck"]))
     }
+
+    /// Gemini の WAV は data のあとに C2PA チャンクが付く。大きさの欄を守って、その分を音にしない
+    func testPcmIgnoresTrailingChunk() {
+        let pcm = [Int16](repeating: 1000, count: 240)
+        var wav = Voice.wav(pcm: pcm.withUnsafeBufferPointer { Data(buffer: $0) }, sampleRate: 24000)
+        wav.append("C2PA".data(using: .ascii)!); wav.append(Data(repeating: 0x7F, count: 64))
+        XCTAssertEqual(Voice.pcm(wav).count, 240)
+        XCTAssertEqual(Voice.pcm(Voice.join([wav, wav], gap: 0.1)).count, 240 * 2 + 2400)
+        XCTAssertEqual(Voice.duration(wav), 0.01, accuracy: 0.0001)
+    }
+
+    /// 同期で相手の記録が勝っても、復習の音声の名前（この端末のファイル）は残る
+    func testMergeKeepsRecap() {
+        var a = Session(id: "2026-10-29T00:00:00.000Z", transcript: "x", correctedText: "x")
+        a.recap = "recap_x.m4a"
+        var b = a; b.recap = nil; b.good = "longer so that the remote wins"
+        XCTAssertEqual(Sync.mergeSession(a, b).recap, "recap_x.m4a")
+        XCTAssertEqual(Sync.mergeSession(b, a).recap, "recap_x.m4a")
+    }
 }

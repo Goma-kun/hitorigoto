@@ -133,6 +133,8 @@ public enum Sync {
         }
         out.explains = threads.isEmpty ? (a.explains ?? b.explains) : threads.values.sorted { $0.key < $1.key }
         if out.folded == true { out.explains = nil }
+        // 復習の音声はこの端末のファイルを指すので、こちら（a）の分を必ず残す（相手の記録が勝って消えていた・2026-10-29）
+        out.recap = a.recap ?? b.recap
         return out
     }
 

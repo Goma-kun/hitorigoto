@@ -141,7 +141,14 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "voice" {
                 pieces.append(Voice.collide(try await a, try await b))
                 print("collide: [\(collide[0].speaker)] \(collide[0].text) × [\(collide[1].speaker)] \(collide[1].text)")
             }
-            if !parts.isEmpty { pieces.append(try await client.speech(parts, voices: voices)) }
+            if env["HG_SPLIT"] == "1", parts.count >= 2, parts[0].speaker == Voice.tora {
+                // アプリと同じ: トラさん先行のターンはトラさんの分を別に作ってつなぐ（飛ばせるように）
+                async let a = client.speech([parts[0]], voices: voices)
+                async let b = client.speech(Array(parts.dropFirst()), voices: voices)
+                let (ta, tb) = (try await a, try await b)
+                print(String(format: "split: tora %.2fs / rest %.2fs", Voice.duration(ta), Voice.duration(tb)))
+                pieces.append(ta); pieces.append(tb)
+            } else if !parts.isEmpty { pieces.append(try await client.speech(parts, voices: voices)) }
             let wav = pieces.count == 1 ? pieces[0] : Voice.join(pieces)
             try wav.write(to: URL(fileURLWithPath: out))
             print(String(format: "ok %.1fs %d bytes → %@", Date().timeIntervalSince(t0), wav.count, out))
