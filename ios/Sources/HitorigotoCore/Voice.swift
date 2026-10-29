@@ -153,7 +153,8 @@ public enum Voice {
         }
     }
 
-    static let toraStyle = "a very old man in his 80s, a retired boxing-gym trainer from downtown Tokyo: thin, wheezy, hoarse, slightly shaky elderly voice, slow and gravelly, worn by decades of shouting. Warm and amused underneath, not angry. When the line is in English, speak fluent English in the same old hoarse voice, with a faint Japanese accent."
+    /// トラさんの話し方。本人の要望（2026-10-29）: アニメの声優のようなハキハキ・大げさな演技は嫌。普段の会話で本当に話しているような、力の抜けた自然な声に
+    static let toraStyle = "an old man in his 70s, a retired boxing-gym trainer from downtown Tokyo, chatting casually at a kitchen table. Natural, understated, everyday conversational speech: relaxed, low-key, a little hoarse, normal speaking pace with natural pauses. NOT theatrical, NOT anime-like, no exaggerated acting, no over-articulation, no projecting the voice. Sounds like a real person talking, not a performer. Warm and amused underneath. When the line is in English, speak fluent, relaxed English in the same voice, with a faint Japanese accent."
 
     /// 端末の声で読むときの言語。トラさんは学習者に合わせて母語でも話す言語でも話すので、文字を見て決める。
     /// 日本語の字があれば ja-JP、無ければ nil（＝設定の「話す言語」の声）。説明が英語の設定で話す言語が英語でないときは en-US
