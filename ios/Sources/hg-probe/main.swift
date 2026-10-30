@@ -259,6 +259,37 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "recap" {
     exit(0)
 }
 
+// ---- 実 API（exam）----
+// `hg-probe exam --topic "..." --audio speech.m4a` スピーチ→最初の質問。`--answer a.m4a --history h.json [--last]` 回答→次の質問。
+// `--score --history h.json` 採点。--notes は覚え書き（" | " 区切り）。結果は Gemini の JSON をそのまま出す
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "exam" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let topic = take("--topic") ?? ExamTopics.all[0]
+    let speech = take("--audio"), answer = take("--answer")
+    let history: [TalkLine] = take("--history").flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
+    let notes = take("--notes")?.components(separatedBy: " | ") ?? []
+    let request: Exam.Request = speech != nil ? .speech(topic: topic) : (answer != nil ? .answer(topic: topic, last: args.contains("--last")) : .score(topic: topic))
+    let audio = (speech ?? answer).flatMap { FileManager.default.contents(atPath: $0) }
+    let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let client = GeminiClient(key: key)
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        do {
+            let raw = try await client.exam(audio: audio, mimeType: "audio/mp4", message: Exam.userMessage(request, history: history, notes: notes), system: Exam.system())
+            print(raw)
+            if case .score = request { print(Exam.parseResult(raw, pronunciation: nil).map { "total=\($0.total) fixes=\($0.fixes.count) phrases=\($0.phrases.count) modelWords=\($0.model.split(separator: " ").count)" } ?? "PARSE FAILED") }
+            else { print(Exam.parseTurn(raw).map { "parsed heard=\($0.heard.count) q=\($0.question) pron=\($0.pronunciation?.score ?? -1)" } ?? "PARSE FAILED") }
+        } catch { print("ERROR \(error)") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（talk）----
 // `hg-probe talk --open "話題"` / `hg-probe talk --audio turn.m4a [--history h.json]` 三人で話すの 1 ターンを本物の Gemini に投げる。
 // --history は TalkLine の JSON 配列（省略可）。--hint / --close も可。結果は JSON で返す

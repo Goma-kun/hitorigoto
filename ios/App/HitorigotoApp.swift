@@ -155,6 +155,14 @@ enum DevHooks {
         return false
         #endif
     }
+    /// -HGOpenExam 1 話す画面を開いたら「英検 1 級 2 次の練習」のシートを開いておく（撮影用）
+    static var openExam: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "HGOpenExam")
+        #else
+        return false
+        #endif
+    }
     /// -HGOpenScan 1 表現タブを開いたらスクショの画面を開いておく（撮影用）
     static var openScan: Bool {
         #if DEBUG

@@ -202,6 +202,23 @@ public struct GeminiClient: Sendable {
         return turn
     }
 
+    /// 試験の練習の 1 回（スピーチ・回答は音声つき、採点は文字だけ）。応答の JSON をそのまま返す（解釈は Exam）。
+    /// 中継サーバーでは /v1/talk の 1 ターンとして数える
+    public func exam(audio: Data?, mimeType: String, message: String, system: String) async throws -> String {
+        var parts: [[String: Any]] = []
+        if let audio {
+            guard !audio.isEmpty, audio.count <= Self.audioMaxBytes else { throw Failure.audio }
+            parts.append(["inlineData": ["mimeType": mimeType, "data": audio.base64EncodedString()]])
+        }
+        parts.append(["text": message])
+        return try await call([
+            "systemInstruction": ["parts": [["text": system]]],
+            "contents": [["role": "user", "parts": parts]],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/talk")
+    }
+
     /// 復習の音声の台本（文字だけ）。中継サーバーでは /v1/talk の 1 ターンとして数える
     public func recapScript(message: String, system: String) async throws -> [TalkLine] {
         let raw = try await call([

@@ -73,6 +73,8 @@ struct SpeakView: View {
             Welcome()
             // 三人で話す（ネイティブ役＋トラさん＋自分）。独り言と並ぶもう一つの入口（2026-10-28）
             TalkCard()
+            // 英検 1 級 2 次の練習（2026-10-30）。英検は日本の試験なので、英語を話す・説明が日本語の設定のときだけ
+            if model.targetLanguage.locale.hasPrefix("en"), TargetLanguage.explanation == .ja { ExamCard() }
             QuizCard()
             CandidatesCard()
             TodayCard(goPhrases: goPhrases)
