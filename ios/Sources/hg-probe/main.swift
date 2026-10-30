@@ -272,17 +272,18 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "exam" {
     let speech = take("--audio"), answer = take("--answer")
     let history: [TalkLine] = take("--history").flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
     let notes = take("--notes")?.components(separatedBy: " | ") ?? []
-    let request: Exam.Request = speech != nil ? .speech(topic: topic) : (answer != nil ? .answer(topic: topic, last: args.contains("--last")) : .score(topic: topic))
+    let level = ExamLevel(rawValue: take("--level") ?? "g1") ?? .g1
+    let request: Exam.Request = args.contains("--open") ? .open(topic: topic) : (speech != nil ? .speech(topic: topic) : (answer != nil ? .answer(topic: topic, last: args.contains("--last")) : .score(topic: topic)))
     let audio = (speech ?? answer).flatMap { FileManager.default.contents(atPath: $0) }
     let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     let client = GeminiClient(key: key)
     let sem = DispatchSemaphore(value: 0)
     Task {
         do {
-            let raw = try await client.exam(audio: audio, mimeType: "audio/mp4", message: Exam.userMessage(request, history: history, notes: notes), system: Exam.system())
+            let raw = try await client.exam(audio: audio, mimeType: "audio/mp4", message: Exam.userMessage(request, history: history, notes: notes, level: level), system: Exam.system(level: level))
             print(raw)
-            if case .score = request { print(Exam.parseResult(raw, pronunciation: nil).map { "total=\($0.total) fixes=\($0.fixes.count) phrases=\($0.phrases.count) modelWords=\($0.model.split(separator: " ").count)" } ?? "PARSE FAILED") }
-            else { print(Exam.parseTurn(raw).map { "parsed heard=\($0.heard.count) q=\($0.question) pron=\($0.pronunciation?.score ?? -1)" } ?? "PARSE FAILED") }
+            if case .score = request { print(Exam.parseResult(raw, pronunciation: nil, level: level).map { "total=\($0.total) fixes=\($0.fixes.count) phrases=\($0.phrases.count) modelWords=\($0.model.split(separator: " ").count)" } ?? "PARSE FAILED") }
+            else { print(Exam.parseTurn(raw).map { "parsed heard=\($0.heard.count) q=\($0.question) followUp=\($0.followUp) pron=\($0.pronunciation?.score ?? -1)" } ?? "PARSE FAILED") }
         } catch { print("ERROR \(error)") }
         sem.signal()
     }

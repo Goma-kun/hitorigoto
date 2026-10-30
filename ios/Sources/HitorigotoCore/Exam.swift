@@ -66,12 +66,45 @@ public enum ExamTopics {
         "Should zoos be abolished?",
     ]
 
-    /// 5 つ引く。recent（最近選んだもの）はなるべく避ける
-    public static func draw(_ count: Int = 5, avoiding recent: [String] = []) -> [String] {
-        let fresh = all.filter { !recent.contains($0) }.shuffled()
-        let pool = fresh.count >= count ? fresh : fresh + all.filter { recent.contains($0) }.shuffled()
+    /// 準 1 級・2 級の意見の質問のテーマ（本番は絵カードの話題に沿って聞かれる。カードの代わりにテーマを選ぶ）
+    public static let themes: [String] = [
+        "Working from home", "Online shopping", "Smartphones and children", "Volunteering", "Eating habits and health",
+        "Public transportation", "Recycling and waste", "Studying abroad", "Elderly people in society", "Sports and exercise",
+        "Reading books", "Convenience stores", "Pets", "Tourism in Japan", "Cashless payments",
+        "Part-time jobs for students", "Living in the city or the countryside", "Social media", "Saving energy at home", "Learning foreign languages",
+        "Artificial intelligence at work", "Disaster preparation", "Local festivals and traditions", "Fast fashion",
+    ]
+
+    /// 5 つ引く。recent（最近選んだもの）はなるべく避ける。準 1 級・2 級はテーマから
+    public static func draw(_ count: Int = 5, avoiding recent: [String] = [], level: ExamLevel = .g1) -> [String] {
+        let source = level.hasSpeech ? all : themes
+        let fresh = source.filter { !recent.contains($0) }.shuffled()
+        let pool = fresh.count >= count ? fresh : fresh + source.filter { recent.contains($0) }.shuffled()
         return Array(pool.prefix(count))
     }
+}
+
+/// 練習する級。1 級はスピーチ＋質疑応答、準 1 級・2 級は絵カードを使わない「意見の質問」の部分だけ（2026-10-30 本人の案・絵カードはあとで）
+public enum ExamLevel: String, CaseIterable, Sendable {
+    case g1, gp1, g2
+
+    public var label: String {
+        switch self {
+        case .g1: return "1 級"
+        case .gp1: return "準 1 級"
+        case .g2: return "2 級"
+        }
+    }
+    /// 面接官がする質問の数（1 級はスピーチのあとの質疑応答の上限）
+    public var questionCount: Int {
+        switch self {
+        case .g1: return 4
+        case .gp1: return 3
+        case .g2: return 2
+        }
+    }
+    /// スピーチがあるか（1 級だけ）
+    public var hasSpeech: Bool { self == .g1 }
 }
 
 /// 採点の 1 観点（0〜10 点）
@@ -92,6 +125,8 @@ public struct ExamTurn: Equatable, Sendable {
     public var pronunciation: ExamScore?
     /// 採点の材料にする短い覚え書き（学習者には見せない）
     public var note = ""
+    /// 答えが短すぎて「なぜそう思いますか」と聞き返した（質問の数に数えない）
+    public var followUp = false
     public init() {}
 }
 
@@ -116,11 +151,15 @@ public struct ExamResult: Equatable, Sendable {
 
 public enum Exam {
 
-    /// 観点の並びと見出し（英検 1 級の二次の 4 観点）
+    /// 観点の並びと見出し。1 級は二次の 4 観点、準 1 級・2 級は意見の質問の答えと態度（アティチュード）を見る
     public static let criteria: [(key: String, label: String)] = [
         ("speech", "スピーチ"), ("interaction", "質疑応答"), ("grammar", "文法・語彙"), ("pronunciation", "発音"),
     ]
-    public static func label(_ key: String) -> String { criteria.first { $0.key == key }?.label ?? key }
+    public static let opinionCriteria: [(key: String, label: String)] = [
+        ("answers", "意見と理由"), ("grammar", "文法・語彙"), ("pronunciation", "発音"), ("attitude", "態度"),
+    ]
+    public static func criteria(_ level: ExamLevel) -> [(key: String, label: String)] { level.hasSpeech ? criteria : opinionCriteria }
+    public static func label(_ key: String) -> String { (criteria + opinionCriteria).first { $0.key == key }?.label ?? key }
 
     public static let prepSeconds = 60
     public static let speechSeconds = 120
@@ -130,6 +169,8 @@ public enum Exam {
     public static let interactionSeconds = 240
 
     public enum Request: Equatable, Sendable {
+        /// 準 1 級・2 級: 最初の質問をする（文字だけ）
+        case open(topic: String)
         /// スピーチを聞いて、最初の質問をする（音声つき）
         case speech(topic: String)
         /// 回答を聞いて、次の質問をする（音声つき）。last なら次の質問はせず、空で返す
@@ -140,8 +181,9 @@ public enum Exam {
 
     // MARK: - 指示文
 
-    public static func system(variant: TargetLanguage = .enUS) -> String {
-        """
+    public static func system(level: ExamLevel = .g1, variant: TargetLanguage = .enUS) -> String {
+        if !level.hasSpeech { return opinionSystem(level: level, variant: variant) }
+        return """
 あなたは英検 1 級の二次試験（面接）の面接官と採点者を務めます。学習者は日本語が母語で、1 次試験には合格する力があり、話すことに苦手意識があります。
 
 \(variant.variantNote)
@@ -165,11 +207,48 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
 """
     }
 
-    public static func userMessage(_ request: Request, history: [TalkLine], notes: [String] = []) -> String {
+    /// 準 1 級・2 級の意見の質問。本番は絵カードの話題に沿って聞かれるので、選んだテーマをカードの代わりにする
+    static func opinionSystem(level: ExamLevel, variant: TargetLanguage) -> String {
+        let shape: String
+        switch level {
+        case .gp1:
+            shape = """
+- 英検準 1 級の二次の後半（No.2〜No.4）と同じ形で、意見を問う質問を 3 問します。No.2・No.3 はテーマに沿った身近な社会の話題（"Do you think ...?" "Should ...?" など）、No.4 はもう少し広い社会問題で、質問の前に話題を導入する一文を付けます（例: "These days, many companies are using AI. Do you think ...?"）。
+- 学習者の答えに対して、面接官は "I see." 程度で受けて次へ進む。
+"""
+        default:
+            shape = """
+- 英検 2 級の二次の後半（意見の質問 2 問）と同じ形で、テーマに沿った日常的な社会の話題を 2 問します（"Some people say that ... What do you think about that?" "Do you think ...?" など）。語彙は 2 級の受験者に分かる平易なものに。
+- 学習者の答えが Yes/No だけ・1 文だけで理由が無いときは、本番の面接官のように "Why do you think so?" "Why not?" と 1 回だけ聞き返す（"follow_up": true・質問の数には数えない）。
+"""
+        }
+        return """
+あなたは英検\(level.label)の二次試験（面接）の面接官と採点者を務めます。学習者は日本語が母語で、話すことに苦手意識があります。
+
+\(variant.variantNote)
+
+## 試験の流れ
+- 学習者が選んだテーマを、本番の問題カードの話題の代わりにします。
+\(shape)
+- 質問は英語で 1〜2 文。丁寧で落ち着いた言い方。ほめたり教えたりしない。前の質問と同じことを聞かない。
+
+## 採点の観点（各 10 点）
+- answers（意見と理由）: 質問に正面から答えているか・意見がはっきりしているか・理由と具体例で支えているか（目安は 2〜3 文以上）。
+- grammar（文法・語彙）: \(level.label)にふさわしい語彙と正確さ。誤りが意味の伝わりを妨げる程度で減点。
+- pronunciation（発音）: 音声から判断する。個々の音・強勢・イントネーション。
+- attitude（態度）: 沈黙が長くないか・聞き返しの仕方・自分から話そうとする姿勢・声の大きさと間（音声から判断する）。
+- 点は甘くしない。合格の目安は全体の 6〜7 割。
+
+## 出力
+JSON だけを返す。前後に説明や ``` を付けない。日本語で書く欄は、学習者を鍛える年配のボクシングトレーナー「トラさん」の普段の話し方（一人称は俺・「〜だな」「〜だろ」・役割語は使わない・責めない）。
+"""
+    }
+
+    public static func userMessage(_ request: Request, history: [TalkLine], notes: [String] = [], level: ExamLevel = .g1) -> String {
         var lines: [String] = []
         switch request {
-        case .speech(let topic), .answer(let topic, _), .score(let topic):
-            lines.append("## 選んだトピック")
+        case .open(let topic), .speech(let topic), .answer(let topic, _), .score(let topic):
+            lines.append(level.hasSpeech ? "## 選んだトピック" : "## 選んだテーマ")
             lines.append(topic)
             lines.append("")
         }
@@ -185,6 +264,15 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
         }
         lines.append("## 今回")
         switch request {
+        case .open:
+            lines.append("面接の後半、意見の質問に入るところです。面接官の 1 問目をしてください。")
+            lines.append("""
+{
+  "heard": "",
+  "note": "",
+  "question": "面接官の 1 問目（英語）"
+}
+""")
         case .speech:
             lines.append("添付の音声が学習者のスピーチです。書き起こして、発音を採点し、面接官の最初の質問をしてください。")
             lines.append("""
@@ -196,12 +284,37 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
 }
 """)
         case .answer(_, let last):
-            lines.append("添付の音声が、面接官の直前の質問への学習者の答えです。書き起こしてください。" + (last ? "質疑応答はこれで終わりなので、\"question\" は空にしてください。" : "続けて、面接官の次の質問をしてください。"))
+            let follow = level == .g2 ? "ただし答えが Yes/No だけ・理由の無い 1 文だけなら、直前の質問がまだ聞き返していないものに限り、\"question\" に聞き返し（Why do you think so? など）を入れ \"follow_up\" を true にしてください。" : ""
+            lines.append("添付の音声が、面接官の直前の質問への学習者の答えです。書き起こしてください。" + (last ? "質問はこれで終わりなので、\"question\" は空にしてください。" : "続けて、面接官の次の質問をしてください。") + follow)
             lines.append("""
 {
-  "heard": "答えの書き起こし（聞こえたまま）",
-  "note": "この答えの出来の覚え書き（日本語・1 文・採点に使う）",
-  "question": "\(last ? "" : "面接官の次の質問（英語）")"
+  "heard": "答えの書き起こし（聞こえたまま。つなぎの音も残す）",
+  "note": "この答えの出来の覚え書き（日本語・1 文・採点に使う。\(level.hasSpeech ? "" : "発音・沈黙や間・声の様子も一言")）",
+  "question": "\(last ? "" : "面接官の次の質問（英語）")",
+  "follow_up": false
+}
+""")
+        case .score where !level.hasSpeech:
+            if !notes.isEmpty {
+                lines.append("### 途中の覚え書き（音声を聞いたときのもの）")
+                for n in notes { lines.append("- \(n)") }
+                lines.append("")
+            }
+            lines.append("試験は終わりです。ここまでの書き起こしと覚え書きから、answers・grammar・pronunciation・attitude を採点してください（pronunciation と attitude は覚え書きの音声の様子から）。")
+            lines.append("\"model\" は、質問ごとに学習者の意見をできるだけ活かした\(level.label)の合格水準の答え（英語・各 3〜4 文・意見→理由→具体例）を、\"Q: 質問\\nA: 答え\" の形で並べ、質問の間は空行で区切る。")
+            lines.append("\"fixes\" は、答えの中のはっきりした誤りや不自然な言い回しを 2〜4 件。\"phrases\" は、意見の質問で次に使える言い回しを 3 件（\"said\" に日本語の意味、\"ways\" に英語 1 つ）。")
+            lines.append("""
+{
+  "scores": {
+    "answers": { "score": 0, "comment": "日本語で 1〜2 文" },
+    "grammar": { "score": 0, "comment": "日本語で 1〜2 文" },
+    "pronunciation": { "score": 0, "comment": "日本語で 1〜2 文" },
+    "attitude": { "score": 0, "comment": "日本語で 1〜2 文" }
+  },
+  "summary": "トラさんの総評（日本語・2〜3 文。まず実際に言えたことを 1 つ引いて認め、次にいちばん伸ばすべき点を 1 つ）",
+  "fixes": [ { "type": "grammar", "original": "言った形", "suggestion": "直した形", "reason": "一言（日本語）" } ],
+  "model": "Q: ...\\nA: ...",
+  "phrases": [ { "said": "日本語の意味", "ways": ["英語の言い回し"] } ]
 }
 """)
         case .score:
@@ -249,6 +362,7 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
         t.heard = Logic.asText(obj["heard"])
         t.question = Logic.asText(obj["question"])
         t.note = Logic.asText(obj["note"])
+        t.followUp = Logic.truthy(obj["follow_up"])
         if let p = obj["pronunciation"] as? [String: Any] {
             t.pronunciation = ExamScore(key: "pronunciation", score: clampScore(p["score"]), comment: Logic.asText(p["comment"]))
         }
@@ -257,11 +371,11 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
     }
 
     /// pronunciation はスピーチのときの点を渡す（無ければ 0 点・コメントなし）
-    public static func parseResult(_ raw: String?, pronunciation: ExamScore?) -> ExamResult? {
+    public static func parseResult(_ raw: String?, pronunciation: ExamScore?, level: ExamLevel = .g1) -> ExamResult? {
         guard let obj = object(raw), let s = obj["scores"] as? [String: Any] else { return nil }
         var r = ExamResult()
-        for c in criteria {
-            if c.key == "pronunciation" {
+        for c in criteria(level) {
+            if c.key == "pronunciation", level.hasSpeech {
                 r.scores.append(pronunciation ?? ExamScore(key: c.key, score: 0, comment: ""))
             } else {
                 let d = s[c.key] as? [String: Any] ?? [:]
@@ -292,8 +406,9 @@ JSON だけを返す。前後に説明や ``` を付けない。日本語で書�
     // MARK: - 記録にするとき
 
     /// 履歴に残す一言（点と総評）。会話の記録の good 欄に入れる
-    public static func recordGood(_ r: ExamResult) -> String {
+    public static func recordGood(_ r: ExamResult, level: ExamLevel = .g1) -> String {
         let parts = r.scores.map { "\(label($0.key)) \($0.score)" }.joined(separator: "・")
-        return "英検 1 級 2 次の練習 \(r.total)/\(ExamResult.max)（\(parts)）。\(r.summary)"
+        let what = level.hasSpeech ? "英検 1 級 2 次の練習" : "英検 \(level.label) 2 次（意見の質問）の練習"
+        return "\(what) \(r.total)/\(ExamResult.max)（\(parts)）。\(r.summary)"
     }
 }

@@ -11,8 +11,8 @@ struct ExamCard: View {
                 Image(systemName: "graduationcap.fill").font(.title2).foregroundStyle(Theme.info)
                     .frame(width: 44, height: 44).background(Theme.info.opacity(0.15), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("英検 1 級 2 次の練習").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
-                    Text("1 分で考えて 2 分のスピーチ。面接官の質問に答えて、4 つの観点で採点")
+                    Text("英検 2 次の練習").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                    Text("1 級はスピーチと質疑応答、準 1 級・2 級は意見の質問。面接官に答えて 4 つの観点で採点")
                         .font(.caption).foregroundStyle(Theme.muted)
                 }
                 Spacer(minLength: 4)
@@ -43,6 +43,13 @@ final class ExamModel: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .choose
+    /// 練習する級（前回選んだものを覚えておく）
+    @Published var level: ExamLevel {
+        didSet {
+            UserDefaults.standard.set(level.rawValue, forKey: "examLevel")
+            if oldValue != level { topics = ExamTopics.draw(avoiding: Self.recent, level: level) }
+        }
+    }
     @Published private(set) var topics: [String] = []
     @Published private(set) var topic = ""
     /// 準備・スピーチの残り秒
@@ -66,7 +73,9 @@ final class ExamModel: ObservableObject {
 
     init(app: AppModel) {
         self.app = app
-        topics = ExamTopics.draw(avoiding: Self.recent)
+        let level = ExamLevel(rawValue: UserDefaults.standard.string(forKey: "examLevel") ?? "") ?? .g1
+        self.level = level
+        topics = ExamTopics.draw(avoiding: Self.recent, level: level)
     }
 
     var recorder: Recorder { app.recorder }
@@ -84,16 +93,27 @@ final class ExamModel: ObservableObject {
         set { UserDefaults.standard.set(Array(newValue.suffix(20)), forKey: "examRecentTopics") }
     }
 
-    func redraw() { topics = ExamTopics.draw(avoiding: Self.recent + topics) }
+    func redraw() { topics = ExamTopics.draw(avoiding: Self.recent + topics, level: level) }
 
     func choose(_ t: String) {
         topic = t
         Self.recent = Self.recent.filter { $0 != t } + [t]
-        startPrep()
+        begin()
     }
 
     /// 同じトピックでもう一回（同じ話を繰り返すと流暢さが伸びる）
-    func again() { startPrep() }
+    func again() { begin() }
+
+    /// 1 級は準備から。準 1 級・2 級はすぐ面接官の最初の質問へ
+    private func begin() {
+        guard !level.hasSpeech else { startPrep(); return }
+        stopTimer()
+        lines = []; result = nil; saved = nil; error = nil; retryable = false
+        pron = nil; notes = []; questions = 0; speechSeconds = 0
+        startedAt = Date(); interactionStart = Date()
+        phase = .sending
+        Task { await send(.open(topic: topic), audio: nil) }
+    }
 
     func newTopics() {
         stopTimer()
@@ -154,7 +174,7 @@ final class ExamModel: ObservableObject {
             error = String(localized: "短すぎました。もう少し話してから止めてください")
             return
         }
-        let last = questions >= Exam.maxQuestions || Date().timeIntervalSince(interactionStart) >= Double(Exam.interactionSeconds)
+        let last = questions >= level.questionCount || (level.hasSpeech && Date().timeIntervalSince(interactionStart) >= Double(Exam.interactionSeconds))
         phase = .thinking
         await send(.answer(topic: topic, last: last), audio: r.audio)
     }
@@ -177,7 +197,7 @@ final class ExamModel: ObservableObject {
     func retry() async {
         guard let f = failed else { return }
         retryable = false
-        phase = { if case .score = f.request { return .scoring }; if case .speech = f.request { return .sending }; return .thinking }()
+        phase = { if case .score = f.request { return .scoring }; if case .speech = f.request { return .sending }; if case .open = f.request { return .sending }; return .thinking }()
         await send(f.request, audio: f.audio)
     }
 
@@ -186,6 +206,9 @@ final class ExamModel: ObservableObject {
         failed = nil
         guard let raw = await request(r, audio: audio) else { markFailed(r, audio); return }
         switch r {
+        case .open:
+            guard let t = Exam.parseTurn(raw), !t.question.isEmpty else { fail(r, audio, String(localized: "質問を読み取れませんでした")); return }
+            ask(t.question)
         case .speech:
             guard let t = Exam.parseTurn(raw), !t.heard.isEmpty else { fail(r, audio, String(localized: "スピーチが聞き取れませんでした。マイクを確かめて、準備からやり直してください")); return }
             lines.append(TalkLine(who: "me", text: t.heard, tag: "exam_speech"))
@@ -197,15 +220,17 @@ final class ExamModel: ObservableObject {
             guard let t = Exam.parseTurn(raw) else { fail(r, audio, String(localized: "答えを読み取れませんでした")); return }
             if !t.heard.isEmpty { lines.append(TalkLine(who: "me", text: t.heard, tag: "exam_answer")) }
             if !t.note.isEmpty { notes.append("答え \(questions): \(t.note)") }
-            if last || t.question.isEmpty { await score() } else { ask(t.question) }
+            if t.question.isEmpty || (last && !t.followUp) { await score() } else { ask(t.question, followUp: t.followUp) }
         case .score:
-            guard let res = Exam.parseResult(raw, pronunciation: pron) else { fail(r, audio, String(localized: "採点を読み取れませんでした")); return }
+            guard let res = Exam.parseResult(raw, pronunciation: pron, level: level) else { fail(r, audio, String(localized: "採点を読み取れませんでした")); return }
             result = res
             // 直しはスピーチの行に付けておく（記録の「直すべし」に集まる）
             if let i = lines.firstIndex(where: { $0.tag == "exam_speech" }) { lines[i].fixes = res.fixes }
-            var record = [TalkLine(who: "native", text: "Topic: \(topic)", tag: "exam_topic")] + lines
+            // 1 級はスピーチに、準 1 級・2 級は最初の答えに付ける
+            if !level.hasSpeech, let i = lines.firstIndex(where: { $0.tag == "exam_answer" }) { lines[i].fixes = res.fixes }
+            var record = [TalkLine(who: "native", text: (level.hasSpeech ? "Topic: " : "Theme: ") + topic, tag: "exam_topic")] + lines
             if !res.model.isEmpty { record.append(TalkLine(who: "tora", text: res.model, asks: res.phrases, tag: "exam_model")) }
-            saved = app.finishTalk(lines: record, good: Exam.recordGood(res), startedAt: startedAt)
+            saved = app.finishTalk(lines: record, good: Exam.recordGood(res, level: level), startedAt: startedAt)
             phase = .ended
         }
     }
@@ -222,9 +247,9 @@ final class ExamModel: ObservableObject {
         if case .answer = r { phase = .listening } else { phase = .stalled }
     }
 
-    private func ask(_ q: String) {
+    private func ask(_ q: String, followUp: Bool = false) {
         guard !q.isEmpty else { Task { await score() }; return }
-        questions += 1
+        if !followUp { questions += 1 }
         lines.append(TalkLine(who: "native", text: q))
         say(q)
         phase = .listening
@@ -323,9 +348,9 @@ final class ExamModel: ObservableObject {
             error = app.talkBlocker ?? String(localized: "練習には、「設定」で「おまかせ（キー不要）」を選ぶか、Gemini の API キーを登録してください。")
             return nil
         }
-        let message = Exam.userMessage(r, history: lines, notes: notes)
+        let message = Exam.userMessage(r, history: lines, notes: notes, level: level)
         do {
-            let raw = try await client.exam(audio: audio, mimeType: Recorder.mimeType, message: message, system: Exam.system(variant: app.targetLanguage))
+            let raw = try await client.exam(audio: audio, mimeType: Recorder.mimeType, message: message, system: Exam.system(level: level, variant: app.targetLanguage))
             if app.usesRelay { await app.refreshTalkQuota() }
             return raw
         } catch let f as GeminiClient.Failure {
@@ -347,6 +372,8 @@ final class ExamModel: ObservableObject {
     private static func fake(_ r: Exam.Request) async -> String {
         try? await Task.sleep(nanoseconds: 700_000_000)
         switch r {
+        case .open:
+            return #"{"heard":"","note":"","question":"Some people say that working from home is better than working at the office. What do you think about that?"}"#
         case .speech:
             return #"{"heard":"I agree that the development of AI should be strictly regulated. Uh, I have two reasons. First, AI can be used to make fake videos, and it is hard to know what is true. Second, many people may lose their jobs, so government should prepare rules. In conclusion, I think regulation is necessary.","pronunciation":{"score":6,"comment":"regulated の強勢が前に来てたな。re-gu-LA-ted じゃなくて RE-gu-la-ted だ。間はあるが、止まらずに言い切れてる。"},"note":"立場は明確。理由が抽象的で具体例が少ない。1 分 10 秒ほどで終わり短い。","question":"You mentioned fake videos. Don't you think regulation might slow down useful innovation?"}"#
         case .answer(_, let last):
@@ -378,7 +405,7 @@ struct ExamSheet: View {
                 }
             }
             .background(Theme.bg)
-            .navigationTitle("英検 1 級 2 次の練習").compactNavigationTitle()
+            .navigationTitle(String(localized: "英検 \(exam.level.label) 2 次の練習")).compactNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(exam.active ? String(localized: "やめる") : String(localized: "閉じる")) {
@@ -419,16 +446,28 @@ struct ExamSheet: View {
         ScrollView {
             VStack(spacing: 12) {
                 errorCard
+                Picker("級", selection: $exam.level) {
+                    ForEach(ExamLevel.allCases, id: \.self) { l in Text(l.label).tag(l) }
+                }
+                .pickerStyle(.segmented)
                 Card {
-                    Text("本番と同じ流れです").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
-                    step("1", "5 つのトピックから 1 つ選ぶ")
-                    step("2", "1 分で考える（メモは取れません）。時間が来ると録音が始まります")
-                    step("3", "2 分のスピーチ。2 分で止まります")
-                    step("4", "面接官の質問に答える（\(Exam.maxQuestions) 問まで・約 4 分）")
-                    step("5", "スピーチ・質疑応答・文法と語彙・発音の 4 つを各 10 点で採点")
+                    if exam.level.hasSpeech {
+                        Text("本番と同じ流れです").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                        step("1", "5 つのトピックから 1 つ選ぶ")
+                        step("2", "1 分で考える（メモは取れません）。時間が来ると録音が始まります")
+                        step("3", "2 分のスピーチ。2 分で止まります")
+                        step("4", "面接官の質問に答える（\(exam.level.questionCount) 問まで・約 4 分）")
+                        step("5", "スピーチ・質疑応答・文法と語彙・発音の 4 つを各 10 点で採点")
+                    } else {
+                        Text("面接の後半「意見の質問」の練習です").font(.callout.weight(.bold)).foregroundStyle(Theme.text)
+                        step("1", "テーマを 1 つ選ぶ（本番の問題カードの話題の代わり）")
+                        step("2", "面接官が意見を聞く質問を \(exam.level.questionCount) 問します。意見 → 理由 → 具体例で答えます")
+                        step("3", "意見と理由・文法と語彙・発音・態度の 4 つを各 10 点で採点")
+                        Text("音読とイラストの問題はまだありません（あとで足します）。").font(.caption).foregroundStyle(Theme.muted)
+                    }
                     Text("採点は AI の目安です。英検の公式の点数ではありません。").font(.caption).foregroundStyle(Theme.muted)
                 }
-                Card(title: String(localized: "トピックを選んでください")) {
+                Card(title: exam.level.hasSpeech ? String(localized: "トピックを選んでください") : String(localized: "テーマを選んでください")) {
                     ForEach(exam.topics, id: \.self) { t in
                         Button { exam.choose(t) } label: {
                             Text(t).font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
@@ -447,7 +486,7 @@ struct ExamSheet: View {
                 if let why = model.talkBlocker {
                     Card { Text(why).font(.callout).foregroundStyle(Theme.text) }
                 } else if let q = model.talkQuota {
-                    Note(text: String(localized: "今日はあと \(q.remaining) ターン（三人で話すと共通）。1 回の練習で 6 ターンほど使います。"))
+                    Note(text: String(localized: "今日はあと \(q.remaining) ターン（三人で話すと共通）。1 回の練習で \(exam.level.questionCount + 2) ターンほど使います。"))
                 }
             }
             .padding(12)
@@ -520,7 +559,7 @@ struct ExamSheet: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 10) {
-                        Card(title: String(localized: "トピック")) {
+                        Card(title: exam.level.hasSpeech ? String(localized: "トピック") : String(localized: "テーマ")) {
                             Text(exam.topic).font(.callout.weight(.bold)).foregroundStyle(Theme.text)
                         }
                         ForEach(Array(exam.lines.enumerated()), id: \.offset) { i, l in
@@ -560,6 +599,7 @@ struct ExamSheet: View {
 
     private var busyText: String {
         switch exam.phase {
+        case .sending where exam.lines.isEmpty && !exam.level.hasSpeech: return String(localized: "面接官が質問を用意しています…")
         case .sending: return String(localized: "面接官がスピーチを聞いています…")
         case .scoring: return String(localized: "採点しています…")
         default: return String(localized: "面接官が聞いています…")
@@ -570,7 +610,7 @@ struct ExamSheet: View {
         VStack(spacing: 0) {
             Divider().overlay(Theme.line)
             VStack(spacing: 8) {
-                Text(String(localized: "質問 \(exam.questionCount) / \(Exam.maxQuestions)")).font(.caption2).foregroundStyle(Theme.faint)
+                Text(String(localized: "質問 \(exam.questionCount) / \(exam.level.questionCount)")).font(.caption2).foregroundStyle(Theme.faint)
                 if exam.phase == .answering { RecordingStrip(recorder: exam.recorder) }
                 HStack(spacing: 10) {
                     Button { exam.repeatQuestion() } label: {
@@ -637,9 +677,9 @@ struct ExamSheet: View {
                         }
                     }
                     if !r.model.isEmpty {
-                        Card(title: String(localized: "あなたの主張で組み直したスピーチ")) {
+                        Card(title: exam.level.hasSpeech ? String(localized: "あなたの主張で組み直したスピーチ") : String(localized: "あなたの意見で組み直した答え")) {
                             HStack {
-                                Text("約 2 分で話せる長さです。声に出して読むと、型が体に入ります。").font(.caption).foregroundStyle(Theme.muted)
+                                Text(exam.level.hasSpeech ? String(localized: "約 2 分で話せる長さです。声に出して読むと、型が体に入ります。") : String(localized: "声に出して読むと、意見 → 理由 → 具体例の型が体に入ります。")).font(.caption).foregroundStyle(Theme.muted)
                                 Spacer()
                                 SpeakButton(text: r.model)
                             }
@@ -660,11 +700,11 @@ struct ExamSheet: View {
                 }
                 HStack(spacing: 10) {
                     Button { exam.again() } label: {
-                        Label("同じトピックでもう一回", systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity)
+                        Label(exam.level.hasSpeech ? String(localized: "同じトピックでもう一回") : String(localized: "同じテーマでもう一回"), systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent).tint(Theme.accent)
                     Button { exam.newTopics() } label: {
-                        Label("別のトピック", systemImage: "list.bullet").frame(maxWidth: .infinity)
+                        Label(exam.level.hasSpeech ? String(localized: "別のトピック") : String(localized: "別のテーマ"), systemImage: "list.bullet").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered).tint(Theme.info)
                 }

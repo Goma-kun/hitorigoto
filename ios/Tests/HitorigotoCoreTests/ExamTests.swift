@@ -48,3 +48,30 @@ final class ExamTests: XCTestCase {
         XCTAssertTrue(m.contains("\"question\" は空"))
     }
 }
+
+final class ExamOpinionTests: XCTestCase {
+
+    func testThemesForOpinionLevels() {
+        let five = ExamTopics.draw(5, level: .g2)
+        XCTAssertTrue(five.allSatisfy { ExamTopics.themes.contains($0) })
+        XCTAssertEqual(ExamLevel.gp1.questionCount, 3)
+        XCTAssertEqual(ExamLevel.g2.questionCount, 2)
+    }
+
+    func testOpinionResultReadsAllFourFromJSON() {
+        let raw = #"{"scores":{"answers":{"score":7,"comment":"a"},"grammar":{"score":6,"comment":"b"},"pronunciation":{"score":5,"comment":"c"},"attitude":{"score":8,"comment":"d"}},"summary":"s","model":"Q: x\nA: y"}"#
+        let r = Exam.parseResult(raw, pronunciation: nil, level: .g2)
+        XCTAssertEqual(r?.scores.map(\.key), ["answers", "grammar", "pronunciation", "attitude"])
+        XCTAssertEqual(r?.total, 26)
+        XCTAssertTrue(Exam.recordGood(r!, level: .g2).hasPrefix("英検 2 級 2 次（意見の質問）の練習 26/40"))
+    }
+
+    func testFollowUpOnlyForGrade2() {
+        let t = Exam.parseTurn(#"{"heard":"Yes.","question":"Why do you think so?","follow_up":true}"#)
+        XCTAssertEqual(t?.followUp, true)
+        XCTAssertTrue(Exam.userMessage(.answer(topic: "T", last: false), history: [], level: .g2).contains("follow_up"))
+        XCTAssertFalse(Exam.userMessage(.answer(topic: "T", last: false), history: [], level: .gp1).contains("聞き返し（Why"))
+        XCTAssertTrue(Exam.system(level: .gp1).contains("準 1 級"))
+        XCTAssertTrue(Exam.userMessage(.open(topic: "Pets"), history: [], level: .g2).contains("## 選んだテーマ"))
+    }
+}
