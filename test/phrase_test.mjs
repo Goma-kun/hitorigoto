@@ -175,6 +175,17 @@ console.log('== asks への書き戻し ==');
   ];
   check('今回の asks だけ残す', dropEchoedAsks(asks, [offer]).map(a => a.said), ['蔓延している']);
   check('狙いが無ければそのまま', dropEchoedAsks(asks, []).length, 4);
+  // 三人で話すで教わった譲り方が、said の言い換え・記号の差で素通りした（2026-11-09 実機）
+  const yieldWay = mk('Oh, sorry—go ahead.', 'どうぞ、先に');
+  const thanks = mk('Thanks. I was just gonna say...', 'ありがとう、言いかけてたのは…');
+  const asks2 = [
+    { said: '家計簿', ways: ['a budget tracker'] },
+    { said: 'どうぞ、先に喋ってください', ways: ['Oh, sorry, go ahead.', 'No, you go first.'] },
+    { said: 'ありがとう。言いかけてたのは…', ways: ['Thank you. What I was saying was...'] },
+    { said: '先に', ways: ['Go ahead.'] },
+  ];
+  check('記号と言い換えの差があっても外す', dropEchoedAsks(asks2, [yieldWay, thanks]).map(a => a.said), ['家計簿', '先に']);
+  check('2 語の短い言い方は含むだけでは外さない', dropEchoedAsks([{ said: '先に', ways: ['go ahead'] }], [yieldWay]).length, 1);
 }
 
 console.log('== 件数と上限 ==');

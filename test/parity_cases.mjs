@@ -171,6 +171,20 @@ for (let i = 0; i < 30; i++) {
   ];
   push({ fn: 'dropEchoedAsks', asks, cards: echo }, JS.dropEchoedAsks(asks, echo).map(a => a.said));
   push({ fn: 'dropEchoedAsks', asks, cards: [] }, asks.map(a => a.said));
+  // 三人で話すで教わった譲り方が、said の言い換え・記号の差で素通りした（2026-11-09）
+  const overlap = [
+    { ...cs[0], phrase: 'Oh, sorry—go ahead.', meaning: 'どうぞ、先に' },
+    { ...cs[1], phrase: 'Thanks. I was just gonna say...', meaning: 'ありがとう、言いかけてたのは…' },
+  ];
+  const asks2 = [
+    { said: '家計簿', ways: ['a budget tracker', 'a household account book'], ipa: [], note: '' },
+    { said: 'どうぞ、先に喋ってください', ways: ['Oh, sorry, go ahead.', 'No, you go first.'], ipa: [], note: '' },
+    { said: 'ありがとう。言いかけてたのは…', ways: ['Thank you. What I was saying was...'], ipa: [], note: '' },
+    { said: '先に', ways: ['Go ahead.'], ipa: [], note: '' },
+    { said: '（同上）', ways: ['x'], ipa: [], note: '' },
+  ];
+  push({ fn: 'dropEchoedAsks', asks: asks2, cards: overlap }, JS.dropEchoedAsks(asks2, overlap).map(a => a.said));
+  push({ fn: 'targetsSection', cards: overlap }, JS.buildTargetsSection(overlap));
 }
 
 // ---- 比べる ----

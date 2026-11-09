@@ -19,7 +19,8 @@ public struct TalkLine: Codable, Equatable, Sendable, Identifiable {
     /// 印。me: "repeat_ok"（トラさんの言い方を言い直せた）／"repeat_ng"（言い直したが違った）／
     /// "consult"（トラさんへのこっそりの相談。Sam には聞こえていない・会話の発言には数えない）／
     /// "stuck"（言い淀んで、トラさんに言い方を補ってもらった。助けてもらった分に数える）／
-    /// "cut_in"（ネイティブ役の話の途中で話し始めた＝被った）。それ以外は空
+    /// "cut_in"（ネイティブ役の話の途中で話し始めた＝被った）。
+    /// tora: "overlap"（被ったときの譲り方・返しを教えたターン。この asks は学習者が言えなかったことではないので、記録の asks と候補には入れない・2026-11-09）。それ以外は空
     public var tag: String
     /// tora: 一言が話す言語のときの訳（学習者が話す言語で話しかけたら、トラさんも話す言語で返す・2026-10-29）。それ以外は空
     public var note: String
@@ -420,14 +421,29 @@ public enum Talk {
             if seen.insert(k).inserted { issues.append(f) }
         } }
         s.issues = issues
-        var askSeen = Set<String>()
-        var asks: [Ask] = []
-        for l in lines where l.who == "tora" { for a in l.asks where !a.said.isEmpty {
-            if askSeen.insert(PhraseLogic.phraseKey(a.said)).inserted { asks.append(a) }
-        } }
+        let asks = learnerAsks(lines)
         if !asks.isEmpty { s.asks = asks }
         s.talk = lines
         return s
+    }
+
+    /// 会話の中で学習者が言えなくてトラさんに出してもらった言い方（同じ said は 1 回）。
+    /// 被ったときの譲り方・返し（"Oh, sorry—go ahead." など）は学習者が言えなかったことではないので入れない。
+    /// 印の付いていない昔の記録でも、被りの発言（me の "cut_in"）や譲り合いの見本（"collide"・"banter"）のあとのトラさんの asks は同じ扱い。
+    /// 2026-11-09: これが候補→表現集→今日の表現と渡って、独り言の asks に書き戻されていた
+    public static func learnerAsks(_ lines: [TalkLine]) -> [Ask] {
+        var seen = Set<String>()
+        var out: [Ask] = []
+        var overlapTurn = false
+        for l in lines {
+            if l.who == "me" && !l.tag.hasPrefix("repeat") && l.tag != "consult" { overlapTurn = l.tag == "cut_in" }
+            if l.tag == "collide" || l.tag == "banter" { overlapTurn = true }
+            guard l.who == "tora", l.tag != "overlap", !overlapTurn else { continue }
+            for a in l.asks where !a.said.isEmpty {
+                if seen.insert(PhraseLogic.phraseKey(a.said)).inserted { out.append(a) }
+            }
+        }
+        return out
     }
 
     /// 進み具合。英語（話す言語）だけで言えた発言の数、母語を混ぜた・トラさんに頼った数、もらった言い方をその場で言い直せた数

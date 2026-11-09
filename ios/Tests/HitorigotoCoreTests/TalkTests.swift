@@ -137,6 +137,40 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(String(data: try JSONEncoder().encode(TalkLine(who: "me", text: "Hi", tag: "repeat_ok")), encoding: .utf8)!.contains("repeat_ok"))
     }
 
+    // 被りで教わった譲り方は、記録の asks と候補に入れない（2026-11-09: 候補→表現集→今日の表現と渡って独り言の asks に書き戻されていた）
+    func testOverlapAsksStayOutOfSessionAndCandidates() {
+        let yieldAsk = Ask(said: "どうぞ、先に", ways: ["Oh, sorry—go ahead.", "No, you go first."])
+        let lines = [
+            TalkLine(who: "native", text: "What did you eat?"),
+            TalkLine(who: "me", text: "I ate 焼き芋."),
+            TalkLine(who: "tora", text: "こう言うんだ", asks: [Ask(said: "焼き芋", ways: ["a baked sweet potato"])]),
+            TalkLine(who: "native", text: "Nice. Do you—"),
+            TalkLine(who: "me", text: "It was sweet.", tag: "cut_in"),
+            TalkLine(who: "tora", text: "被っちまったな", asks: [yieldAsk], tag: "overlap"),
+            TalkLine(who: "native", text: "Oh, sorry, go ahead."),
+            // 印の無い昔の記録: 被りの発言のあとのトラさん
+            TalkLine(who: "me", text: "My cat likes it.", tag: "cut_in"),
+            TalkLine(who: "tora", text: "譲るときはこうだ", asks: [Ask(said: "ありがとう、言いかけてたのは…", ways: ["Thanks. I was just gonna say..."])]),
+            // 見本のターン（banter のあと、Sam → トラさんの順）
+            TalkLine(who: "me", text: "He is 16."),
+            TalkLine(who: "native", text: "Oh, that reminds me—", tag: "collide"),
+            TalkLine(who: "tora", text: "Back when I—", tag: "collide"),
+            TalkLine(who: "native", text: "Sorry, go ahead.", tag: "banter"),
+            TalkLine(who: "tora", text: "No, you first.", tag: "banter"),
+            TalkLine(who: "native", text: "So, 16!"),
+            TalkLine(who: "tora", text: "今みたいに被ったら", asks: [Ask(said: "どうぞ、先に", ways: ["Oh, sorry—go ahead."])]),
+            TalkLine(who: "me", text: "猫も好き."),
+            TalkLine(who: "tora", text: "", asks: [Ask(said: "猫も好き", ways: ["My cat likes it too."])]),
+        ]
+        let s = Talk.makeSession(id: "2026-11-09T10:00:00.000Z", lines: lines, good: "", engine: "talk-gemini")
+        XCTAssertEqual(s.asks?.map(\.said), ["焼き芋", "猫も好き"], "被り・見本のターンの asks は記録に入れない")
+        let items = Candidates.collect([s], phrases: [])
+        XCTAssertEqual(Set(items.map(\.phrase)), ["a baked sweet potato", "My cat likes it too"])
+        // 会話の無い記録（独り言）の asks はそのまま候補になる
+        var old = s; old.talk = nil; old.asks = [yieldAsk]
+        XCTAssertEqual(Candidates.collect([old], phrases: []).map(\.phrase), ["Oh, sorry—go ahead"])
+    }
+
     func testMakeSessionWithoutSpeechHasEmptyBody() {
         let s = Talk.makeSession(id: "x", lines: [TalkLine(who: "native", text: "Hi")], good: "", engine: "talk-cloud")
         XCTAssertEqual(s.transcript, "")

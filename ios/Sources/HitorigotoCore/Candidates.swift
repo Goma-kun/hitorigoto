@@ -69,7 +69,9 @@ public enum Candidates {
                 put(it.suggestion, said: orig, reason: it.reason ?? "", origin: "issue",
                     kind: it.type == "vocabulary" ? "word" : "phrase", date: day)
             }
-            for a in s.asks ?? [] {
+            // 会話の記録は、被りで教わった言い方を外した asks を会話から取り直す（印の無い昔の記録のため）
+            let asks = s.talk.map { Talk.learnerAsks($0) } ?? (s.asks ?? [])
+            for a in asks {
                 guard let way = a.ways.first else { continue }
                 put(way, said: a.said, reason: a.note, origin: "ask", kind: "phrase", date: day)
             }

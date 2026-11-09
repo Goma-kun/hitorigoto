@@ -177,7 +177,9 @@ final class TalkModel: ObservableObject {
         }
         if sentCutIn || sentDemo { overlapTaught = true }
         var added: [TalkLine] = turn.banter
-        let tora = (!turn.help.isEmpty || !turn.asks.isEmpty) ? TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks, note: turn.helpSub) : nil
+        // 被り・譲り合いの見本のターンで教わった言い方は "overlap" の印（記録の asks と候補には入れない）
+        let tora = (!turn.help.isEmpty || !turn.asks.isEmpty) ? TalkLine(who: "tora", text: turn.help, sub: turn.stuck ? "stuck" : "", asks: turn.asks,
+                                                                           tag: (sentCutIn || sentDemo) ? "overlap" : "", note: turn.helpSub) : nil
         let native = !turn.reply.isEmpty ? TalkLine(who: "native", text: turn.reply, sub: turn.replySub) : nil
         // 見本のターンは「Sam が話を続けてから、トラさんが学習者に教える」順。それ以外はトラさん → Sam
         if sentDemo { added += [native, tora].compactMap { $0 } } else { added += [tora, native].compactMap { $0 } }

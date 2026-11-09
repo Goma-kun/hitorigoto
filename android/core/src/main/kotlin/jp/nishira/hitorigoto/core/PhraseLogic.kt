@@ -367,7 +367,8 @@ object PhraseLogic {
     }
 
     private val askMark = Regex("[（(]\\s*英語で迷ったところ\\s*[）)]")
-    private val trailingStop = Regex("[.!?。]+$")
+    private val symbols = Regex("[^\\p{L}\\p{N}\\s]+")
+    private val spaces = Regex("\\s+")
     private val outerParen = Regex("^[（(]|[）)]$")
 
     /** asks から表現集に入れた表現は、意味の欄に「（英語で迷ったところ）」が付いたまま残っている */
@@ -387,23 +388,31 @@ object PhraseLogic {
         }
         return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n" +
             "※ 判定のための参考です。学習者が今回言ったことではありません。\"asks\"・\"issues\"・\"more_fixes\" には入れないでください。\n" +
+            "※ この一覧の言い方を \"asks\" の \"ways\" に写すのもやめてください（学習者が今回その言い方で迷ったのでなければ）。\n" +
             lines.joinToString("\n")
     }
 
-    private fun phraseKeyNoStop(text: String): String = phraseKey(text).replace(trailingStop, "")
+    /** 記号・句読点を落とした比べ方（— や 、 や末尾の . の違いで見逃さないため） */
+    private fun looseKey(text: String): String = phraseKey(text).replace(symbols, " ").replace(spaces, " ").trim()
+    private fun tightKey(text: String): String = looseKey(text).replace(" ", "")
 
     /**
      * 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
-     * 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+     * 言い方が狙いの表現そのもの（記号の違いは無視。3 語以上なら片方がもう片方を含むのも同じとみなす）、
+     * または said が狙いの表現の意味の写し（記号を除いて一致。4 文字以上なら片方がもう片方の頭に一致でも同じ）・「同上」なら書き戻しとみなす。
+     * 2026-11-09: 三人で話すで教わった「どうぞ、先に → Oh, sorry—go ahead.」が、said の言い換えと記号の差で素通りした
      */
     fun dropEchoedAsks(asks: List<Ask>, cards: List<PhraseCard>): List<Ask> {
-        val phrases = cards.filter { it.phrase.isNotEmpty() }.map { phraseKeyNoStop(it.phrase) }.toSet()
-        val meanings = cards.map { cleanMeaning(it.meaning) }.filter { it.isNotEmpty() }.toSet()
+        val phrases = cards.filter { it.phrase.isNotEmpty() }.map { looseKey(it.phrase) }.filter { it.isNotEmpty() }
+        val meanings = cards.map { tightKey(cleanMeaning(it.meaning)) }.filter { it.isNotEmpty() }
         if (phrases.isEmpty()) return asks
+        fun words(s: String) = s.split(' ').size
+        fun samePhrase(w: String, p: String) = w == p || (words(w) >= 3 && words(p) >= 3 && (w.contains(p) || p.contains(w)))
+        fun sameMeaning(s: String, m: String) = s == m || (s.length >= 4 && m.length >= 4 && (s.startsWith(m) || m.startsWith(s)))
         return asks.filter { a ->
-            val said = cleanMeaning(a.said).replace(outerParen, "").trim()
-            if (said == "同上" || said in meanings) false
-            else a.ways.none { phraseKeyNoStop(it) in phrases }
+            val said = tightKey(cleanMeaning(a.said).replace(outerParen, ""))
+            if (said == "同上" || meanings.any { sameMeaning(said, it) }) false
+            else a.ways.none { w -> val k = looseKey(w); k.isNotEmpty() && phrases.any { samePhrase(k, it) } }
         }
     }
 

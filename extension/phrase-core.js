@@ -403,20 +403,32 @@ function buildTargetsSection(cards) {
   });
   return `\n\n## 今日使うと決めていた表現（それぞれ使えたかを "targets" で判定してください）\n`
     + `※ 判定のための参考です。学習者が今回言ったことではありません。"asks"・"issues"・"more_fixes" には入れないでください。\n`
+    + `※ この一覧の言い方を "asks" の "ways" に写すのもやめてください（学習者が今回その言い方で迷ったのでなければ）。\n`
     + lines.join('\n');
 }
 
+// 記号・句読点を落とした比べ方（— や 、 や末尾の . の違いで見逃さないため）
+function looseKey(text) {
+  return phraseKey(text).replace(/[^\p{L}\p{N}\s]+/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+function tightKey(text) { return looseKey(text).replace(/\s+/g, ''); }
+
 // 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
-// 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+// 言い方が狙いの表現そのもの（記号の違いは無視。3 語以上なら片方がもう片方を含むのも同じとみなす）、
+// または said が狙いの表現の意味の写し（記号を除いて一致。4 文字以上なら片方がもう片方の頭に一致でも同じ）・「同上」なら書き戻しとみなす。
+// 2026-11-09: 三人で話すで教わった「どうぞ、先に → Oh, sorry—go ahead.」が、said の言い換えと記号の差で素通りした
 function dropEchoedAsks(asks, cards) {
   const list = Array.isArray(asks) ? asks : [];
-  const phrases = new Set((cards || []).filter(c => c && c.phrase).map(c => phraseKey(c.phrase).replace(/[.!?。]+$/, '')));
-  const meanings = new Set((cards || []).map(c => cleanPhraseMeaning(c && c.meaning)).filter(Boolean));
-  if (phrases.size === 0) return list;
+  const phrases = (cards || []).filter(c => c && c.phrase).map(c => looseKey(c.phrase)).filter(Boolean);
+  const meanings = (cards || []).map(c => tightKey(cleanPhraseMeaning(c && c.meaning))).filter(Boolean);
+  if (phrases.length === 0) return list;
+  const words = s => s.split(' ').length;
+  const samePhrase = (w, p) => w === p || (words(w) >= 3 && words(p) >= 3 && (w.includes(p) || p.includes(w)));
+  const sameMeaning = (s, m) => s === m || (s.length >= 4 && m.length >= 4 && (s.startsWith(m) || m.startsWith(s)));
   return list.filter(a => {
-    const said = cleanPhraseMeaning(a.said).replace(/^[（(]|[）)]$/g, '').trim();
-    if (said === '同上' || meanings.has(said)) return false;
-    return !(a.ways || []).some(w => phrases.has(phraseKey(w).replace(/[.!?。]+$/, '')));
+    const said = tightKey(cleanPhraseMeaning(a.said).replace(/^[（(]|[）)]$/g, ''));
+    if (said === '同上' || meanings.some(m => sameMeaning(said, m))) return false;
+    return !(a.ways || []).some(w => { const k = looseKey(w); return k && phrases.some(p => samePhrase(k, p)); });
   });
 }
 

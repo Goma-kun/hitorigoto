@@ -407,24 +407,32 @@ public enum PhraseLogic {
         }
         return "\n\n## 今日使うと決めていた表現（それぞれ使えたかを \"targets\" で判定してください）\n"
             + "※ 判定のための参考です。学習者が今回言ったことではありません。\"asks\"・\"issues\"・\"more_fixes\" には入れないでください。\n"
+            + "※ この一覧の言い方を \"asks\" の \"ways\" に写すのもやめてください（学習者が今回その言い方で迷ったのでなければ）。\n"
             + lines.joined(separator: "\n")
     }
 
-    private static func phraseKeyNoStop(_ text: String) -> String {
-        phraseKey(text).replacingOccurrences(of: "[.!?。]+$", with: "", options: .regularExpression)
+    /// 記号・句読点を落とした比べ方（— や 、 や末尾の . の違いで見逃さないため）
+    static func looseKey(_ text: String) -> String {
+        Logic.collapseSpaces(phraseKey(text).replacingOccurrences(of: "[^\\p{L}\\p{N}\\s]+", with: " ", options: .regularExpression))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    static func tightKey(_ text: String) -> String { looseKey(text).replacingOccurrences(of: " ", with: "") }
 
     /// 今日の狙いの表現が asks に書き戻されていたら外す（指示文で止めきれなかったときの守り）。
-    /// 言い方が狙いの表現そのもの、または said が狙いの表現の意味の写し・「同上」なら書き戻しとみなす
+    /// 言い方が狙いの表現そのもの（記号の違いは無視。3 語以上なら片方がもう片方を含むのも同じとみなす）、
+    /// または said が狙いの表現の意味の写し（記号を除いて一致。4 文字以上なら片方がもう片方の頭に一致でも同じ）・「同上」なら書き戻しとみなす。
+    /// 2026-11-09: 三人で話すで教わった「どうぞ、先に → Oh, sorry—go ahead.」が、said の言い換えと記号の差で素通りした
     public static func dropEchoedAsks(_ asks: [Ask], cards: [PhraseCard]) -> [Ask] {
-        let phrases = Set(cards.filter { !$0.phrase.isEmpty }.map { phraseKeyNoStop($0.phrase) })
-        let meanings = Set(cards.map { cleanMeaning($0.meaning) }.filter { !$0.isEmpty })
+        let phrases = cards.filter { !$0.phrase.isEmpty }.map { looseKey($0.phrase) }.filter { !$0.isEmpty }
+        let meanings = cards.map { tightKey(cleanMeaning($0.meaning)) }.filter { !$0.isEmpty }
         if phrases.isEmpty { return asks }
+        func words(_ s: String) -> Int { s.split(separator: " ").count }
+        func samePhrase(_ w: String, _ p: String) -> Bool { w == p || (words(w) >= 3 && words(p) >= 3 && (w.contains(p) || p.contains(w))) }
+        func sameMeaning(_ s: String, _ m: String) -> Bool { s == m || (s.count >= 4 && m.count >= 4 && (s.hasPrefix(m) || m.hasPrefix(s))) }
         return asks.filter { a in
-            let said = cleanMeaning(a.said).replacingOccurrences(of: "^[（(]|[）)]$", with: "", options: .regularExpression)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if said == "同上" || meanings.contains(said) { return false }
-            return !a.ways.contains { phrases.contains(phraseKeyNoStop($0)) }
+            let said = tightKey(cleanMeaning(a.said).replacingOccurrences(of: "^[（(]|[）)]$", with: "", options: .regularExpression))
+            if said == "同上" || meanings.contains(where: { sameMeaning(said, $0) }) { return false }
+            return !a.ways.contains { w in let k = looseKey(w); return !k.isEmpty && phrases.contains { samePhrase(k, $0) } }
         }
     }
 
