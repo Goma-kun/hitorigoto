@@ -97,10 +97,26 @@ struct TalkSheet: View {
                             .font(.caption).foregroundStyle(Theme.muted)
                     }
                 }
+                // 話したいことと「はじめる」は同じカードに。設定（相手・話し方・声）はそのあと
+                // （前は「はじめる」が一番下で、毎回スクロールしないと押せなかった・2026-11-10 本人指摘）
                 Card(title: String(localized: "話したいこと（空なら \(talk.nativeName) が決めます）")) {
                     TextField(String(localized: "例: 今日の仕事、週末のこと、うちの猫"), text: $talk.topic)
                         .textFieldStyle(.roundedBorder)
+                    Button {
+                        Task { await talk.start() }
+                    } label: {
+                        Label(String(localized: "はじめる"), systemImage: "bubble.left.and.bubble.right.fill").font(.headline).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(.large)
+                    .disabled(model.talkBlocker != nil)
+                    if let why = model.talkBlocker {
+                        Text(why).font(.callout).foregroundStyle(Theme.text)
+                    } else if let q = model.talkQuota {
+                        Text(String(localized: "今日はあと \(q.remaining) ターン（\(q.limit) ターンまで・添削の回数とは別）。1 回話すごとに 1 ターン使います。"))
+                            .font(.caption).foregroundStyle(Theme.muted)
+                    }
                 }
+                Text("相手と声の設定").font(.caption.weight(.bold)).foregroundStyle(Theme.faint).frame(maxWidth: .infinity, alignment: .leading)
                 Card(title: String(localized: "相手")) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -183,18 +199,6 @@ struct TalkSheet: View {
                     }
                     .tint(Theme.accent)
                 }
-                if let why = model.talkBlocker {
-                    Card { Text(why).font(.callout).foregroundStyle(Theme.text) }
-                } else if let q = model.talkQuota {
-                    Note(text: String(localized: "今日はあと \(q.remaining) ターン（\(q.limit) ターンまで・添削の回数とは別）。1 回話すごとに 1 ターン使います。"))
-                }
-                Button {
-                    Task { await talk.start() }
-                } label: {
-                    Label(String(localized: "はじめる"), systemImage: "bubble.left.and.bubble.right.fill").font(.headline).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(.large)
-                .disabled(model.talkBlocker != nil)
             }
             .padding(12)
         }

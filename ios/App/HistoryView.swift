@@ -89,6 +89,11 @@ struct SessionCard: View {
             HStack(spacing: 6) {
                 Text("\(dateLabel)　指摘 \(session.issues.count) 件").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                 if session.talk != nil { Tag(text: String(localized: "三人で話す"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
+                Spacer(minLength: 8)
+                // 上にもコピー。長い記録はカードの下まで送らないと押せなかった（2026-11-10 本人指摘）
+                if session.folded != true {
+                    CopyButton(text: Logic.buildSessionText(session, labels: Self.labels), label: String(localized: "📋 コピー（指摘つき）")).fixedSize()
+                }
             }
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
