@@ -103,6 +103,49 @@ func run(_ c: [String: Any]) -> Any {
     }
 }
 
+// ---- 実 API（assess）----
+// `hg-probe assess --snapshot snapshot.json --n 12 --runs 1 [--audio a.m4a --seconds 90]` 話す力の推定の点検（2026-11-12）。
+// 記録の新しい順に、英語で 100 語以上の回を文字だけで採点する。--runs で同じ回を何度も採点し、ぶれを見る
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "assess" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    func take(_ flag: String) -> String? {
+        guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
+        let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
+    }
+    let n = Int(take("--n") ?? "") ?? 10
+    let runs = Int(take("--runs") ?? "") ?? 1
+    let skip = Int(take("--skip") ?? "") ?? 0
+    let snap = take("--snapshot").flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+    let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let client = GeminiClient(key: key)
+    let picked = (snap?.sessions ?? []).filter { s in
+        guard s.talk == nil, let t = s.transcript else { return false }
+        return Assess.metrics(transcript: t, seconds: nil, fixes: 0).words >= Assess.minWords
+    }.dropFirst(skip).prefix(n)
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        for s in picked {
+            let t = s.transcript ?? ""
+            let fixes = s.issues.count + (s.moreFixes?.count ?? 0)
+            let m = Assess.metrics(transcript: t, seconds: nil, fixes: fixes)
+            var line: [String] = []
+            for _ in 0..<runs {
+                do {
+                    let axes = try await client.assess(audio: nil, mimeType: "", transcript: t, seconds: nil, fixes: fixes)
+                    let a = Assess.make(axes: axes, metrics: m, audio: false)
+                    let o = a.overall.map { CEFRScale.label($0) + "(\(CEFRScale.cse($0)))" } ?? "-"
+                    line.append(o + " [" + a.axes.map { "\($0.key.prefix(3))=\($0.level)" }.joined(separator: " ") + "]" + (a.unstable.map { " !\($0)" } ?? ""))
+                } catch { line.append("ERR \(error)") }
+            }
+            print("\(s.id.prefix(10)) words=\(m.words) fix/100=\(m.fixesPer100) mattr=\(m.mattr)")
+            for l in line { print("   " + l) }
+        }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（voice）----
 // `hg-probe voice --lines lines.json --out out.wav` 三人で話すの 1 ターンぶんの行（TalkLine の JSON 配列）を AI の声にする。
 // 読み上げる片（Voice.parts）と、かかった秒を出す。HG_RELAY=1 なら中継サーバーの /v1/voice を通る

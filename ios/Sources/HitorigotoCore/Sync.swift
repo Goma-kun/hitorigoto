@@ -120,9 +120,23 @@ public enum Sync {
     /// 同じセッション。畳まれた方が勝つ（畳むのは古くなった順で、2 台とも同じところで畳む）。
     /// 「トラさんに詳しく聞く」は直しごとに、やり取りの多い方を残す
     public static func mergeSession(_ a: Session, _ b: Session) -> Session {
-        if (a.folded == true) != (b.folded == true) { return a.folded == true ? a : b }
+        // レベルの推定は後から裏で付くので、片方にしか無ければそれを残す（両方あれば決まった方）
+        let assessment: Assessment? = {
+            switch (a.assessment, b.assessment) {
+            case let (x?, y?): return larger(x, y)
+            case let (x?, nil): return x
+            case let (nil, y?): return y
+            default: return nil
+            }
+        }()
+        if (a.folded == true) != (b.folded == true) {
+            var w = a.folded == true ? a : b
+            w.assessment = assessment
+            return w
+        }
         var x = a, y = b
         x.explains = nil; y.explains = nil
+        x.assessment = nil; y.assessment = nil
         var out = larger(x, y)
         var threads: [String: ExplainThread] = [:]
         for t in (a.explains ?? []) + (b.explains ?? []) {
@@ -135,6 +149,7 @@ public enum Sync {
         if out.folded == true { out.explains = nil }
         // 復習の音声はこの端末のファイルを指すので、こちら（a）の分を必ず残す（相手の記録が勝って消えていた・2026-10-29）
         out.recap = a.recap ?? b.recap
+        out.assessment = assessment
         return out
     }
 

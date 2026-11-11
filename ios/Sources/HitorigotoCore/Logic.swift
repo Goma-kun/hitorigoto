@@ -204,8 +204,10 @@ public enum Logic {
     public static func foldSessions(_ sessions: [Session], keepFull: Int = keepFull, keepTotal: Int = keepTotal) -> [Session] {
         sessions.prefix(keepTotal).enumerated().map { i, s in
             if i < keepFull || s.folded == true { return s }
-            return Session(id: s.id, folded: true,
-                           issues: s.issues.map { Issue(type: $0.type, suggestion: $0.suggestion) })
+            var f = Session(id: s.id, folded: true,
+                            issues: s.issues.map { Issue(type: $0.type, suggestion: $0.suggestion) })
+            f.assessment = s.assessment   // レベルの推定は小さいので畳んでも残す（流れを見るのに使う）
+            return f
         }
     }
 

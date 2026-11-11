@@ -38,6 +38,7 @@ struct HistoryView: View {
                     if !words.isEmpty {
                         Text(String(localized: "\(shown.count) 件")).font(.caption).foregroundStyle(Theme.faint).frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    if words.isEmpty, model.targetLanguage == .enUS || model.targetLanguage == .enGB { AssessCard() }
                     let recurring = Logic.topRecurring(model.snapshot.recurring)
                     if words.isEmpty, !recurring.isEmpty {
                         // 何の一覧かと、いつのことかが分かるようにする（唐突に見える・2026-09-28 本人指摘）

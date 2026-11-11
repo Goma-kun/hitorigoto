@@ -453,6 +453,7 @@ final class AppModel: ObservableObject {
                                                          system: targetLanguage.audioPrompt)
             finish(p, fb: fb, engine: usesRelay ? "cloud" : "gemini", targetCards: targetCards)
             if usesRelay { await refreshQuota() }
+            if let id = latestSession?.id { startAssess(sessionId: id, audio: p.audio, seconds: Double(p.seconds), client: client) }
         } catch let f as GeminiClient.Failure {
             phase = .idle
             errorMessage = Self.message(for: f, mic: recorder.inputName) + String(localized: "\n録音は残してあります。「もう一度送る」でやり直せます。")
@@ -531,6 +532,45 @@ final class AppModel: ObservableObject {
             latestJudged = judged
             latestSession = session
             phase = .result
+        }
+    }
+
+    // MARK: - 話した英語のレベルの推定（2026-11-12 第 1 段階）
+
+    /// 目標の試験（推定のカードに合格ラインとして出す）
+    @Published var assessGoal: AssessGoal = AssessGoal(rawValue: UserDefaults.standard.string(forKey: "assessGoal") ?? "") ?? .g1 {
+        didSet { UserDefaults.standard.set(assessGoal.rawValue, forKey: "assessGoal") }
+    }
+    /// 採点中のセッション（カードに「測っています」を出す）
+    @Published private(set) var assessing: String?
+
+    var assessSummary: AssessSummary? { Assess.summary(snapshot.sessions) }
+    var assessUsableCount: Int { Assess.usableCount(snapshot.sessions) }
+
+    /// 添削のあと裏で採点する。失敗しても何も出さない（添削の結果には関係しない）。英語・十分な長さの回だけ
+    private func startAssess(sessionId: String, audio: Data, seconds: Double, client: GeminiClient) {
+        guard targetLanguage == .enUS || targetLanguage == .enGB,
+              let s = snapshot.sessions.first(where: { $0.id == sessionId }), s.assessment == nil else { return }
+        let transcript = s.transcript ?? ""
+        let fixes = s.issues.count + (s.moreFixes?.count ?? 0)
+        let metrics = Assess.metrics(transcript: transcript, seconds: seconds, fixes: fixes)
+        guard Assess.measurable(words: metrics.words, seconds: seconds) else { return }
+        assessing = sessionId
+        Task {
+            defer { if assessing == sessionId { assessing = nil } }
+            do {
+                let axes = try await client.assess(audio: audio, mimeType: Recorder.mimeType, transcript: transcript,
+                                                   seconds: seconds, fixes: fixes)
+                guard let i = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+                snapshot.sessions[i].assessment = Assess.make(axes: axes, metrics: metrics, audio: true)
+                if latestSession?.id == sessionId { latestSession = snapshot.sessions[i] }
+                save()
+                if usesRelay { await refreshTalkQuota() }
+            } catch {
+                #if DEBUG
+                print("assess failed:", error)
+                #endif
+            }
         }
     }
 

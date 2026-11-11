@@ -93,6 +93,14 @@ struct SettingsView: View {
             } header: { Text("話す言語") }
 
             Section {
+                Picker("目標", selection: $model.assessGoal) {
+                    ForEach(AssessGoal.allCases, id: \.self) { g in Text(g.label).tag(g) }
+                }
+                Text("履歴の一番上に、話す力の推定と、この目標の合格ラインまでの距離を出します。英語で 60 秒以上・100 語以上話した回を、添削のあとに裏で測ります（おまかせのときは「三人で話す」と同じ回数で 1 回数えます）。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("話す力の推定") }
+
+            Section {
                 Toggle("話している最中に字幕を出す（端末の音声認識）", isOn: $model.captionsOn)
                 Text("字幕は参考です。添削は録音した音声そのものから行うので、字幕が化けていても直されることはありません。字幕を切ると、音声認識の許可は求めません。")
                     .font(.caption).foregroundStyle(Theme.muted)

@@ -202,6 +202,25 @@ public struct GeminiClient: Sendable {
         return turn
     }
 
+    /// 話した英語のレベルの推定（添削のあと裏で 1 回）。audio が nil なら文字だけで、発音・流暢さは測らない。
+    /// 中継サーバーでは三人で話す・試験の練習と同じ /v1/talk の回数で数える（第 1 段階・専用の枠はあとで）
+    public func assess(audio: Data?, mimeType: String, transcript: String, seconds: Double?, fixes: Int) async throws -> [AssessAxis] {
+        var parts: [[String: Any]] = []
+        if let audio {
+            guard !audio.isEmpty, audio.count <= Self.audioMaxBytes else { throw Failure.audio }
+            parts.append(["inlineData": ["mimeType": mimeType, "data": audio.base64EncodedString()]])
+        }
+        parts.append(["text": Assess.userMessage(transcript: transcript, seconds: seconds, fixes: fixes)])
+        let raw = try await call([
+            "systemInstruction": ["parts": [["text": Assess.system(audio: audio != nil)]]],
+            "contents": [["role": "user", "parts": parts]],
+            "generationConfig": ["temperature": 0, "thinkingConfig": ["thinkingLevel": "low"], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/talk")
+        guard let axes = Assess.parse(raw, audio: audio != nil) else { throw Failure.parse }
+        return axes
+    }
+
     /// 試験の練習の 1 回（スピーチ・回答は音声つき、採点は文字だけ）。応答の JSON をそのまま返す（解釈は Exam）。
     /// 中継サーバーでは /v1/talk の 1 ターンとして数える
     public func exam(audio: Data?, mimeType: String, message: String, system: String) async throws -> String {
