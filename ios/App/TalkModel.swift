@@ -451,7 +451,8 @@ final class TalkModel: ObservableObject {
         default: break
         }
         let message = Talk.userMessage(request: r, history: lines, language: language, targets: targets, review: rev, hasAudio: audio != nil,
-                                       cutIn: sentCutIn ? cutIn : nil, overlapDemo: sentDemo, partner: partner)
+                                       cutIn: sentCutIn ? cutIn : nil, overlapDemo: sentDemo, partner: partner,
+                                       taughtBefore: (sentCutIn || sentDemo) ? Talk.taughtOverlapWays(app.snapshot.sessions) : [])
         do {
             let turn = try await client.talk(audio: audio, mimeType: Recorder.mimeType, message: message, system: Talk.system(language: language, partner: partner))
             if app.usesRelay { await app.refreshTalkQuota() }

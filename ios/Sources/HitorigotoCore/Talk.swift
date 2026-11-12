@@ -222,9 +222,9 @@ public enum Talk {
 
 ## 被り（話し出しが重なったとき）
 三人で話すと、話し出すタイミングが重なることがあります。それも会話の一部として扱います。
-- **学習者が \(native) の話の途中で話し始めた**（メッセージに「被り」とあるターン）: \(native) は怒らず、まず譲る（"Oh—sorry, go ahead." "No no, you first." のように短く）。そのうえで、学習者が言ったことに返事をする。学習者が "Sorry, go ahead." "Oh, sorry—you were saying?" のように\(native) に譲り返してきたら、遮られた発言の**続き**を言ってから話を進める。途中で止まった発言の内容を、まるごと言い直さない（続きだけ）。
-- 初めての被りのターンでは、トラさんが "help" で「被っちまったな。こういうときの言い方を覚えとけ」と切り出し、"asks" に譲る言い方（"said": 「どうぞ、先に」→ "Oh, sorry—go ahead." / "No, you go first."）と、譲られたときの返し（"said": 「ありがとう、言いかけてたのは…」→ "Thanks. I was just gonna say..."）を 1 件ずつ入れる。2 回目からは、トラさんは口を出さない（学習者が\(lang)で譲ったり返したりできていれば、"help" で一言ほめてよい）。
-- **\(native) とトラさんが同時に話し出した見本**（メッセージに「譲り合いの見本」とあるターン）: "banter" の最初の 2 行は、二人が**同時に言いかけて途中で止まった言葉**（"cut": true・それぞれ 4〜7 語で、文の途中で切れた形。例: \(native) "Oh, that reminds me, I was gonna—" ／トラさん "Oh, that reminds me, back when I—"）。音はアプリが重ねて鳴らす。そのあと譲り合う短いやり取りを 2〜3 行（例: \(native) "Oh—sorry, Tora, go ahead." → トラさん "No no, you first, \(native)." → \(native) "Ha, okay."）。そのあと "reply" で\(native) が話を続け、トラさんは "help" で「今みたいに被ったら、こう言って譲るんだ」と学習者に向けて言い、"asks" に譲る言い方と譲られたときの返しを入れる。
+- **学習者が \(native) の話の途中で話し始めた**（メッセージに「被り」とあるターン）: \(native) は怒らず、まず短く譲る（言い方はメッセージの「今回の譲り方」を使い、毎回同じ定番に戻さない）。そのうえで、学習者が言ったことに返事をする。学習者が\(native) に譲り返してきたら、遮られた発言の**続き**を言ってから話を進める。途中で止まった発言の内容を、まるごと言い直さない（続きだけ）。
+- 初めての被りのターンでは、トラさんが "help" で「被っちまったな。こういうときの言い方を覚えとけ」と切り出し、"asks" に譲る言い方と、譲られたときの返しを 1 件ずつ入れる（"said" はその言い方の意味を短く。"ways" はメッセージの「今回の譲り方」にある言い方）。2 回目からは、トラさんは口を出さない（学習者が\(lang)で譲ったり返したりできていれば、"help" で一言ほめてよい）。
+- **\(native) とトラさんが同時に話し出した見本**（メッセージに「譲り合いの見本」とあるターン）: "banter" の最初の 2 行は、二人が**同時に言いかけて途中で止まった言葉**（"cut": true・それぞれ 4〜7 語で、文の途中で切れた形。例: \(native) "Oh, that reminds me, I was gonna—" ／トラさん "Oh, that reminds me, back when I—"）。音はアプリが重ねて鳴らす。そのあと譲り合う短いやり取りを 2〜3 行（二人とも、メッセージの「今回の譲り方」にある言い方を使う。最後は\(native) の短い一言で受ける）。そのあと "reply" で\(native) が話を続け、トラさんは "help" で「今みたいに被ったら、こう言って譲るんだ」と学習者に向けて言い、"asks" に譲る言い方と譲られたときの返しを入れる。
 - 被りではないターンでは "banter" は空配列。
 
 ## 聞こえた内容（"heard"）
@@ -266,7 +266,8 @@ public enum Talk {
     public static func userMessage(request: Request, history: [TalkLine], language: TargetLanguage, targets: [String] = [],
                                    review: TalkReview? = nil, hasAudio: Bool = false,
                                    cutIn: CutIn? = nil, overlapDemo: Bool = false, partner: Partner? = nil,
-                                   explanation: TargetLanguage.Explanation = TargetLanguage.explanation) -> String {
+                                   explanation: TargetLanguage.Explanation = TargetLanguage.explanation,
+                                   taughtBefore: [String] = [], seed: Int = Int.random(in: 0..<1_000_000)) -> String {
         let native = (partner ?? Partners.list(language)[0]).name
         let lang = language.promptName
         let mother = explanation == .ja ? "日本語" : "英語"
@@ -328,6 +329,12 @@ public enum Talk {
                 let pct = Int((c.heard * 100).rounded())
                 lines.append("**被り:** 学習者は、\(native) の直前の発言「\(c.line)」を \(pct)% ほど聞いたところで話し始めました（\(native) の声は途中で止まっています）。" + (c.first ? "この会話で初めての被りです。トラさんは譲り方・譲られ方の言い方を教えてください。" : "2 回目以降の被りです。トラさんは口を出しません（学習者が\(lang)で譲ったり返したりできていれば一言ほめてよい）。"))
             }
+            if (cutIn?.first ?? false) || overlapDemo {
+                let p = overlapPhrases(language: language, taughtBefore: taughtBefore, seed: seed)
+                if !p.yields.isEmpty {
+                    lines.append("**今回の譲り方**（毎回変えるため、教える言い方・二人の譲り合いの台詞はこの中から使う。go ahead／you go first ばかりに戻さない）: 譲る: " + p.yields.map { "\"\($0)\"" }.joined(separator: " / ") + "　譲られたときの返し: \"\(p.resume)\"")
+                }
+            }
             if overlapDemo {
                 lines.append("**譲り合いの見本:** このターンは、学習者の発言に返事をする前に、\(native) とトラさんが同時に話し出して譲り合う短いやり取りを \"banter\" に入れてください。そのあと \"reply\" で\(native) が返事をし、トラさんは \"help\" と \"asks\" で、被ったときの譲る言い方と譲られたときの返しを学習者に教えてください。")
             }
@@ -353,6 +360,44 @@ public enum Talk {
     public static let maxAsks = 3
 
     /// トラさんの一言が「言い方を示す」と言っているか（こう言ってみな／You'd say／say it like…）
+    /// 被ったときに譲る言い方（英語）。会話ごとに違う組を渡す（いつも go ahead / you go first になる、と本人・2026-11-13）
+    public static let yieldPool: [String] = [
+        "Oh, sorry—go ahead.", "No, you go first.", "Sorry, after you.", "Oh, my bad—you were saying?",
+        "Sorry, I cut you off. Go on.", "Please, go ahead.", "Oops—you first.",
+        "Sorry, didn't mean to interrupt. What were you saying?", "Go for it.", "Sorry—finish your thought.",
+        "No, no, you go.", "Sorry, you were about to say something?",
+    ]
+    /// 譲られたときの返し（英語）
+    public static let resumePool: [String] = [
+        "Thanks. I was just gonna say...", "Oh, no worries. I was just saying...", "Thanks—so, as I was saying...",
+        "Ha, thanks. Anyway...", "Thanks. Where was I? Oh, right—", "Thanks, I'll be quick.",
+        "Oh, thanks. So what I wanted to say was...", "Okay, real quick—",
+    ]
+
+    /// 今回教える譲り方 2 つと返し 1 つ。前に教えた言い方（taughtBefore）を避け、候補を使い切ったら全体から選び直す。英語以外は空
+    public static func overlapPhrases(language: TargetLanguage, taughtBefore: [String], seed: Int) -> (yields: [String], resume: String) {
+        guard language == .enUS || language == .enGB else { return ([], "") }
+        let key = { (s: String) in s.lowercased().filter { $0.isLetter } }
+        let used = Set(taughtBefore.map(key))
+        func pick(_ pool: [String], _ n: Int, _ salt: Int) -> [String] {
+            var fresh = pool.filter { !used.contains(key($0)) }
+            if fresh.count < n { fresh = pool }
+            var rng = SplitMix(seed: UInt64(truncatingIfNeeded: seed &* 31 &+ salt))
+            return Array(fresh.shuffled(using: &rng).prefix(n))
+        }
+        return (pick(yieldPool, 2, 1), pick(resumePool, 1, 2)[0])
+    }
+
+    /// 前の会話でトラさんが教えた譲り方（tag "overlap" のトラさんの行の言い方）。新しい順
+    public static func taughtOverlapWays(_ sessions: [Session], limit: Int = 30) -> [String] {
+        var out: [String] = []
+        for s in sessions.sorted(by: { $0.id > $1.id }) {
+            for l in s.talk ?? [] where l.who == "tora" && l.tag == "overlap" { out += l.asks.flatMap(\.ways) }
+            if out.count >= limit { break }
+        }
+        return Array(out.prefix(limit))
+    }
+
     public static func promisesPhrase(_ help: String) -> Bool {
         let h = help.lowercased()
         let cues = ["こう言", "って言うんだ", "って言えば", "言ってみな", "こう直", "こうだ", "you'd say", "you can say", "you could say", "say it like", "try saying", "we say", "we'd say", "goes like", "like this"]
@@ -468,5 +513,18 @@ public enum Talk {
             pendingHelp = false
         }
         return t
+    }
+}
+
+/// 決まった種から同じ並びを出す乱数（試験で結果を固定するため）
+struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
     }
 }

@@ -390,4 +390,41 @@ final class TalkTests: XCTestCase {
         XCTAssertEqual(Sync.mergeSession(a, b).recap, "recap_x.m4a")
         XCTAssertEqual(Sync.mergeSession(b, a).recap, "recap_x.m4a")
     }
+
+    // 被ったときの譲り方は会話ごとに違う組を渡し、前に教えたものを避ける（2026-11-13 本人「毎回 go ahead / you go first」）
+    func testOverlapPhrasesVaryAndAvoidTaught() {
+        let a = Talk.overlapPhrases(language: .enUS, taughtBefore: [], seed: 1)
+        XCTAssertEqual(a.yields.count, 2)
+        XCTAssertFalse(a.resume.isEmpty)
+        XCTAssertEqual(a.yields, Talk.overlapPhrases(language: .enUS, taughtBefore: [], seed: 1).yields)   // 同じ種なら同じ
+        let seen = Set((0..<20).flatMap { Talk.overlapPhrases(language: .enUS, taughtBefore: [], seed: $0).yields })
+        XCTAssertGreaterThan(seen.count, 6)   // 毎回同じにならない
+        let taught = ["Oh, sorry—go ahead.", "no, you go first"]
+        for seed in 0..<30 {
+            let p = Talk.overlapPhrases(language: .enUS, taughtBefore: taught, seed: seed)
+            XCTAssertFalse(p.yields.contains("Oh, sorry—go ahead."))
+            XCTAssertFalse(p.yields.contains("No, you go first."))
+        }
+        // 全部教えたら全体から選び直す
+        XCTAssertEqual(Talk.overlapPhrases(language: .enUS, taughtBefore: Talk.yieldPool, seed: 3).yields.count, 2)
+        XCTAssertTrue(Talk.overlapPhrases(language: .esES, taughtBefore: [], seed: 1).yields.isEmpty)
+    }
+
+    func testOverlapPhrasesGoIntoMessageOnlyWhenTeaching() {
+        let demo = Talk.userMessage(request: .speak, history: [], language: .enUS, overlapDemo: true, seed: 5)
+        XCTAssertTrue(demo.contains("今回の譲り方"))
+        for y in Talk.overlapPhrases(language: .enUS, taughtBefore: [], seed: 5).yields { XCTAssertTrue(demo.contains(y)) }
+        let first = Talk.userMessage(request: .speak, history: [], language: .enUS, cutIn: CutIn(line: "x", heard: 0.5, first: true), seed: 5)
+        XCTAssertTrue(first.contains("今回の譲り方"))
+        let plain = Talk.userMessage(request: .speak, history: [], language: .enUS, seed: 5)
+        XCTAssertFalse(plain.contains("今回の譲り方"))
+        XCTAssertFalse(Talk.system(language: .enUS).contains("you go first"))   // 決まった例を指示文に書かない
+    }
+
+    func testTaughtOverlapWaysReadsOverlapLines() {
+        var s = Session(id: "2026-11-12T00:00:00.000Z")
+        s.talk = [TalkLine(who: "tora", text: "x", asks: [Ask(said: "どうぞ", ways: ["Sorry, after you."])], tag: "overlap"),
+                  TalkLine(who: "tora", text: "y", asks: [Ask(said: "別", ways: ["unrelated"])])]
+        XCTAssertEqual(Talk.taughtOverlapWays([s]), ["Sorry, after you."])
+    }
 }
