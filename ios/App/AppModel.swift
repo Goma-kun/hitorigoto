@@ -448,9 +448,11 @@ final class AppModel: ObservableObject {
         let targetCards = todayCards()
         let extra = PhraseLogic.targetsSection(targetCards)
         do {
-            let fb = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
-                                                         recurring: Logic.topRecurring(snapshot.recurring), extra: extra,
-                                                         system: targetLanguage.audioPrompt)
+            let first = try await client.reviewEnglishAudio(p.audio, mimeType: Recorder.mimeType, asrTranscript: p.transcript,
+                                                            recurring: Logic.topRecurring(snapshot.recurring), extra: extra,
+                                                            system: targetLanguage.audioPrompt)
+            // 修正版で直したのに説明が無い箇所が多い回だけ、文字だけで聞き直して足す（2026-11-17）
+            let fb = await client.audited(first, said: first.transcript, language: targetLanguage)
             finish(p, fb: fb, engine: usesRelay ? "cloud" : "gemini", targetCards: targetCards)
             if usesRelay { await refreshQuota() }
             if let id = latestSession?.id { startAssess(sessionId: id, audio: p.audio, seconds: Double(p.seconds), client: client) }

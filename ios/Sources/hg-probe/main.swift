@@ -457,6 +457,35 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "explain" {
     exit(exitCode)
 }
 
+// ---- 実 API（audit）: 保存してある添削に、直しの点検だけをかける ----
+// hg-probe audit --said <言った文のファイル> --feedback <Feedback の JSON ファイル>
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "audit" {
+    let args = Array(CommandLine.arguments.dropFirst(2))
+    func opt(_ name: String) -> String? {
+        guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+    guard let said = opt("--said").flatMap({ try? String(contentsOfFile: $0, encoding: .utf8) }),
+          let fb = opt("--feedback").flatMap({ try? Data(contentsOf: URL(fileURLWithPath: $0)) }).flatMap({ try? JSONDecoder().decode(Feedback.self, from: $0) }) else {
+        FileHandle.standardError.write("NG: --said と --feedback が要ります\n".data(using: .utf8)!); exit(1)
+    }
+    let key = (try? String(contentsOfFile: NSString(string: "~/.config/nishira/gemini_api_key").expandingTildeInPath, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let client = GeminiClient(key: key)
+    let sem = DispatchSemaphore(value: 0)
+    Task {
+        let before = Audit.uncovered(said: said, feedback: fb)
+        let t0 = Date()
+        let out = await client.audited(fb, said: said, language: .enUS, explanation: .ja)
+        print(String(format: "%.1f 秒・説明の無い書き換え %d → %d・ほかの直し %d → %d 件", Date().timeIntervalSince(t0),
+                     before.count, Audit.uncovered(said: said, feedback: out).count, fb.moreFixes.count, out.moreFixes.count))
+        print("\n【修正版】\n\(out.correctedText)\n\n【足した直し】")
+        for f in out.moreFixes { print("・\(f.original) → \(f.suggestion)\n   \(f.note)") }
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 // ---- 実 API（review）----
 if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     var args = Array(CommandLine.arguments.dropFirst(2))
@@ -465,6 +494,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
         let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
     }
     let text = opt("--text"), audio = opt("--audio"), asr = opt("--asr") ?? ""
+    let doAudit = args.contains("--audit")
     let targets = (opt("--targets") ?? "").split(separator: "|").map(String.init)
     let lang = TargetLanguage(rawValue: opt("--lang") ?? "") ?? .default
     let explain: TargetLanguage.Explanation = opt("--explain") == "en" ? .en : .ja
@@ -487,7 +517,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
     Task {
         do {
             let t0 = Date()
-            let fb: Feedback
+            var fb: Feedback
             if let audio {
                 let data = try Data(contentsOf: URL(fileURLWithPath: audio))
                 let mime = audio.hasSuffix(".wav") ? "audio/wav" : audio.hasSuffix(".webm") ? "audio/webm" : "audio/mp4"
@@ -496,6 +526,17 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "review" {
                 fb = try await client.reviewEnglish(text ?? "", recurring: [], extra: extra, system: lang.localize(Prompts.system, explanation: explain))
             }
             let secs = String(format: "%.1f", Date().timeIntervalSince(t0))
+            // --audit: 直しの点検（説明の無い書き換えが多い回だけ聞き直す）を通す
+            if doAudit {
+                let said = fb.transcript.isEmpty ? (text ?? "") : fb.transcript
+                let before = Audit.uncovered(said: said, feedback: fb)
+                let t1 = Date()
+                let fb2 = await client.audited(fb, said: said, language: lang, explanation: explain)
+                let info = "audit: uncovered \(before.count) → \(Audit.uncovered(said: said, feedback: fb2).count)・more_fixes \(fb.moreFixes.count) → \(fb2.moreFixes.count)・"
+                    + "corrected \(fb.correctedText == fb2.correctedText ? "same" : "changed")・" + String(format: "%.1fs\n", Date().timeIntervalSince(t1))
+                FileHandle.standardError.write(info.data(using: .utf8)!)
+                fb = fb2
+            }
             let out = try JSONSerialization.data(withJSONObject: ["seconds": secs, "feedback": encode(fb),
                 "judged": PhraseLogic.mergeAiTargets(PhraseLogic.judge(cards, text: fb.transcript.isEmpty ? (text ?? "") : fb.transcript), cards: cards, aiTargets: fb.targets)
                     .map { j in ["phrase": cards.first { $0.id == j.id }?.phrase ?? "", "result": j.result, "judge": j.judge, "asSaid": j.asSaid, "note": j.note] }],

@@ -170,6 +170,21 @@ public struct GeminiClient: Sendable {
         return fb
     }
 
+    /// 直しの点検（文字だけ）。言った文と修正版を見比べ、説明の無い直しを足し、修正版の誤りを直す。
+    /// 聞き直しが要らない回・失敗した回は、受け取った添削をそのまま返す（添削の結果を止めない）。
+    /// 中継サーバーでは /v1/talk の 1 ターンとして数える
+    public func audited(_ fb: Feedback, said: String, language: TargetLanguage,
+                        explanation: TargetLanguage.Explanation = TargetLanguage.explanation) async -> Feedback {
+        guard Audit.needed(said: said, feedback: fb, language: language) else { return fb }
+        guard let raw = try? await call([
+            "systemInstruction": ["parts": [["text": Audit.system(language: language, explanation: explanation)]]],
+            "contents": [["role": "user", "parts": [["text": Audit.userMessage(said: said, feedback: fb)]]]],
+            "generationConfig": ["thinkingConfig": ["thinkingLevel": Audit.thinking], "responseMimeType": "application/json"],
+            "tools": [],
+        ], relayPath: "v1/talk"), let r = Audit.parse(raw) else { return fb }
+        return Audit.merge(fb, r)
+    }
+
     /// 直し 1 件について詳しく聞く（文字だけ）。history はこれまでのやり取り
     public func explain(topic: ExplainTopic, context: String, history: [ExplainTurn], question: String, request: String? = nil,
                         system: String) async throws -> ExplainTurn {
