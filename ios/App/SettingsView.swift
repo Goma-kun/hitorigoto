@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var exporting = false
     @State private var importing = false
     @State private var dataStatus = ""
+    @State private var confirmDeleteTapes = false
 
     var body: some View {
         Form {
@@ -112,6 +113,27 @@ struct SettingsView: View {
                 Text("「話す」タブに毎日出す表現の数です。出せなかった表現（✗・△）と期日が来た表現を先に選び、残りの枠にまだ試していない表現を入れます。数を増やすより、無理なく混ぜられる数にしておくほうが続きます。")
                     .font(.caption).foregroundStyle(Theme.muted)
             } header: { Text("毎日の表現") }
+
+            Section {
+                Toggle("「三人で話す」の会話の音声を残す", isOn: $model.keepTalkAudio)
+                let tapes = TapeAudio.all()
+                if !tapes.isEmpty {
+                    HStack {
+                        Text("残っている音声: \(tapes.count) 本・\(ByteCountFormatter.string(fromByteCount: Int64(TapeAudio.bytes(tapes)), countStyle: .file))")
+                            .font(.callout).foregroundStyle(Theme.text)
+                        Spacer()
+                        Button("すべて消す…", role: .destructive) { confirmDeleteTapes = true }
+                            .confirmationDialog("残っている会話の音声をすべて消しますか？", isPresented: $confirmDeleteTapes, titleVisibility: .visible) {
+                                Button("すべて消す", role: .destructive) { model.deleteAllTapes() }
+                                Button("やめる", role: .cancel) {}
+                            } message: {
+                                Text("音声だけが消えます。会話の文字の記録は残ります。")
+                            }
+                    }
+                }
+                Text("オンにすると、あなたの声・相手役の声・トラさんの声を、話した順に 1 本の音声（m4a）にして、この端末の中だけに残します。iCloud の同期にも端末のバックアップにも入らず、開発者にも送られません。「履歴」の会話の記録から、再生・共有・削除ができます。大きさは 10 分の会話で約 5MB。履歴で会話を読み返せる間（直近 30 回の練習）だけ残り、それより古い会話の音声は自動で消えます。「自然な声で話す」がオンの会話だけが対象です。")
+                    .font(.caption).foregroundStyle(Theme.muted)
+            } header: { Text("会話の音声") }
 
             Section {
                 Toggle("iCloud で同期する", isOn: $model.syncEnabled)

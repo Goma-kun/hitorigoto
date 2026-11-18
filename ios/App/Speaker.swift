@@ -55,14 +55,34 @@ final class Speaker: NSObject, ObservableObject {
     /// 届いた端から鳴らす方（三人で話す・直接キーのとき）
     let stream = StreamPlayer()
 
+    /// 会話の音声を残すときの受け口。鳴らした音（24kHz・16bit）と、実際に鳴った区間（秒）を受け取る。
+    /// 鳴り終わったとき・止められたときに必ず 1 回だけ呼ぶ（鳴らなかったら空で呼ぶ）
+    typealias Spoken = (_ pcm: [Int16], _ ranges: [(from: Double, to: Double)]) -> Void
+    /// AVAudioPlayer で鳴らしている声の控え（鳴った区間は、飛ばすたびに区切って積む）
+    private var capture: (wav: Data, ranges: [(from: Double, to: Double)], from: Double, sink: Spoken)?
+
+    /// 鳴らしている声を「ここまで鳴った」で締めて渡す。player を止める前に呼ぶ
+    private func flushCapture() {
+        guard let c = capture else { return }
+        capture = nil
+        var ranges = c.ranges
+        if let p = player {
+            // 鳴り終わった直後（delegate が届く前）は isPlaying が false で currentTime が 0 に戻っている
+            let end = p.isPlaying ? p.currentTime : p.duration
+            if end > c.from { ranges.append((c.from, end)) }
+        }
+        c.sink(Voice.pcm(c.wav), ranges)
+    }
+
     /// 流れで届く声を鳴らす。lead なら「飛ばせる前半（トラさん）」として leadPlaying を立てる。
     /// 鳴り切ったら true。epoch が古ければ鳴らさない
-    func playStream(_ chunks: AsyncThrowingStream<Data, Error>, epoch: Int, lead: Bool, onFirst: @escaping () -> Void) async -> Bool {
-        guard epoch == self.epoch else { return false }
+    func playStream(_ chunks: AsyncThrowingStream<Data, Error>, epoch: Int, lead: Bool, onFirst: @escaping () -> Void, spoken: Spoken? = nil) async -> Bool {
+        guard epoch == self.epoch else { spoken?([], []); return false }
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        flushCapture()
         player?.stop(); player = nil
         leadPlaying = lead
-        let ok = await stream.play(chunks, onFirst: onFirst)
+        let ok = await stream.play(chunks, onFirst: onFirst, spoken: spoken)
         if lead { leadPlaying = false }
         return ok
     }
@@ -72,6 +92,7 @@ final class Speaker: NSObject, ObservableObject {
         queue = []
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         stream.stop()
+        flushCapture()
         player?.stop(); player = nil
         speaking = nil
         playingFile = nil
@@ -108,10 +129,12 @@ final class Speaker: NSObject, ObservableObject {
     func begin() -> Int { stop(); return epoch }
 
     /// AI の声（WAV）を鳴らす。epoch が古ければ（その後に止められていれば）何もしない。鳴らせたら true。
-    /// leadEnd は「飛ばせる前半（トラさんの説明）」が終わる秒。渡すと、その間は leadPlaying が true になり、skip() でそこまで飛ぶ
+    /// leadEnd は「飛ばせる前半（トラさんの説明）」が終わる秒。渡すと、その間は leadPlaying が true になり、skip() でそこまで飛ぶ。
+    /// spoken は会話の音声を残すとき（true を返したときだけ、あとで 1 回呼ぶ）
     @discardableResult
-    func play(_ wav: Data, epoch: Int, leadEnd: TimeInterval? = nil) -> Bool {
+    func play(_ wav: Data, epoch: Int, leadEnd: TimeInterval? = nil, spoken: Spoken? = nil) -> Bool {
         guard epoch == self.epoch, let p = try? AVAudioPlayer(data: wav) else { return false }
+        flushCapture()
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
@@ -120,6 +143,7 @@ final class Speaker: NSObject, ObservableObject {
         player = p
         self.leadEnd = leadEnd
         p.play()
+        if let spoken { capture = (wav, [], 0, spoken) }
         if leadEnd != nil { watchLead() }
         return true
     }
@@ -151,7 +175,11 @@ final class Speaker: NSObject, ObservableObject {
             return
         }
         if let p = player, p.isPlaying {
-            if let end = leadEnd, end < p.duration - 0.05 { p.currentTime = end } else { stop() }
+            if let end = leadEnd, end < p.duration - 0.05 {
+                // 飛ばした分は鳴っていないので、鳴った区間をここで区切る
+                if var c = capture { c.ranges.append((c.from, p.currentTime)); c.from = end; capture = c }
+                p.currentTime = end
+            } else { stop() }
             leadPlaying = false
             return
         }
@@ -200,7 +228,7 @@ final class Speaker: NSObject, ObservableObject {
 
 extension Speaker: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ p: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in if self.player === p { self.playingFile = nil; self.player = nil; self.leadPlaying = false } }
+        Task { @MainActor in if self.player === p { self.flushCapture(); self.playingFile = nil; self.player = nil; self.leadPlaying = false } }
     }
 }
 

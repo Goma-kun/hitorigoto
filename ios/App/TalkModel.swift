@@ -54,6 +54,8 @@ final class TalkModel: ObservableObject {
     /// AI の声を用意している間 true（文字は先に出す）
     @Published private(set) var voiceLoading = false
     private var voiceEpoch = 0
+    /// 会話そのものの音声をためる入れ物（設定「会話の音声を残す」がオンで、AI の声で話すときだけ）
+    private var tape: TalkTape?
 
     private unowned let app: AppModel
 
@@ -87,6 +89,7 @@ final class TalkModel: ObservableObject {
         guard phase == .setup else { return }
         startedAt = Date()
         lines = []; good = ""; saved = nil; rerunOf = []; previousTally = nil
+        newTape()
         let t = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         // 自分や友人の声の鍵が古ければ、話し始める前に作り直す（7 日で切れる）
         await CustomVoices.shared.ensureFresh(partnerId: partner.id, client: app.talkClient)
@@ -101,8 +104,20 @@ final class TalkModel: ObservableObject {
         startedAt = Date()
         lines = []; good = ""; saved = nil
         rerunOf = previous
+        newTape()   // さっきの会話の分は、締めの声が終わりしだい別に 1 本になる
         phase = .setup
         await open(.open(topic: topic, rerun: previous))
+    }
+
+    /// 会話の音声の入れ物を作り直す。端末の声（機械的な読み上げ）は録れないので、AI の声で話すときだけ
+    private func newTape() {
+        tape?.discard()
+        tape = nil
+        var ok = app.keepTalkAudio && app.naturalVoice && app.talkClient != nil
+        #if DEBUG
+        if DevHooks.fakeTalk { ok = false }
+        #endif
+        if ok { tape = TalkTape() }
     }
 
     private func open(_ r: Talk.Request) async {
@@ -130,7 +145,7 @@ final class TalkModel: ObservableObject {
         }
         Speaker.shared.stop()   // 読み上げ中なら止める。録音に混ざらないように
         do {
-            try await recorder.start(captions: app.captionsOn, language: app.language, micUID: app.micUID)
+            try await recorder.start(captions: app.captionsOn, language: app.language, micUID: app.micUID, keepTape: tape != nil)
             phase = .recording
         } catch Recorder.Failure.micDenied {
             error = String(localized: "マイクの使用が許可されていません。設定で「独り言」のマイクをオンにしてください。")
@@ -151,9 +166,10 @@ final class TalkModel: ObservableObject {
         }
         phase = .thinking
         if recordingConsult {
-            await consult(audio: result.audio)
+            await consult(audio: result.audio, mine: result.tape)
         } else if recordingRepeat {
             guard let turn = await request(.repeat(ways: pendingWays), audio: result.audio) else { phase = back; return }
+            tape?.appendMine(wav: result.tape)
             applyRepeat(turn)
         } else {
             sentCutIn = cutIn != nil
@@ -161,6 +177,7 @@ final class TalkModel: ObservableObject {
             guard let turn = await request(.speak, audio: result.audio) else { phase = back; return }
             if sentDemo { demoAt = nil }
             cutIn = nil
+            tape?.appendMine(wav: result.tape)
             apply(turn)
         }
     }
@@ -244,7 +261,7 @@ final class TalkModel: ObservableObject {
     }
 
     /// 相談: 言いたいこと（事情）を文字か声で伝え、トラさんがその言い方を出す。出たら「言ってみる」番
-    func consult(audio: Data? = nil) async {
+    func consult(audio: Data? = nil, mine: Data? = nil) async {
         let w = wish.trimmingCharacters(in: .whitespacesAndNewlines)
         guard audio != nil || !w.isEmpty else { return }
         error = nil
@@ -253,6 +270,7 @@ final class TalkModel: ObservableObject {
         defer { consultWaiting = false }
         guard let turn = await request(.hint(wish: w), audio: audio) else { phase = .consulting; return }
         wish = ""
+        tape?.appendMine(wav: mine)
         applyHint(turn, asked: audio == nil ? w : (turn.heard.isEmpty ? nil : turn.heard))
     }
 
@@ -277,6 +295,7 @@ final class TalkModel: ObservableObject {
         pendingWays = []
         if turns == 0 {
             // 何も話していなければ記録せずに終わる
+            tape?.discard(); tape = nil
             phase = .ended
             return
         }
@@ -298,12 +317,19 @@ final class TalkModel: ObservableObject {
         phase = .ended
         // 復習の音声は裏で作る（終わった画面と履歴に、できたら印が付く）
         if let id = saved?.id { Task { await app.makeRecap(for: id) } }
+        // 会話の音声は、締めの声が鳴り終わってから 1 本にまとめる（待つのは裏で）
+        if let t = tape {
+            tape = nil
+            if let id = saved?.id { let app = self.app; Task { await app.finishTape(t, sessionId: id) } } else { t.discard() }
+        }
     }
 
     /// 閉じるとき（途中でも）。録音中なら止める。記録はしない
     func abandon() async {
         if phase == .recording { _ = await recorder.stop() }
         Speaker.shared.stop()
+        // 終わらせずに閉じた会話の音声は残さない（終わらせた分は end で引き渡し済み）
+        tape?.discard(); tape = nil
     }
 
     // MARK: - 声
@@ -325,6 +351,9 @@ final class TalkModel: ObservableObject {
         let leadFirst = parts.first?.speaker == Voice.tora
         lastToraId = added.last(where: { $0.who == "tora" && $0.tag != "collide" })?.id
         guard let client else { Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst); return }
+        // 会話の音声を残すとき: この返事が鳴り終わる（か止められる）まで「まだ途中」にしておく
+        let tape = self.tape
+        tape?.hold()
         voiceLoading = true
         voiceEpoch = epoch
         let voices = Voice.voices(partner: partner, tora: app.toraVoice)
@@ -334,13 +363,14 @@ final class TalkModel: ObservableObject {
         // トラさん → ネイティブ役の順に流し、ネイティブ役の分はトラさんが鳴っている間に先に取り始めて貯めておく
         if collide.isEmpty, client.canStream(parts, voices: voices) {
             Task {
+                defer { tape?.release() }
                 let restStream: AsyncThrowingStream<Data, Error>? = rest.isEmpty ? nil : Self.buffered(client.speechStream(rest, voices: voices))
                 let onFirst = { [weak self] in if self?.voiceEpoch == epoch { self?.voiceLoading = false } }
                 var pieces: [(stream: AsyncThrowingStream<Data, Error>, lead: Bool, fallback: [(text: String, language: String?)])] = []
                 if !lead.isEmpty { pieces.append((client.speechStream(lead, voices: voices), true, [fallback[0]])) }
                 if let restStream { pieces.append((restStream, false, Array(fallback.dropFirst(lead.isEmpty ? 0 : 1)))) }
                 for (i, piece) in pieces.enumerated() {
-                    let ok = await Speaker.shared.playStream(piece.stream, epoch: epoch, lead: piece.lead, onFirst: onFirst)
+                    let ok = await Speaker.shared.playStream(piece.stream, epoch: epoch, lead: piece.lead, onFirst: onFirst, spoken: tape?.expect())
                     guard Speaker.shared.epoch == epoch else { return }   // その間に止められた（録音を始めた等）
                     if !ok, Speaker.shared.stream.seconds == 0 {
                         // 声が取れなかった: この片から先は端末の声で
@@ -354,6 +384,7 @@ final class TalkModel: ObservableObject {
             return
         }
         Task {
+            defer { tape?.release() }
             // 同時に話し出した言いかけは別々に作って重ねる（見本のターンだけ）。本体の声と並行して取る
             async let l: Data? = lead.isEmpty ? nil : (try? await client.speech(lead, voices: voices))
             async let main: Data? = rest.isEmpty ? nil : (try? await client.speech(rest, voices: voices))
@@ -372,7 +403,9 @@ final class TalkModel: ObservableObject {
             }
             if let m { pieces.append(m) }
             let wav = pieces.count == 1 ? pieces[0] : (pieces.isEmpty ? nil : Voice.join(pieces))
-            if let wav, Speaker.shared.play(wav, epoch: epoch, leadEnd: leadEnd) { return }
+            let spoken = tape?.expect()
+            if let wav, Speaker.shared.play(wav, epoch: epoch, leadEnd: leadEnd, spoken: spoken) { return }
+            spoken?([], [])   // 鳴らせなかった（数を戻す）
             Speaker.shared.speakInOrder(fallback, epoch: epoch, leadFirst: leadFirst)
         }
     }

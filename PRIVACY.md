@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日: 2026-10-08
+最終更新日: 2026-11-19
 
 ## 日本語
 
@@ -53,7 +53,13 @@ App Store で配布するアプリ版「独り言」は、上の拡張機能と�
 - 表現集に入れたときは、元の画像を縮小して端末の中に保存し、そのカードに付けます。iCloud 同期を入れている場合は、利用者自身の iCloud（非公開データベース）に添付ファイルとして入ります。開発者からは見えません。表現を削除すると画像も消えます。
 
 ### マイクと音声認識
-- マイクは録音に使います。録音は添削のためにその場で送るだけで、端末にも保存しません（添削が終わるまでの間だけ、失敗時のやり直し用に端末内に残します）。
+- マイクは録音に使います。録音は添削のためにその場で送るだけで、端末にも保存しません（添削が終わるまでの間だけ、失敗時のやり直し用に端末内に残します）。例外は、次の「会話の音声を残す」を利用者がオンにしたときだけです。
+
+### 「三人で話す」の会話の音声を残す（2026-11-19 追記・既定でオフ）
+- 設定の「会話の音声を残す」をオンにしたときだけ、「三人で話す」の会話そのもの（利用者の声・相手役の声・コーチの声）を、話した順に 1 本の音声ファイルにして**端末の中に**保存します。既定はオフで、オフのあいだは何も残しません。
+- この音声は、iCloud 同期にも端末のバックアップにも含めません。開発者にも第三者にも送りません。添削のために Gemini へ送る音声は、これまでと同じものです（この機能で送るものは増えません）。
+- 履歴の会話の記録から、再生・共有・削除ができます。共有は、利用者がその操作をしたときだけ、選んだ宛先に渡ります。設定から、残っている音声をまとめて消せます。
+- 履歴で会話を読み返せる間（直近 30 回の練習）だけ残し、それより古い会話の音声は自動で消します。アプリを削除すると、すべて消えます。
 - 話している間の字幕には、端末の音声認識（iOS / macOS の Speech フレームワーク）を使います。設定で切れます。
 
 ### 保存されるデータ
@@ -112,7 +118,13 @@ The app version of Hitorigoto distributed on the App Store follows the same prin
 - When you add a phrase, a downscaled copy of the original image is stored on your device and attached to that card. With iCloud sync on, it goes into your own iCloud (private database) as an attachment; the developer cannot see it. Deleting the phrase deletes the image.
 
 ### Microphone and speech recognition
-- The microphone is used for recording. The recording is sent only for that review and is not stored on the device (it is kept on the device only until the review succeeds, so that a failed request can be retried).
+- The microphone is used for recording. The recording is sent only for that review and is not stored on the device (it is kept on the device only until the review succeeds, so that a failed request can be retried). The only exception is when you turn on "Keep the conversation audio", described next.
+
+### Keeping the audio of "Talk with two friends" (added 2026-11-19, off by default)
+- Only when you turn on "Keep the conversation audio" in Settings, the conversation itself (your voice, your partner's voice and the coach's voice) is saved in the order spoken as a single audio file **on your device**. It is off by default, and nothing is kept while it is off.
+- This audio is not included in iCloud sync or device backups, and is never sent to the developer or any third party. The audio sent to Gemini for feedback is the same as before (this feature sends nothing additional).
+- You can play, share or delete it from the conversation in History. Sharing happens only when you choose to share, to the destination you pick. You can delete all saved audio from Settings.
+- Audio is kept only while the conversation can still be read in History (your latest 30 sessions); older audio is deleted automatically. Deleting the app removes everything.
 - Live captions while you speak use the device's speech recognition (the Speech framework on iOS / macOS). You can turn captions off in Settings.
 
 ### Stored data

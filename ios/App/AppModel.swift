@@ -55,6 +55,8 @@ final class AppModel: ObservableObject {
     var partner: Partner { Partners.find(partnerId, language: targetLanguage, custom: CustomVoices.shared.partners) }
     /// 「三人で話す」で Sam とトラさんを AI の自然な声で話させる（既定で入）。切ると端末の声（通信なし）
     @Published var naturalVoice: Bool { didSet { UserDefaults.standard.set(naturalVoice, forKey: "talkNaturalVoice") } }
+    /// 「三人で話す」の会話そのものの音声（自分の声＋相手役＋トラさん）を端末に残すか。既定はオフ（声を残すのは本人が選んでから）
+    @Published var keepTalkAudio: Bool { didSet { UserDefaults.standard.set(keepTalkAudio, forKey: "talkKeepAudio") } }
     /// iCloud で同じ Apple アカウントの iPhone・Mac と記録を揃える（既定で入）
     @Published var syncEnabled: Bool {
         didSet { UserDefaults.standard.set(syncEnabled, forKey: "iCloudSync"); updateSync() }
@@ -79,11 +81,13 @@ final class AppModel: ObservableObject {
         engine = saved == "apple" ? "cloud" : saved   // 端末内 AI は選択肢から外した（2026-10-09）
         syncEnabled = d.object(forKey: "iCloudSync") as? Bool ?? true
         naturalVoice = d.object(forKey: "talkNaturalVoice") as? Bool ?? true
+        keepTalkAudio = d.object(forKey: "talkKeepAudio") as? Bool ?? false
         partnerId = d.string(forKey: "talkPartner." + (d.string(forKey: "language") ?? TargetLanguage.default.rawValue)) ?? ""
         toraVoice = d.string(forKey: "talkToraVoice") ?? Voice.defaultToraVoice
         clarity = Voice.Clarity(rawValue: d.string(forKey: "talkClarity") ?? "") ?? .natural
         Speaker.shared.language = language
         updateSync()
+        TapeAudio.sweepTemporary()
     }
 
     // MARK: - iCloud 同期
@@ -175,6 +179,52 @@ final class AppModel: ObservableObject {
         } catch {
             recapFailed[sessionId] = String(localized: "復習の音声を作れませんでした。")
         }
+    }
+
+    // MARK: - 会話の音声（三人で話すの会話そのもの）
+
+    /// いま会話の音声をまとめている記録の id
+    @Published var tapeMaking: Set<String> = []
+    /// 会話の音声が増えた・消えたときに進める（ファイルの有無で出し分けている行を描き直すため）
+    @Published private(set) var tapeTick = 0
+
+    /// 会話中にためた音声を 1 本の m4a にして、記録の横に置く。締めの声が鳴り終わる（か止められる）のを待ってから作る
+    func finishTape(_ tape: TalkTape, sessionId: String) async {
+        tapeMaking.insert(sessionId)
+        defer { tapeMaking.remove(sessionId); tapeTick += 1 }
+        await tape.settled()
+        let pcm = tape.close()
+        defer { tape.discard() }
+        guard tape.seconds >= 1, let dir = RecapAudio.dir, snapshot.sessions.contains(where: { $0.id == sessionId }) else { return }
+        let out = dir.appendingPathComponent(Tape.fileName(for: sessionId))
+        let ok = await Task.detached(priority: .utility) { (try? Tape.writeM4A(pcmFile: pcm, to: out)) != nil }.value
+        if ok { TapeAudio.excludeFromBackup(out) } else { try? FileManager.default.removeItem(at: out) }
+        sweepTapes()
+    }
+
+    /// 古い会話の音声を消す。残すのは、履歴で会話を読み返せる記録（畳まれていない・直近 30 回の練習）の分だけ
+    private func sweepTapes() {
+        // 記録が読めていないとき（空）に全部消してしまわないように
+        guard !snapshot.sessions.isEmpty else { return }
+        let keep = Set(snapshot.sessions.filter { $0.folded != true && $0.talk != nil }.map { Tape.fileName(for: $0.id) })
+            .union(tapeMaking.map { Tape.fileName(for: $0) })
+        for u in TapeAudio.all() where !keep.contains(u.lastPathComponent) { try? FileManager.default.removeItem(at: u) }
+    }
+
+    /// その会話の音声だけを消す（文字の記録は残す）
+    func deleteTape(for sessionId: String) {
+        guard let dir = RecapAudio.dir else { return }
+        let u = dir.appendingPathComponent(Tape.fileName(for: sessionId))
+        if Speaker.shared.playingFile == u { Speaker.shared.stop() }
+        try? FileManager.default.removeItem(at: u)
+        tapeTick += 1
+    }
+
+    /// 残っている会話の音声をすべて消す（設定から）
+    func deleteAllTapes() {
+        Speaker.shared.stop()
+        for u in TapeAudio.all() { try? FileManager.default.removeItem(at: u) }
+        tapeTick += 1
     }
 
     // MARK: - トラさんに詳しく聞く

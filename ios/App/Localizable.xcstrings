@@ -3541,6 +3541,196 @@
           }
         }
       }
+    },
+    "会話の音声をまとめています…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Putting the conversation audio together…"
+          }
+        }
+      }
+    },
+    "会話の音声を聞く": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play the conversation"
+          }
+        }
+      }
+    },
+    "共有": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share"
+          }
+        }
+      }
+    },
+    "AirDrop・ファイル・ボイスメモなどへ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To AirDrop, Files, Voice Memos and more"
+          }
+        }
+      }
+    },
+    "この会話の音声を消します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deletes this conversation’s audio"
+          }
+        }
+      }
+    },
+    "この会話の音声を消す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this conversation’s audio"
+          }
+        }
+      }
+    },
+    "この会話の音声を消しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this conversation’s audio?"
+          }
+        }
+      }
+    },
+    "消す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "音声だけが消えます。会話の文字の記録は残ります。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the audio is deleted. The text of the conversation stays."
+          }
+        }
+      }
+    },
+    "会話の音声を残す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the conversation audio"
+          }
+        }
+      }
+    },
+    "自分の声と二人の声を、話した順に 1 本の音声にして、この端末の中だけに残します。「履歴」から聞き直したり共有したりできます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves your voice and both of theirs, in the order spoken, as one audio file kept only on this device. Play or share it from History."
+          }
+        }
+      }
+    },
+    "「自然な声で話す」がオンのときだけ残せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio can be kept only when natural voices are on."
+          }
+        }
+      }
+    },
+    "「三人で話す」の会話の音声を残す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the audio of “Talk with two friends”"
+          }
+        }
+      }
+    },
+    "残っている音声: %lld 本・%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved audio: %lld files, %@"
+          }
+        }
+      }
+    },
+    "すべて消す…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all…"
+          }
+        }
+      }
+    },
+    "すべて消す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all"
+          }
+        }
+      }
+    },
+    "残っている会話の音声をすべて消しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all saved conversation audio?"
+          }
+        }
+      }
+    },
+    "オンにすると、あなたの声・相手役の声・トラさんの声を、話した順に 1 本の音声（m4a）にして、この端末の中だけに残します。iCloud の同期にも端末のバックアップにも入らず、開発者にも送られません。「履歴」の会話の記録から、再生・共有・削除ができます。大きさは 10 分の会話で約 5MB。履歴で会話を読み返せる間（直近 30 回の練習）だけ残り、それより古い会話の音声は自動で消えます。「自然な声で話す」がオンの会話だけが対象です。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When on, your voice, your partner’s voice and Tora’s voice are saved in the order spoken as one audio file (m4a), kept only on this device. It is not included in iCloud sync or device backups, and is never sent to the developer. You can play, share or delete it from the conversation in History. A 10-minute conversation takes about 5 MB. Audio is kept while the conversation can still be read in History (your latest 30 sessions); older audio is deleted automatically. Only conversations with natural voices on are saved."
+          }
+        }
+      }
+    },
+    "会話の音声": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation audio"
+          }
+        }
+      }
     }
   }
 }

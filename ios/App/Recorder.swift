@@ -9,20 +9,24 @@ private final class Sink: @unchecked Sendable {
     private let lock = NSLock()
     private var file: AVAudioFile?
     private var converter: AVAudioConverter?
+    // 会話の音声を残すときだけ使う、劣化なしの写し（24kHz・16bit の WAV）。Gemini に送る分は 16kHz の AAC のまま
+    private var tape: AVAudioFile?
+    private var tapeConverter: AVAudioConverter?
     private var requests: [SFSpeechAudioBufferRecognitionRequest?] = [nil, nil]   // 0: 話す言語、1: 母語（日本語）
     // SpeechAnalyzer（iOS 26 / macOS 26）へ流す口。形式が違えば変換して、全部の流れに同じバッファを入れる
     private var analyzerFormat: AVAudioFormat?
     private var analyzerConverter: AVAudioConverter?
     private var analyzerFeed: [(AVAudioPCMBuffer) -> Void] = []
 
-    func open(file: AVAudioFile) {
+    func open(file: AVAudioFile, tape: AVAudioFile? = nil) {
         lock.lock(); defer { lock.unlock() }
         self.file = file; self.converter = nil
+        self.tape = tape; self.tapeConverter = nil
     }
 
     func close() {
         lock.lock(); defer { lock.unlock() }
-        file = nil; converter = nil; requests = [nil, nil]
+        file = nil; converter = nil; tape = nil; tapeConverter = nil; requests = [nil, nil]
         analyzerFormat = nil; analyzerConverter = nil; analyzerFeed = []
     }
 
@@ -36,30 +40,29 @@ private final class Sink: @unchecked Sendable {
         requests[slot] = request
     }
 
+    /// 1 バッファぶんを、ファイルの形式に合わせて書く
+    private static func write(_ buffer: AVAudioPCMBuffer, to file: AVAudioFile, converter: inout AVAudioConverter?) {
+        if buffer.format == file.processingFormat { try? file.write(from: buffer); return }
+        if converter?.inputFormat != buffer.format { converter = AVAudioConverter(from: buffer.format, to: file.processingFormat) }
+        guard let conv = converter else { return }
+        let ratio = file.processingFormat.sampleRate / buffer.format.sampleRate
+        let cap = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
+        guard let out = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: cap) else { return }
+        var consumed = false
+        var err: NSError?
+        conv.convert(to: out, error: &err) { _, status in
+            if consumed { status.pointee = .noDataNow; return nil }
+            consumed = true; status.pointee = .haveData; return buffer
+        }
+        if err == nil, out.frameLength > 0 { try? file.write(from: out) }
+    }
+
     /// 1 バッファぶんをファイルへ書き、認識にも流す。返り値はピーク（0〜1）
     func handle(_ buffer: AVAudioPCMBuffer) -> Float {
         lock.lock(); defer { lock.unlock() }
-        if let file {
-            // 変換器は最初のバッファの形式を見て作る（名指しで掴むマイクは、届くまで形式が分からない）
-            if buffer.format != file.processingFormat, converter?.inputFormat != buffer.format {
-                converter = AVAudioConverter(from: buffer.format, to: file.processingFormat)
-            }
-            if buffer.format != file.processingFormat, let conv = converter {
-                let ratio = file.processingFormat.sampleRate / buffer.format.sampleRate
-                let cap = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
-                if let out = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: cap) {
-                    var consumed = false
-                    var err: NSError?
-                    conv.convert(to: out, error: &err) { _, status in
-                        if consumed { status.pointee = .noDataNow; return nil }
-                        consumed = true; status.pointee = .haveData; return buffer
-                    }
-                    if err == nil, out.frameLength > 0 { try? file.write(from: out) }
-                }
-            } else {
-                try? file.write(from: buffer)
-            }
-        }
+        // 変換器は最初のバッファの形式を見て作る（名指しで掴むマイクは、届くまで形式が分からない）
+        if let file { Self.write(buffer, to: file, converter: &converter) }
+        if let tape { Self.write(buffer, to: tape, converter: &tapeConverter) }
         for r in requests { r?.append(buffer) }
         if !analyzerFeed.isEmpty, let fmt = analyzerFormat {
             if buffer.format == fmt { for f in analyzerFeed { f(buffer) } }
@@ -167,6 +170,7 @@ final class Recorder: ObservableObject {
     private var capture: DeviceCapture?     // 設定でマイクを選んであるときだけ使う
     #endif
     private var fileURL: URL?
+    private var tapeURL: URL?
     private var timer: Timer?
     private var configObserver: NSObjectProtocol?
     private var routeObserver: NSObjectProtocol?
@@ -187,13 +191,16 @@ final class Recorder: ObservableObject {
         let audio: Data
         let transcript: String     // 字幕（端末の音声認識）。空のこともある
         let seconds: Int
+        /// 会話の音声を残すとき（keepTape）だけ: 同じ録音の劣化なしの写し（24kHz・16bit・モノラルの WAV）。端末の外には出さない
+        var tape: Data? = nil
     }
 
     enum Failure: Error { case micDenied, engine(String) }
 
     // MARK: - 開始・停止
 
-    func start(captions: Bool, language: String, micUID: String = "") async throws {
+    /// keepTape を立てると、送る用の AAC とは別に、劣化なしの写しも録る（「三人で話す」の会話の音声を残す設定のとき）
+    func start(captions: Bool, language: String, micUID: String = "", keepTape: Bool = false) async throws {
         guard !isRecording else { return }
         guard await Platform.requestMicrophone() else { throw Failure.micDenied }
         try Platform.activateAudioSession()
@@ -212,7 +219,19 @@ final class Recorder: ObservableObject {
         ]
         let file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
         fileURL = url
-        sink.open(file: file)
+        var tape: AVAudioFile?
+        tapeURL = nil
+        if keepTape {
+            let t = FileManager.default.temporaryDirectory.appendingPathComponent("hitorigoto-tape-\(Int(Date().timeIntervalSince1970)).wav")
+            let pcm: [String: Any] = [
+                AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 24000, AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,
+            ]
+            // 写しが作れなくても録音は続ける（会話の音声にその回が入らないだけ）
+            tape = try? AVAudioFile(forWriting: t, settings: pcm, commonFormat: .pcmFormatFloat32, interleaved: false)
+            if tape != nil { tapeURL = t }
+        }
+        sink.open(file: file, tape: tape)
 
         if captions { startCaptions(language: language) }
 
@@ -324,10 +343,17 @@ final class Recorder: ObservableObject {
         sink.close()
         Platform.deactivateAudioSession()
         level = 0; micSilent = false
+        // 写しは読んだらすぐ消す（残すかどうかは呼び出し側が決める。ここには置きっぱなしにしない）
+        var tape: Data?
+        if let t = tapeURL {
+            tape = try? Data(contentsOf: t)
+            try? FileManager.default.removeItem(at: t)
+            tapeURL = nil
+        }
         guard let url = fileURL, let data = try? Data(contentsOf: url) else { return nil }
         try? FileManager.default.removeItem(at: url)
         fileURL = nil
-        return Result(audio: data, transcript: text, seconds: seconds)
+        return Result(audio: data, transcript: text, seconds: seconds, tape: tape)
     }
 
     // MARK: - 字幕（端末の音声認識）

@@ -302,6 +302,45 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "recap" {
     exit(0)
 }
 
+// ---- 会話の音声（tape）----
+// `hg-probe tape --out talk.m4a ai:open.wav me:turn1.wav ai:reply1.wav@0-1.2 me:turn2.wav ai:reply2.wav@0-0.6,1.5-3 ...`
+// アプリと同じ道（TapeWriter → Tape.writeM4A）で、発言ごとの音声ファイルを話した順に 1 本の m4a にする。通信はしない。
+// ai: は鳴らした声。@ のあとに実際に鳴った区間（秒）を書くと、その分だけ入る（被り・飛ばすの再現）。me: は学習者の録音
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "tape" {
+    var args = Array(CommandLine.arguments.dropFirst(2))
+    var out = "talk.m4a"
+    if let i = args.firstIndex(of: "--out"), i + 1 < args.count { out = args[i + 1]; args.removeSubrange(i...(i + 1)) }
+    let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("hg-probe-tape-\(UUID().uuidString).pcm")
+    guard !args.isEmpty, let w = TapeWriter(url: tmp) else { print("発言のファイルが要ります（ai:path か me:path）"); exit(1) }
+    do {
+        for a in args {
+            guard let colon = a.firstIndex(of: ":") else { print("読めない引数: \(a)"); exit(1) }
+            let who = String(a[..<colon])
+            var path = String(a[a.index(after: colon)...])
+            var ranges: [(from: Double, to: Double)]?
+            if let at = path.lastIndex(of: "@") {
+                ranges = path[path.index(after: at)...].split(separator: ",").compactMap { r in
+                    let p = r.split(separator: "-").compactMap { Double($0) }
+                    return p.count == 2 ? (p[0], p[1]) : nil
+                }
+                path = String(path[..<at])
+            }
+            let pcm = try Tape.readPCM(URL(fileURLWithPath: path))
+            let full = Double(pcm.count) / Double(Tape.sampleRate)
+            if who == "me" { w.appendMine(pcm) } else { w.appendSpoken(pcm, ranges: ranges ?? [(0, full)]) }
+            if let m = w.marks.last { print(String(format: "%@  %6.2f → %6.2f  (%.2fs / 元 %.2fs)  %@", m.who, m.start, m.start + m.seconds, m.seconds, full, (path as NSString).lastPathComponent)) }
+        }
+        w.close()
+        let url = URL(fileURLWithPath: out)
+        try Tape.writeM4A(pcmFile: w.url, to: url)
+        let back = try Tape.readPCM(url)
+        let size = (try FileManager.default.attributesOfItem(atPath: out)[.size] as? Int) ?? 0
+        print(String(format: "ok %d 発言  ためた長さ %.2fs  m4a の長さ %.2fs  %.0f KB（10 分なら約 %.1f MB）→ %@", w.marks.count, w.seconds, Double(back.count) / Double(Tape.sampleRate), Double(size) / 1000, Double(size) / max(1, w.seconds) * 600 / 1_000_000, out))
+    } catch { print("error: \(error)") }
+    w.discard()
+    exit(0)
+}
+
 // ---- 実 API（exam）----
 // `hg-probe exam --topic "..." --audio speech.m4a` スピーチ→最初の質問。`--answer a.m4a --history h.json [--last]` 回答→次の質問。
 // `--score --history h.json` 採点。--notes は覚え書き（" | " 区切り）。結果は Gemini の JSON をそのまま出す

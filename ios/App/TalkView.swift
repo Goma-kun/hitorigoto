@@ -199,6 +199,19 @@ struct TalkSheet: View {
                     }
                     .tint(Theme.accent)
                 }
+                Card {
+                    Toggle(isOn: $model.keepTalkAudio) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("会話の音声を残す").font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
+                            Text("自分の声と二人の声を、話した順に 1 本の音声にして、この端末の中だけに残します。「履歴」から聞き直したり共有したりできます。")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                            if model.keepTalkAudio && !model.naturalVoice {
+                                Text("「自然な声で話す」がオンのときだけ残せます。").font(.caption).foregroundStyle(Theme.warn)
+                            }
+                        }
+                    }
+                    .tint(Theme.accent)
+                }
             }
             .padding(12)
         }
@@ -472,7 +485,10 @@ struct TalkSheet: View {
                     .font(.caption).foregroundStyle(Theme.text)
             }
             Note(text: talk.saved == nil ? String(localized: "記録には残していません（何も話していないため）。") : String(localized: "記録に残しました。「履歴」からいつでも読み返せます。"))
-            if let s = talk.saved { RecapRow(session: model.snapshot.sessions.first { $0.id == s.id } ?? s) }
+            if let s = talk.saved {
+                RecapRow(session: model.snapshot.sessions.first { $0.id == s.id } ?? s)
+                TapeRow(session: s)
+            }
         }
         if !talk.good.isEmpty {
             Card(title: String(localized: "わしが買ってやる点")) { Text(talk.good).font(.callout).foregroundStyle(Theme.good) }
