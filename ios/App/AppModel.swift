@@ -183,6 +183,23 @@ final class AppModel: ObservableObject {
 
     // MARK: - 会話の音声（三人で話すの会話そのもの）
 
+    /// 三人で話すの記録にも、直しの点検をかける（2026-11-19）。
+    /// 会話中の直しは 1 発言 2 件までなので、修正版で直したのに説明の無い箇所が残る。
+    /// 終わったあと文字だけで聞き直して「ほかに直したところ」に足す。通信に失敗しても記録はそのまま
+    func auditTalk(for sessionId: String) async {
+        guard let client = talkClient,
+              let session = snapshot.sessions.first(where: { $0.id == sessionId }), session.talk != nil,
+              (session.moreFixes ?? []).isEmpty else { return }
+        let fb = Feedback(correctedText: session.correctedText ?? "", issues: session.issues, asks: session.asks ?? [])
+        let out = await client.audited(fb, said: session.transcript ?? "", language: targetLanguage)
+        guard !out.moreFixes.isEmpty || out.correctedText != fb.correctedText,
+              let i = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        if !out.moreFixes.isEmpty { snapshot.sessions[i].moreFixes = out.moreFixes }
+        snapshot.sessions[i].correctedText = out.correctedText
+        if latestSession?.id == sessionId { latestSession = snapshot.sessions[i] }
+        save()
+    }
+
     /// いま会話の音声をまとめている記録の id
     @Published var tapeMaking: Set<String> = []
     /// 会話の音声が増えた・消えたときに進める（ファイルの有無で出し分けている行を描き直すため）

@@ -504,6 +504,15 @@ struct TalkSheet: View {
                     }
                 }
             }
+            // 直しの点検（裏で走る）が足した分。届いたらここに出る
+            if let more = model.snapshot.sessions.first(where: { $0.id == s.id })?.moreFixes, !more.isEmpty {
+                Card(title: String(localized: "ほかに直したところ")) {
+                    ForEach(Array(more.enumerated()), id: \.offset) { i, f in
+                        if i > 0 { Divider().overlay(Theme.line) }
+                        IssueRow(issue: f.asIssue, sessionId: s.id)
+                    }
+                }
+            }
             if let asks = s.asks, !asks.isEmpty {
                 Card(title: String(localized: "日本語で言った分、英語ならこう")) {
                     ForEach(Array(asks.enumerated()), id: \.offset) { i, a in

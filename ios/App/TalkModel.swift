@@ -316,7 +316,8 @@ final class TalkModel: ObservableObject {
         saved = app.finishTalk(lines: lines, good: good, startedAt: startedAt)
         phase = .ended
         // 復習の音声は裏で作る（終わった画面と履歴に、できたら印が付く）
-        if let id = saved?.id { Task { await app.makeRecap(for: id) } }
+        // 直しの点検も裏で（説明の無い書き換えが多い回だけ聞き直す）。復習の音声はそのあとに作る
+        if let id = saved?.id { let app = self.app; Task { await app.auditTalk(for: id); await app.makeRecap(for: id) } }
         // 会話の音声は、締めの声が鳴り終わってから 1 本にまとめる（待つのは裏で）
         if let t = tape {
             tape = nil
