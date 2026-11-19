@@ -10,6 +10,26 @@ import CoreAudio
 /// OS ごとに違うところを、ここ 1 か所にまとめる。**画面の側に `#if` を散らさない**
 enum Platform {
 
+    /// アプリが裏に回っても、少しの間（iOS が許す 30 秒ほど）だけ処理を続けさせてもらう。Mac は何もしない
+    @MainActor static func beginBackgroundWork(_ name: String) -> Int {
+        #if os(iOS)
+        var id = UIBackgroundTaskIdentifier.invalid
+        id = UIApplication.shared.beginBackgroundTask(withName: name) {
+            UIApplication.shared.endBackgroundTask(id)
+        }
+        return id.rawValue
+        #else
+        return 0
+        #endif
+    }
+
+    @MainActor static func endBackgroundWork(_ token: Int) {
+        #if os(iOS)
+        let id = UIBackgroundTaskIdentifier(rawValue: token)
+        if id != .invalid { UIApplication.shared.endBackgroundTask(id) }
+        #endif
+    }
+
     /// マイクの許可を求める（すでに決まっていればそれを返す）
     static func requestMicrophone() async -> Bool {
         #if os(iOS)

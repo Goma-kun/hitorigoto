@@ -175,13 +175,19 @@ public struct GeminiClient: Sendable {
     /// 中継サーバーでは /v1/talk の 1 ターンとして数える
     public func audited(_ fb: Feedback, said: String, language: TargetLanguage,
                         explanation: TargetLanguage.Explanation = TargetLanguage.explanation) async -> Feedback {
+        await auditTry(fb, said: said, language: language, explanation: explanation) ?? fb
+    }
+
+    /// 直しの点検。通信や解釈に失敗したら nil（呼ぶ側があとでやり直せるように、失敗を「要らなかった」と区別する）
+    public func auditTry(_ fb: Feedback, said: String, language: TargetLanguage,
+                         explanation: TargetLanguage.Explanation = TargetLanguage.explanation) async -> Feedback? {
         guard Audit.needed(said: said, feedback: fb, language: language) else { return fb }
         guard let raw = try? await call([
             "systemInstruction": ["parts": [["text": Audit.system(language: language, explanation: explanation)]]],
             "contents": [["role": "user", "parts": [["text": Audit.userMessage(said: said, feedback: fb)]]]],
             "generationConfig": ["thinkingConfig": ["thinkingLevel": Audit.thinking], "responseMimeType": "application/json"],
             "tools": [],
-        ], relayPath: "v1/talk"), let r = Audit.parse(raw) else { return fb }
+        ], relayPath: "v1/talk"), let r = Audit.parse(raw) else { return nil }
         return Audit.merge(fb, r)
     }
 

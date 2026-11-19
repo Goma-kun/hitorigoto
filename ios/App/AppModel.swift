@@ -187,11 +187,24 @@ final class AppModel: ObservableObject {
     /// 会話中の直しは 1 発言 2 件までなので、修正版で直したのに説明の無い箇所が残る。
     /// 終わったあと文字だけで聞き直して「ほかに直したところ」に足す。通信に失敗しても記録はそのまま
     func auditTalk(for sessionId: String) async {
-        guard let client = talkClient,
+        guard let client = talkClient, !talkAuditing.contains(sessionId),
               let session = snapshot.sessions.first(where: { $0.id == sessionId }), session.talk != nil,
               (session.moreFixes ?? []).isEmpty else { return }
         let fb = Feedback(correctedText: session.correctedText ?? "", issues: session.issues, asks: session.asks ?? [])
-        let out = await client.audited(fb, said: session.transcript ?? "", language: targetLanguage)
+        let said = session.transcript ?? ""
+        // 聞き直しが要らない回は、何も送らずに済ませる（済んだ印だけ付ける）
+        guard Audit.needed(said: said, feedback: fb, language: targetLanguage) else { markAudit(sessionId, done: true); return }
+        talkAuditing.insert(sessionId)
+        defer { talkAuditing.remove(sessionId) }
+        // iPhone は、終わってすぐ別のアプリへ移ると通信が止まる。少しの間だけ裏で続けさせてもらう
+        let hold = Platform.beginBackgroundWork("talk-audit")
+        defer { Platform.endBackgroundWork(hold) }
+        guard let out = await client.auditTry(fb, said: said, language: targetLanguage) else {
+            // 失敗（通信・途中で裏に回った など）。次にアプリを前に出したときにやり直す
+            markAudit(sessionId, done: false)
+            return
+        }
+        markAudit(sessionId, done: true)
         guard !out.moreFixes.isEmpty || out.correctedText != fb.correctedText,
               let i = snapshot.sessions.firstIndex(where: { $0.id == sessionId }) else { return }
         if !out.moreFixes.isEmpty { snapshot.sessions[i].moreFixes = out.moreFixes }
@@ -199,6 +212,35 @@ final class AppModel: ObservableObject {
         if latestSession?.id == sessionId { latestSession = snapshot.sessions[i] }
         save()
     }
+
+    /// 直しの点検が済んだ記録・失敗した回数（端末ごと。記録そのものには書かない）
+    private func markAudit(_ id: String, done: Bool) {
+        let d = UserDefaults.standard
+        if done {
+            var ids = d.stringArray(forKey: "talkAuditDone") ?? []
+            if !ids.contains(id) { ids.append(id); d.set(Array(ids.suffix(60)), forKey: "talkAuditDone") }
+        } else {
+            var tries = d.dictionary(forKey: "talkAuditTries") as? [String: Int] ?? [:]
+            tries[id, default: 0] += 1
+            d.set(tries, forKey: "talkAuditTries")
+        }
+    }
+
+    /// 点検が通らなかった三人で話すの記録を、やり直す（起動時と、アプリを前に出したとき）。
+    /// 対象は新しい 3 件まで・1 件につき 3 回まで。済んだものと、直しがもう足されているものは飛ばす
+    func retryTalkAudits() {
+        let d = UserDefaults.standard
+        let done = Set(d.stringArray(forKey: "talkAuditDone") ?? [])
+        let tries = d.dictionary(forKey: "talkAuditTries") as? [String: Int] ?? [:]
+        let ids = snapshot.sessions.filter { $0.talk != nil }.prefix(3)
+            .filter { ($0.moreFixes ?? []).isEmpty && !done.contains($0.id) && (tries[$0.id] ?? 0) < 3 && !talkAuditing.contains($0.id) }
+            .map(\.id)
+        guard !ids.isEmpty else { return }
+        Task { for id in ids { await auditTalk(for: id) } }
+    }
+
+    /// いま直しの点検をしている記録の id（画面に「確かめています」を出す）
+    @Published var talkAuditing: Set<String> = []
 
     /// いま会話の音声をまとめている記録の id
     @Published var tapeMaking: Set<String> = []

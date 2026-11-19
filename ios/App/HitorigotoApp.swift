@@ -26,8 +26,10 @@ struct HitorigotoApp: App {
                 #endif
             .environmentObject(model)
             .tint(Theme.tint)
+            // 起動したとき、直しの点検が通っていない会話があればやり直す
+            .task { model.retryTalkAudits() }
             // 前に出るたびに、もう一方の端末の変更を取りに行く
-            .onChange(of: scenePhase) { _, phase in if phase == .active { model.syncNow(); model.refreshInbox() } }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { model.syncNow(); model.refreshInbox(); model.retryTalkAudits() } }
             #if os(macOS)
             .frame(minWidth: 400, minHeight: 600)
             #endif

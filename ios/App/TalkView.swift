@@ -534,6 +534,14 @@ struct TalkSheet: View {
                     }
                 }
             }
+            // 直しの点検（裏で走る）の最中は、まだ続きがあると分かるようにする（コピーはこれが消えてから）
+            if model.talkAuditing.contains(s.id) {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("ほかに直したところを確かめています…（30 秒ほど）").font(.caption).foregroundStyle(Theme.muted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
+            }
             // 直しの点検（裏で走る）が足した分。届いたらここに出る
             if let more = model.snapshot.sessions.first(where: { $0.id == s.id })?.moreFixes, !more.isEmpty {
                 Card(title: String(localized: "ほかに直したところ")) {

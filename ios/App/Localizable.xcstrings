@@ -3801,6 +3801,16 @@
           }
         }
       }
+    },
+    "ほかに直したところを確かめています…（30 秒ほど）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for other fixes… (about 30 seconds)"
+          }
+        }
+      }
     }
   }
 }
