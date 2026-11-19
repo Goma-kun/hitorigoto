@@ -2972,16 +2972,6 @@
         }
       }
     },
-    "話したいこと（空なら %@ が決めます）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What to talk about (leave empty and %@ decides)"
-          }
-        }
-      }
-    },
     "送る": {
       "localizations": {
         "en": {
@@ -3728,6 +3718,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "Conversation audio"
+          }
+        }
+      }
+    },
+    "話したいこと（空でも始められます）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What to talk about (you can leave it empty)"
+          }
+        }
+      }
+    },
+    "だれから話し始めますか": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who starts?"
+          }
+        }
+      }
+    },
+    "%@ が話題を決めて、質問から始めます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ picks a topic and opens with a question."
+          }
+        }
+      }
+    },
+    "トラさんが話題を決めて、質問から始めます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tora picks a topic and opens with a question."
+          }
+        }
+      }
+    },
+    "はじめるを押すと、すぐあなたの番になります。好きな話を始めてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Start and it is your turn right away. Talk about anything you like."
+          }
+        }
+      }
+    },
+    "トラさんが話を考え中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tora is thinking…"
+          }
+        }
+      }
+    },
+    "あなたから話し始める番です。下のマイクを押して、好きな話を始めてください。%@ とトラさんが聞いています。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You start. Tap the mic below and talk about anything. %@ and Tora are listening."
+          }
+        }
+      }
+    },
+    "押して、%@で話し始める（日本語が混ざっても OK）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap and start talking in %@ (mixing in your language is fine)"
           }
         }
       }

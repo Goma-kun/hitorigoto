@@ -22,6 +22,12 @@ final class TalkModel: ObservableObject {
     @Published var error: String?
     /// 話したいこと（空ならアプリが話題を 1 つ引く）
     @Published var topic = ""
+    /// 話題を決めずに始めるとき、だれから話し始めるか（選んだものを覚えておく）
+    @Published var opener: Talk.Opener = Talk.Opener(rawValue: UserDefaults.standard.string(forKey: "talkOpener") ?? "") ?? .native {
+        didSet { UserDefaults.standard.set(opener.rawValue, forKey: "talkOpener") }
+    }
+    /// 今の会話を切り出した人（待っている間の表示に使う）
+    @Published private(set) var openedBy: Talk.Opener = .native
     /// 締めのトラさんの一言
     @Published private(set) var good = ""
     /// 記録に残したもの（終わったあとに「直すべし」「英語ならこう」を出すのに使う）
@@ -93,7 +99,15 @@ final class TalkModel: ObservableObject {
         let t = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         // 自分や友人の声の鍵が古ければ、話し始める前に作り直す（7 日で切れる）
         await CustomVoices.shared.ensureFresh(partnerId: partner.id, client: app.talkClient)
-        await open(.open(topic: t.isEmpty ? (Talk.topics.randomElement() ?? "今日あったこと") : t))
+        // 話題を書いたときは今までどおり相手が切り出す。空のときだけ、選んだ人から始める
+        openedBy = t.isEmpty ? opener : .native
+        if openedBy == .me {
+            // 自分から: 何も聞かずにマイクの番にする。最初の発言を送るときに「学習者から話し始めた」と伝わる
+            error = nil
+            phase = .listening
+            return
+        }
+        await open(.open(topic: t.isEmpty ? (Talk.topics.randomElement() ?? "今日あったこと") : t, opener: openedBy))
     }
 
     /// 同じ話をもう一回（今度は助けなしで）。さっきの会話を Sam に渡し、同じ質問を同じ順で振ってもらう
@@ -106,6 +120,7 @@ final class TalkModel: ObservableObject {
         rerunOf = previous
         newTape()   // さっきの会話の分は、締めの声が終わりしだい別に 1 本になる
         phase = .setup
+        openedBy = .native
         await open(.open(topic: topic, rerun: previous))
     }
 
@@ -124,7 +139,14 @@ final class TalkModel: ObservableObject {
         error = nil
         phase = .opening
         guard let turn = await request(r, audio: nil) else { phase = .setup; return }
-        if !turn.reply.isEmpty {
+        var toraFirst = false
+        if case .open(_, _, .tora) = r, !turn.help.isEmpty { toraFirst = true }
+        if toraFirst {
+            // トラさんから: 最初の一言は "help" に入ってくる（相手は学習者が答えてから話に入る）
+            let l = TalkLine(who: "tora", text: turn.help, note: turn.helpSub)
+            lines.append(l)
+            say([l])
+        } else if !turn.reply.isEmpty {
             let l = TalkLine(who: "native", text: turn.reply, sub: turn.replySub)
             lines.append(l)
             say([l])
@@ -480,7 +502,7 @@ final class TalkModel: ObservableObject {
         // 前回の話を振るのは、はじまりと普通の発言のとき。もう一回のときは「さっきの会話」が主役なので渡さない
         var rev: TalkReview? = nil
         switch r {
-        case .open(_, let rerun): rev = rerun.isEmpty ? review : nil
+        case .open(_, let rerun, let opener): rev = rerun.isEmpty && opener == .native ? review : nil
         case .speak: rev = rerunOf.isEmpty ? review : nil
         default: break
         }
@@ -544,7 +566,11 @@ final class TalkModel: ObservableObject {
     private static func fake(_ r: Talk.Request, lines: [TalkLine], language: TargetLanguage) async -> TalkTurn {
         try? await Task.sleep(nanoseconds: 700_000_000)
         switch r {
-        case .open(_, let rerun):
+        case .open(_, _, .tora):
+            var t = TalkTurn(help: "Hey, kid. Good to see you. So, what'd you have for lunch today?")
+            t.helpSub = "よう。会えてよかった。今日の昼は何を食った？"
+            return t
+        case .open(_, let rerun, _):
             if !rerun.isEmpty {
                 return TalkTurn(reply: "Okay, let's run it back! So, what's been the best thing you ate this week?", replySub: "よし、もう一回！今週いちばんおいしかったものって何？")
             }

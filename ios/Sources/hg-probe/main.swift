@@ -389,6 +389,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
     let rerunPath = take("--rerun")          // さっきの会話（TalkLine の JSON 配列）→「もう一回」のはじまり
     let reviewPath = take("--review")        // 前回の会話の記録（Session の JSON）→ 翌日の Sam が振る
     let isHint = args.contains("--hint"), isClose = args.contains("--close")
+    let opener = Talk.Opener(rawValue: take("--opener") ?? "") ?? .native   // だれから話し始めるか（native / tora）。自分からは --open なしで --audio だけ
     let cutLine = take("--cutin")            // 被り: 途中で遮った Sam の発言（全文）
     let cutHeard = Double(take("--cutin-heard") ?? "0.3") ?? 0.3
     let isDemo = args.contains("--demo")     // 譲り合いの見本のターン
@@ -404,7 +405,7 @@ if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "talk" {
     let rerun: [TalkLine] = rerunPath.flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([TalkLine].self, from: $0) } ?? []
     let reviewSessions: [Session] = reviewPath.flatMap { FileManager.default.contents(atPath: $0) }.flatMap { try? JSONDecoder().decode([Session].self, from: $0) } ?? []
     let review = TalkReview.from(sessions: reviewSessions, today: Logic.todayStamp())
-    let request: Talk.Request = topic.map { .open(topic: $0, rerun: rerun) } ?? (!repeatWays.isEmpty ? .repeat(ways: repeatWays) : (isHint ? .hint(wish: env["HG_WISH"] ?? "") : (isClose ? .close : .speak)))
+    let request: Talk.Request = topic.map { .open(topic: $0, rerun: rerun, opener: opener) } ?? (!repeatWays.isEmpty ? .repeat(ways: repeatWays) : (isHint ? .hint(wish: env["HG_WISH"] ?? "") : (isClose ? .close : .speak)))
     let audio = audioPath.flatMap { FileManager.default.contents(atPath: $0) }
     let lang = TargetLanguage(rawValue: env["HG_LANG"] ?? "en-US") ?? .enUS
     let message = Talk.userMessage(request: request, history: history, language: lang, targets: (env["HG_TARGETS"] ?? "").split(separator: ",").map(String.init), review: review, hasAudio: audio != nil,

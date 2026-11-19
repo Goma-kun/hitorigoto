@@ -61,6 +61,11 @@ final class TalkTests: XCTestCase {
         XCTAssertTrue(m.contains("- on the mend"))
         XCTAssertTrue(m.contains("添付の音声"))
         XCTAssertTrue(Talk.userMessage(request: .open(topic: "猫"), history: [], language: .enUS).contains("猫"))
+        // だれから話し始めるか: トラさんからなら最初の一言は "help" に。自分からなら最初の発言で「学習者から話し始めた」と伝える
+        let toraOpen = Talk.userMessage(request: .open(topic: "猫", opener: .tora), history: [], language: .enUS)
+        XCTAssertTrue(toraOpen.contains("トラさんが話を切り出します") && toraOpen.contains("猫") && !toraOpen.contains("Sam が挨拶"))
+        XCTAssertTrue(Talk.userMessage(request: .speak, history: [], language: .enUS).contains("学習者が自分から話し始めました"))
+        XCTAssertFalse(Talk.userMessage(request: .speak, history: [TalkLine(who: "native", text: "Hi!")], language: .enUS).contains("学習者が自分から話し始めました"))
         XCTAssertTrue(Talk.userMessage(request: .hint(), history: history, language: .enUS).contains("2 つ"))
         XCTAssertTrue(Talk.userMessage(request: .close, history: history, language: .enUS).contains("\"good\""))
         // 言ってみる・もう一回・前回の話

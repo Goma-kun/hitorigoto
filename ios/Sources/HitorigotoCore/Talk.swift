@@ -135,7 +135,8 @@ public enum Talk {
     /// 何をしてほしいターンか
     public enum Request: Equatable, Sendable {
         /// 会話のはじまり。ネイティブ役が最初の一言（話題）を出す。rerun が空でなければ「同じ会話をもう一回」
-        case open(topic: String, rerun: [TalkLine] = [])
+        /// opener は話し始める人（トラさんなら "help" に最初の一言が入る。学習者からのときは open を送らず、最初の speak から始める）
+        case open(topic: String, rerun: [TalkLine] = [], opener: Opener = .native)
         /// 学習者が話した（音声つき）
         case speak
         /// 言ってみる: トラさんがくれた言い方（ways）を学習者が口に出した（音声つき）。Sam は相づちと直前の質問の言い直しだけ
@@ -146,6 +147,9 @@ public enum Talk {
         /// 会話を終える。トラさんの締めの一言
         case close
     }
+
+    /// 話題を決めずに始めるとき、だれから話し始めるか（2026-11-20 本人の要望）
+    public enum Opener: String, CaseIterable, Sendable { case native, tora, me }
 
     /// ネイティブ役の既定の名前（言語ごと）。相手を選んでいるときは Partner.name を使う
     public static func nativeName(_ language: TargetLanguage) -> String { Partners.list(language)[0].name }
@@ -305,7 +309,12 @@ public enum Talk {
         }
         lines.append("## 今回")
         switch request {
-        case .open(let topic, let rerun):
+        case .open(let topic, let rerun, let opener):
+            if rerun.isEmpty && opener == .tora {
+                lines.append("会話のはじまりです。学習者はまだ何も言っていません。今回は\(native) ではなく**トラさんが話を切り出します**。トラさんが、挨拶を 1 文と、次の話題について学習者への軽い質問を 1 つ、\(lang)で \"help\" に書いてください（\"help_sub\" に\(mother)訳。言い方を教える場面ではないので \"asks\" は空配列）: \(topic)")
+                lines.append("\(native) は学習者が答えてから話に入るので、\"reply\"・\"reply_sub\" は空にしてください。\"heard\"・\"corrected\"・\"fixes\"・\"good\" も空、\"asks\" は空配列にしてください。")
+                break
+            }
             if rerun.isEmpty {
                 lines.append("会話のはじまりです。学習者はまだ何も言っていません。\(native) が挨拶を 1 文と、次の話題について軽い質問を 1 つ出してください: \(topic)")
             } else {
@@ -337,6 +346,9 @@ public enum Talk {
             }
             if overlapDemo {
                 lines.append("**譲り合いの見本:** このターンは、学習者の発言に返事をする前に、\(native) とトラさんが同時に話し出して譲り合う短いやり取りを \"banter\" に入れてください。そのあと \"reply\" で\(native) が返事をし、トラさんは \"help\" と \"asks\" で、被ったときの譲る言い方と譲られたときの返しを学習者に教えてください。")
+            }
+            if history.isEmpty {
+                lines.append("会話のはじまりです。**学習者が自分から話し始めました**（\(native) もトラさんも、まだ何も言っていません）。\(native) は短い挨拶を添えて、学習者が話した中身に返事をしてください。別の話題や前回の話を持ち出さず、学習者が出した話題を広げます。")
             }
             lines.append("添付の音声が学習者の今回の発言です。\"heard\" に書き起こし、\(native) の返事と、必要ならトラさんの助けを返してください。音声の間・つなぎの音・言いかけから言い淀みが分かれば \"stuck\" を true にして、トラさんが言いたかった中身を補ってください。")
         case .hint(let wish) where !wish.isEmpty || hasAudio:

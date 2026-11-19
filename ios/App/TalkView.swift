@@ -99,9 +99,22 @@ struct TalkSheet: View {
                 }
                 // 話したいことと「はじめる」は同じカードに。設定（相手・話し方・声）はそのあと
                 // （前は「はじめる」が一番下で、毎回スクロールしないと押せなかった・2026-11-10 本人指摘）
-                Card(title: String(localized: "話したいこと（空なら \(talk.nativeName) が決めます）")) {
+                Card(title: String(localized: "話したいこと（空でも始められます）")) {
                     TextField(String(localized: "例: 今日の仕事、週末のこと、うちの猫"), text: $talk.topic)
                         .textFieldStyle(.roundedBorder)
+                    // 話題を決めずに始めるときは、だれから話し始めるかを選べる（2026-11-20 本人の要望）
+                    if talk.topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("だれから話し始めますか").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+                            Picker(String(localized: "だれから話し始めますか"), selection: $talk.opener) {
+                                Text(talk.nativeName).tag(Talk.Opener.native)
+                                Text("トラさん").tag(Talk.Opener.tora)
+                                Text("自分").tag(Talk.Opener.me)
+                            }
+                            .pickerStyle(.segmented).labelsHidden()
+                            Text(openerNote).font(.caption).foregroundStyle(Theme.muted)
+                        }
+                    }
                     Button {
                         Task { await talk.start() }
                     } label: {
@@ -244,6 +257,12 @@ struct TalkSheet: View {
                         ForEach(Array(talk.lines.enumerated()), id: \.offset) { i, l in
                             bubble(l).id("line-\(i)")
                         }
+                        if talk.lines.isEmpty && talk.myTurn {
+                            // 自分から話し始める会話の、最初の番
+                            Text(String(localized: "あなたから話し始める番です。下のマイクを押して、好きな話を始めてください。\(talk.nativeName) とトラさんが聞いています。"))
+                                .font(.callout).foregroundStyle(Theme.muted)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
+                        }
                         if talk.busy {
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
@@ -266,8 +285,18 @@ struct TalkSheet: View {
         }
     }
 
+    /// 選んだ始め方で何が起きるかの一言
+    private var openerNote: String {
+        switch talk.opener {
+        case .native: return String(localized: "\(talk.nativeName) が話題を決めて、質問から始めます。")
+        case .tora: return String(localized: "トラさんが話題を決めて、質問から始めます。")
+        case .me: return String(localized: "はじめるを押すと、すぐあなたの番になります。好きな話を始めてください。")
+        }
+    }
+
     private var busyText: String {
         switch talk.phase {
+        case .opening where talk.openedBy == .tora: return String(localized: "トラさんが話を考え中…")
         case .opening: return String(localized: "\(talk.nativeName) が話を考え中…")
         case .closing: return String(localized: "二人が締めの一言を考え中…")
         case .thinking where talk.inConsult: return String(localized: "トラさんが考え中…")
@@ -429,6 +458,7 @@ struct TalkSheet: View {
         case .recording where talk.inConsult: return String(localized: "トラさんに話し終えたら、もう一度押してください（\(talk.nativeName) には聞こえません）")
         case .recording: return String(localized: "言い終えたら、もう一度押してください")
         case .consulting: return String(localized: "書くか、真ん中を押して日本語で話してください。トラさんが言い方を考えてくれます")
+        case .listening where talk.lines.isEmpty: return String(localized: "押して、\(model.targetLanguage.name)で話し始める（日本語が混ざっても OK）")
         case .listening: return String(localized: "押して、\(model.targetLanguage.name)で返す（日本語が混ざっても OK）")
         // もらった言い方を見て終わりにしない。その場で一回、口に出す（これがいちばん定着に効く）
         case .repeating: return String(localized: "トラさんの言い方を、そのまま口に出してみてください（\(talk.nativeName) は待っています）")
