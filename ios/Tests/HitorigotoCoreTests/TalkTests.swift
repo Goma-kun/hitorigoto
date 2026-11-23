@@ -432,4 +432,48 @@ final class TalkTests: XCTestCase {
                   TalkLine(who: "tora", text: "y", asks: [Ask(said: "別", ways: ["unrelated"])])]
         XCTAssertEqual(Talk.taughtOverlapWays([s]), ["Sorry, after you."])
     }
+
+    // 2026-11-23: 実際の会話 15 回の点検から。返事の型のくり返し・言ってみるのあとの聞き直し・見本の出しすぎ
+    func testVarietyNotesListsRecentOpenersAndStopsQuestions() {
+        let h = [TalkLine(who: "native", text: "Oh, that sounds fun! What did you eat?"),
+                 TalkLine(who: "me", text: "Ramen."),
+                 TalkLine(who: "native", text: "Oh, nice. Do you go there often?")]
+        let notes = Talk.varietyNotes(history: h, native: "Sam").joined(separator: "\n")
+        XCTAssertTrue(notes.contains("今回使わない出だし"))
+        XCTAssertTrue(notes.contains("\"Oh\""))
+        XCTAssertTrue(notes.contains("今回は質問で終えない"))
+        let h2 = [TalkLine(who: "native", text: "Haha, I do that too."),
+                  TalkLine(who: "native", text: "Wow, really? What happened?")]
+        let n2 = Talk.varietyNotes(history: h2, native: "Sam").joined(separator: "\n")
+        XCTAssertTrue(n2.contains("\"Haha\"") && n2.contains("\"Wow\""))
+        XCTAssertFalse(n2.contains("今回は質問で終えない"))
+        XCTAssertTrue(Talk.varietyNotes(history: [], native: "Sam").isEmpty)
+    }
+
+    func testRepeatTurnTreatsThePhraseAsARealUtterance() {
+        let h = [TalkLine(who: "native", text: "Have you tried asking your other coworkers?"),
+                 TalkLine(who: "me", text: "I try to ask my other coworkers instead.", tag: "repeat_ok")]
+        let m = Talk.userMessage(request: .repeat(ways: ["I try to ask my other coworkers instead."]), history: h, language: .enUS, hasAudio: true)
+        XCTAssertTrue(m.contains("会話の発言として受けて"))
+        XCTAssertTrue(m.contains("会話の発言として扱う"))
+        XCTAssertFalse(Talk.system(language: .enUS).contains("直前に自分がした質問をもう一度 1 文で"))
+    }
+
+    func testOverlapDemoIsRareAfterThreeConversations() {
+        for seed in 0..<50 { XCTAssertNotNil(Talk.overlapDemoTurn(pastDemos: 0, seed: seed)) }
+        let later = (0..<400).compactMap { Talk.overlapDemoTurn(pastDemos: 5, seed: $0) }
+        XCTAssertTrue(later.count > 40 && later.count < 180, "4 回に 1 回くらい: \(later.count)/400")
+        XCTAssertTrue(later.allSatisfy { (3...5).contains($0) })
+        var s = Session(id: "2026-11-23T00:00:00", transcript: "", correctedText: "", issues: [], good: nil, engine: "x")
+        s.talk = [TalkLine(who: "native", text: "Wait, is that—", tag: "collide")]
+        XCTAssertEqual(Talk.overlapDemoCount([s, Session(id: "b", transcript: "", correctedText: "", issues: [], good: nil, engine: "x")]), 1)
+    }
+
+    func testOverlapDemoMessageShortensToraWhenTaughtBefore() {
+        let first = Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true, overlapDemo: true)
+        let later = Talk.userMessage(request: .speak, history: [], language: .enUS, hasAudio: true, overlapDemo: true, taughtBefore: ["No, you go first."])
+        XCTAssertTrue(first.contains("教えてください"))
+        XCTAssertTrue(later.contains("1 文だけ"))
+        XCTAssertTrue(later.contains("言いかけた中身を最後まで言う"))
+    }
 }

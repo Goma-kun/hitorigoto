@@ -50,8 +50,10 @@ final class TalkModel: ObservableObject {
     private var cutIn: CutIn?
     /// この会話で被りをトラさんに教えてもらったか
     private var overlapTaught = false
-    /// 「譲り合いの見本」を出すターン（1 会話に 1 回・3〜5 往復目）。出したら nil
-    private var demoAt: Int? = Int.random(in: 3...5)
+    /// 「譲り合いの見本」を出すターン（はじめの 3 会話は毎回・そのあとは 4 会話に 1 回くらい・3〜5 往復目）。出したら nil
+    private var demoAt: Int?
+    /// 見本を出すかどうかを、この会話で決めたか（過去に何回出したかで頻度を変える）
+    private var demoDecided = false
     /// 直前に送った発言が被り／見本のターンだったか（apply で印を付けるのに使う）
     private var sentCutIn = false
     private var sentDemo = false
@@ -195,6 +197,7 @@ final class TalkModel: ObservableObject {
             applyRepeat(turn)
         } else {
             sentCutIn = cutIn != nil
+            if !demoDecided { demoDecided = true; demoAt = Talk.overlapDemoTurn(pastDemos: Talk.overlapDemoCount(app.snapshot.sessions)) }
             sentDemo = !sentCutIn && demoAt != nil && turns + 1 == demoAt
             guard let turn = await request(.speak, audio: result.audio) else { phase = back; return }
             if sentDemo { demoAt = nil }
