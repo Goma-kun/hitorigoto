@@ -172,6 +172,8 @@ struct SessionCard: View {
                         Text(hl("• \(a.said) → \(a.ways.joined(separator: " / "))" + (a.note.isEmpty || !Highlight.hits(a.note, words) ? "" : " — \(a.note)"))).font(.caption).foregroundStyle(Theme.text)
                     }
                 }
+                // 言えなかったことを、あとから文字で聞く（聞いた分はここから開き直せる）
+                AskToraBox(sessionId: session.id, compact: true)
                 if let t = session.targets, !t.isEmpty {
                     Text("今日の表現の結果").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(t.enumerated()), id: \.offset) { _, x in

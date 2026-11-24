@@ -23,6 +23,17 @@ public struct ExplainTopic: Codable, Equatable, Sendable {
         self.init(kind: "ask", original: ask.said, suggestion: ask.ways.joined(separator: " / "), reason: ask.note)
     }
 
+    /// あとから「これ、何て言う？」と聞く分（2026-11-25 本人の要望）。直しではなく、言いたかったことそのもの
+    public init(wish: String) {
+        self.init(kind: "wish", original: wish.trimmingCharacters(in: .whitespacesAndNewlines), suggestion: "")
+    }
+
+    /// 保存してある見分け（key）から、あとから聞いた分を組み直す。あとから聞いた分でなければ nil
+    public init?(wishKey key: String) {
+        guard key.hasPrefix("wish:"), key.hasSuffix("→") else { return nil }
+        self.init(wish: String(key.dropFirst(5).dropLast(1)))
+    }
+
     /// 保存のときの見分け（同じセッションの同じ直しには同じやり取りを出す）
     public var key: String { "\(kind):\(original)→\(suggestion)" }
 }
@@ -65,6 +76,14 @@ public enum Explain {
     /// 用意しておく聞き方。最初の 1 回は deeper を自動で出す
     public enum Preset: String, CaseIterable, Sendable {
         case deeper, alternatives, examples, grammar, compare
+        /// あとから「これ、何て言う？」と聞くときの最初の 1 回（続けて聞くボタンには出さない）
+        case howToSay
+
+        /// 続けて聞くボタンに出す分。あとから聞いた言い方には「直し」が無いので、直しの説明を頼むものは出さない
+        public static func followUps(for topic: ExplainTopic, first: Bool) -> [Preset] {
+            if topic.kind == "wish" { return [.examples, .compare] }
+            return allCases.filter { $0 != .howToSay && ($0 != .deeper || first) }
+        }
 
         /// ボタンに出す文字（そのまま「聞いたこと」として残す）
         public var label: String {
@@ -74,6 +93,7 @@ public enum Explain {
             case .examples: return String(localized: "例文をもっと")
             case .grammar: return String(localized: "文法で説明して")
             case .compare: return String(localized: "似た言い方との違い")
+            case .howToSay: return String(localized: "これ、何て言う？")
             }
         }
 
@@ -88,6 +108,8 @@ public enum Explain {
                 return "この直した形（または言い方）を使った例文を、日常会話でよくある場面から 5 つください。場面がばらけるようにしてください。"
             case .grammar:
                 return "この直しを、文法の言葉（品詞・語の働き・構文の型）を使ってきちんと説明してください。なぜ元の形ではいけないのか、規則として覚えるならどう覚えればよいかまで。例文を 3 つ付けてください。"
+            case .howToSay:
+                return "学習者が言いたかったこと（上の「学習者が言いたかったこと」）を、学習者が練習している言語の自然な話し言葉でどう言うかを教えてください。examples に言い方そのものを 2〜3 個入れます（text が言い方、ja がその日本語訳）。1 つ目はいちばんすすめる言い方で、学習者がそのまま口に出せる長さにします。2 つ目からは、くだけ方や組み立てが違う言い方です。**言いたかったことの中身を落とさないこと**（「寒いけれど気持ちがいい」なら、寒いこと・気持ちがいいこと・「けれど」の対比の 3 つとも入れる。程度の語の「ちょっと」「とても」も保つ）。answer には、要になる語句と、言い方ごとの感じの違いを短く書きます（2〜3 段落）。"
             case .compare:
                 return "直した形と似た言い方（言い換えの候補）をいくつか挙げて、ニュアンス・硬さ・使う場面の違いを比べてください。それぞれ例文を 1 つずつ付けてください。"
             }
@@ -130,8 +152,10 @@ public enum Explain {
     /// 聞く内容（これまでのやり取りも文脈として渡す）。context は添削後の全文（長ければ切る）
     public static func userMessage(topic: ExplainTopic, context: String, history: [ExplainTurn], question: String) -> String {
         var lines: [String] = []
-        lines.append("## 対象の直し")
-        if topic.kind == "ask" {
+        lines.append(topic.kind == "wish" ? "## 学習者が言いたかったこと" : "## 対象の直し")
+        if topic.kind == "wish" {
+            lines.append("話し終えたあとで、学習者が「これは何と言えばよかったのか」と聞いてきた内容（直しではない）: \(topic.original)")
+        } else if topic.kind == "ask" {
             lines.append("学習者が言葉に詰まって日本語で言ったこと: \(topic.original)")
             lines.append("あなたが返した言い方: \(topic.suggestion)")
         } else {
@@ -142,7 +166,7 @@ public enum Explain {
         let ctx = context.trimmingCharacters(in: .whitespacesAndNewlines)
         if !ctx.isEmpty {
             lines.append("")
-            lines.append("## 参考: この日の独り言（添削後）")
+            lines.append(topic.kind == "wish" ? "## 参考: この日に学習者が話したこと（添削後。話の流れに合う言い方を選ぶ手がかり）" : "## 参考: この日の独り言（添削後）")
             lines.append(ctx.count > 1500 ? String(ctx.prefix(1500)) + "…" : ctx)
         }
         if !history.isEmpty {

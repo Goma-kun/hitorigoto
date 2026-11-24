@@ -17,6 +17,77 @@ struct ExplainButton: View {
     }
 }
 
+extension ExplainTopic: Identifiable {
+    public var id: String { key }
+}
+
+/// 話し終えたあとで「これ、何て言う？」と文字で聞く（2026-11-25 本人の要望:
+/// 「寒いけど天気が良くて気持ちのいい朝」と言いたかったのに It's nice しか出なかった、を会話のあとで聞きたい）。
+/// 聞いた分はその回の記録に残り、開き直しても回数を使わない
+struct AskToraBox: View {
+    @EnvironmentObject var model: AppModel
+    let sessionId: String
+    /// 履歴のカードの中に置くとき（枠を重ねない・小さく）
+    var compact = false
+    @State private var wish = ""
+    @State private var asking: ExplainTopic?
+    /// 履歴では、押すまで入力欄を出さない（どのカードにも入力欄が並ぶとうるさい）
+    @State private var opened = false
+    @FocusState private var focused: Bool
+
+    private var asked: [ExplainTopic] { model.wishTopics(sessionId: sessionId) }
+
+    var body: some View {
+        Group {
+            if compact { content } else { Card(title: String(localized: "言えなかったことを、トラさんに聞く")) { content } }
+        }
+        .sheet(item: $asking) { t in
+            ExplainSheet(sessionId: sessionId, topic: t, firstAsk: .howToSay).environmentObject(model)
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        if compact && !opened && asked.isEmpty {
+            Button("💬 言えなかったことを聞く") { opened = true; focused = true }
+                .buttonStyle(.bordered).controlSize(.small).tint(Theme.info)
+        } else {
+            if compact { Text("言えなかったことを、トラさんに聞く").font(.caption.weight(.bold)).foregroundStyle(Theme.faint) }
+            inputRow
+        }
+    }
+
+    @ViewBuilder private var inputRow: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            TextField("言いたかったことを日本語で", text: $wish, axis: .vertical)
+                .lineLimit(1...4).textFieldStyle(.roundedBorder).focused($focused)
+                .onSubmit { submit() }
+            Button("何て言う？") { submit() }
+                .buttonStyle(.borderedProminent).tint(Theme.accent).controlSize(compact ? .small : .regular)
+                .disabled(wish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        if !asked.isEmpty {
+            // 前に聞いた分。押すと答えを開き直す（回数は使わない）
+            // 長い文はカードの幅で切る（横に並べると枠からはみ出す）
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(asked) { t in
+                    Button { asking = t } label: { Text("💬 \(t.original)").lineLimit(1).truncationMode(.tail) }
+                        .buttonStyle(.bordered).controlSize(.small).tint(Theme.info)
+                }
+            }
+        } else if !compact {
+            Note(text: String(localized: "例:「ちょっと寒いけど、天気が良くて気持ちのいい朝です」。言い方を 2〜3 通り返します。答えはこの回の記録に残ります。"))
+        }
+    }
+
+    private func submit() {
+        let w = wish.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty else { return }
+        wish = ""
+        focused = false
+        asking = ExplainTopic(wish: w)
+    }
+}
+
 struct ExplainSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -65,7 +136,7 @@ struct ExplainSheet: View {
                 }
             }
             .background(Theme.bg)
-            .navigationTitle("トラさんに詳しく聞く").compactNavigationTitle()
+            .navigationTitle(topic.kind == "wish" ? String(localized: "トラさんに聞く") : String(localized: "トラさんに詳しく聞く")).compactNavigationTitle()
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } } }
         }
         #if os(macOS)
@@ -84,7 +155,10 @@ struct ExplainSheet: View {
     // 何について聞いているか
     private var header: some View {
         Card {
-            if topic.kind == "ask" {
+            if topic.kind == "wish" {
+                Text("言いたかったこと").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                Text(topic.original).font(.callout.weight(.semibold)).foregroundStyle(Theme.text).textSelection(.enabled)
+            } else if topic.kind == "ask" {
                 Text(topic.original).font(.callout.weight(.semibold)).foregroundStyle(Theme.text)
                 Text("→ \(topic.suggestion)").font(.callout.weight(.bold)).foregroundStyle(Theme.good).textSelection(.enabled)
             } else {
@@ -113,7 +187,7 @@ struct ExplainSheet: View {
                 }
                 if !t.examples.isEmpty {
                     Divider().overlay(Theme.line)
-                    Text("例文").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
+                    Text(topic.kind == "wish" && t.q == Explain.Preset.howToSay.label ? String(localized: "言い方") : String(localized: "例文")).font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
                     ForEach(Array(t.examples.enumerated()), id: \.offset) { _, e in exampleRow(e) }
                 }
             }
@@ -140,7 +214,7 @@ struct ExplainSheet: View {
     private var askBox: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("続けて聞く").font(.caption.weight(.bold)).foregroundStyle(Theme.faint)
-            FlowChips(items: Explain.Preset.allCases.filter { $0 != .deeper || turns.isEmpty }) { p in
+            FlowChips(items: Explain.Preset.followUps(for: topic, first: turns.isEmpty)) { p in
                 Button(p.label) { Task { await send(p.label, preset: p) } }
                     .buttonStyle(.bordered).controlSize(.small).tint(Theme.accent).disabled(loading)
             }

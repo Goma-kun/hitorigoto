@@ -293,6 +293,11 @@ final class AppModel: ObservableObject {
         snapshot.sessions.first { $0.id == sessionId }?.explains?.first { $0.key == topic.key }?.turns ?? []
     }
 
+    /// その回に、あとから「これ、何て言う？」と聞いた分（聞いた順）
+    func wishTopics(sessionId: String) -> [ExplainTopic] {
+        (snapshot.sessions.first { $0.id == sessionId }?.explains ?? []).compactMap { ExplainTopic(wishKey: $0.key) }
+    }
+
     func refreshExplainQuota() async {
         guard usesRelay else { explainQuota = nil; return }
         explainQuota = await GeminiClient(transport: Relay.transport).explainQuota()

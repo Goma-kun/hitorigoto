@@ -524,6 +524,8 @@ struct TalkSheet: View {
             Card(title: String(localized: "わしが買ってやる点")) { Text(talk.good).font(.callout).foregroundStyle(Theme.good) }
         }
         if let s = talk.saved {
+            // 会話では言えなかったことを、あとから文字で聞ける
+            AskToraBox(sessionId: s.id)
             Card(title: String(localized: "直すべし（会話中は黙っていた分）")) {
                 if s.issues.isEmpty {
                     Note(text: String(localized: "今日は言うことがねえ。指摘なし"))

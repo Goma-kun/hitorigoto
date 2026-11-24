@@ -162,6 +162,7 @@ struct SpeakView: View {
                     Note(text: String(localized: "英語が出てこなくて日本語で言ったところです。友だちに聞いたつもりで、いちばん上の言い方から口に出してみてください。"))
                 }
             }
+            if let id = model.latestSession?.id { AskToraBox(sessionId: id) }
             if !fb.pronunciation.isEmpty {
                 Card(title: String(localized: "発音で伝わらなかった箇所")) {
                     ForEach(Array(fb.pronunciation.enumerated()), id: \.offset) { i, p in
