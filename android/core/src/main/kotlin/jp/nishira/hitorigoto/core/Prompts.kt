@@ -136,6 +136,14 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
   original と suggestion の組にして書き出してください。そのうち重いもの最大 5 件を "issues" に、残り全部を "more_fixes" に入れます。
 - 言いたかった意味を変えて直さないでください。言った語が意味として間違っていたら（例: 「分からない」を I don't have it と言った）、
   意図した意味の正しい言い方（I don't get it）に直し、その直しを "issues" に入れてください。
+- 程度や範囲を表す語（a bit、a little、some、part of、maybe、almost など）は、直すときに強めたり落としたりしないでください。
+  「ちょっと高い」のつもりの a bit を pretty に、「一部の間違い」のつもりの a part of mistakes を your own mistakes にすると、
+  言いたかったことが変わります（a bit of a high bar、some of my mistakes のように、同じ程度・同じ範囲のまま正しい形にします）。
+- 数や量が前後で食い違う言い方（a couple of minutes と言った直後に five minutes、など）は、"corrected_text" にそのまま残さず、
+  合う語（a few minutes）に直して、その直しを "issues" か "more_fixes" に入れてください。
+- "issues" と "more_fixes" の "suggestion" は、"corrected_text" に実際に書いた形と同じにしてください
+  （説明では has a high bar と勧めたのに、本文は the bar is pretty high になっている、という食い違いを作らない）。
+  同じ箇所の直しを "issues" と "more_fixes" の両方に入れないでください。
 - 言いよどみ（uh、um など）を消しただけ、言い直しや同じ語の繰り返しを 1 回にまとめただけの箇所は入れないでください。
 - "asks" に入れた箇所（日本語で言ったところ・英語で迷ったところ）は入れないでください。
 - 書き終える前に、学習者が言った文と "corrected_text" を頭から見比べて、変えた箇所がすべて "issues" か "more_fixes" に
