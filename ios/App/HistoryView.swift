@@ -92,9 +92,7 @@ struct SessionCard: View {
                 if session.talk != nil { Tag(text: String(localized: "三人で話す"), fg: Theme.info, bg: Theme.info.opacity(0.15)) }
                 Spacer(minLength: 8)
                 // 上にもコピー。長い記録はカードの下まで送らないと押せなかった（2026-11-10 本人指摘）
-                if session.folded != true {
-                    CopyButton(text: Logic.buildSessionText(session, labels: Self.labels), label: String(localized: "📋 コピー（指摘つき）")).fixedSize()
-                }
+                if session.folded != true { copyButton.fixedSize() }
             }
             if session.folded == true {
                 let lines = session.issues.map { $0.suggestion }.filter { !$0.isEmpty }
@@ -181,6 +179,18 @@ struct SessionCard: View {
                     }
                 }
             }
+            copyButton
+        }
+    }
+
+    /// 三人で話すの直しの点検（裏で約 30 秒）が終わるまでは押させない。
+    /// 途中でコピーすると「ほかに直したところ」が抜ける（2026-11-26・27 と 2 日続けて抜けた）
+    @ViewBuilder private var copyButton: some View {
+        if model.talkAuditing.contains(session.id) {
+            Button(String(localized: "⏳ ほかの直しを確かめ中…")) {}
+                .buttonStyle(.bordered).controlSize(.small).disabled(true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
             CopyButton(text: Logic.buildSessionText(session, labels: Self.labels), label: String(localized: "📋 コピー（指摘つき）"))
         }
     }

@@ -140,6 +140,10 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
   言いたかったことが変わります（a bit of a high bar、some of my mistakes のように、同じ程度・同じ範囲のまま正しい形にします）。
 - 数や量が前後で食い違う言い方（a couple of minutes と言った直後に five minutes、など）は、"corrected_text" にそのまま残さず、
   合う語（a few minutes）に直して、その直しを "issues" か "more_fixes" に入れてください。
+- 学習者が「ぴったりの語があるのに思い出せない」と言ったところ（there is a proper word but I can't think of it、buffer time or... など）は、
+  "corrected_text" でその語（例: lag、latency）を使い、「思い出せない」の一文は残さず、その直しを "issues" に入れてください。
+- 言い切れていない文（if 〜 だけで終わった、など）は、言いたかった続きを補って残してください。if を消して別の意味の文
+  （「〜すれば伸びると思う」を「〜を足せると思う」に）にしないでください。
 - "issues" と "more_fixes" の "suggestion" は、"corrected_text" に実際に書いた形と同じにしてください
   （説明では has a high bar と勧めたのに、本文は the bar is pretty high になっている、という食い違いを作らない）。
   同じ箇所の直しを "issues" と "more_fixes" の両方に入れないでください。

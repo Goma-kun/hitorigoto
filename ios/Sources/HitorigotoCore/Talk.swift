@@ -228,6 +228,9 @@ public enum Talk {
 - 程度や範囲を表す語（a bit、a little、some、part of、maybe、almost、about など）は、直すときに強めたり落としたりしない。
 - 前後で食い違う言い方（a couple of minutes の直後に five minutes、「正確に言うと」の specifically と「だいたい」の give or take を並べる、など）は "corrected" にそのまま残さず、言いたかった方に合わせて直す。
 - つなぎの語の向きが食い違う文（even though と but を両方使う、「短いけど十分」の逆接なのに that's why でつなぐ、など）は "corrected" に残さず、言いたかった向きの 1 語にそろえる。
+- 学習者が「ぴったりの語があるのに思い出せない」と言ったところ（there is a proper word but I can't think of it、buffer time or... など）は、"corrected" でその語（例: lag、latency）を使い、「思い出せない」の一文は残さず、その語を "fixes" に入れる。
+- 言い切れていない文（if 〜 だけで終わった、など）は、言いたかった続きを補って残す。if を消して別の意味の文（「〜すれば伸びると思う」を「〜を足せると思う」に）にしない。
+- 書き終えたら、"fixes" の "suggestion" が 1 件ずつ "corrected" の中にそのままの形で入っているか確かめる。入っていなければ "suggestion" を "corrected" に書いた形に書き換える（if it had a function と説明して "corrected" は a real-time communication feature、のような食い違いを残さない）。
 
 ## 言ってみる（"repeat" のターン）
 - トラさんが言い方を出したあと、学習者はそれを**その場で口に出す**練習をします。メッセージに「言ってみる」とあるターンがそれです。

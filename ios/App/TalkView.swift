@@ -553,6 +553,11 @@ struct TalkSheet: View {
                     }
                 }
             }
+            // 結果を丸ごと持ち出す（履歴の「コピー（指摘つき）」と同じ本文）。点検が終わってから出す
+            if !model.talkAuditing.contains(s.id) {
+                CopyButton(text: Logic.buildSessionText(model.snapshot.sessions.first { $0.id == s.id } ?? s, labels: SessionCard.labels),
+                           label: String(localized: "📋 結果をまとめてコピー（指摘つき）"))
+            }
             if let asks = s.asks, !asks.isEmpty {
                 Card(title: String(localized: "日本語で言った分、英語ならこう")) {
                     ForEach(Array(asks.enumerated()), id: \.offset) { i, a in
