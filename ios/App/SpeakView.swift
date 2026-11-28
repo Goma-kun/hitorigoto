@@ -25,6 +25,7 @@ struct SpeakView: View {
                 .padding(12)
                 // 画面の文字はどこでも選んでコピーできるようにする（指摘・理由・褒め言葉も。2026-09-28 本人要望）
                 .textSelection(.enabled)
+                .pinToScrollWidth()
             }
             .background(Theme.bg)
             actionBar

@@ -121,3 +121,9 @@ enum Mark {
         }
     }
 }
+
+extension View {
+    /// 縦スクロールの中身の幅を、スクロールの枠の幅に固定する。
+    /// 中身が少しでも枠より広いと、横に引っぱったときに画面が左右に動いて余白が見える（2026-11-28 本人指摘）
+    func pinToScrollWidth() -> some View { containerRelativeFrame(.horizontal) }
+}

@@ -227,6 +227,7 @@ struct TalkSheet: View {
                 }
             }
             .padding(12)
+            .pinToScrollWidth()
         }
     }
 
@@ -276,6 +277,10 @@ struct TalkSheet: View {
                     }
                     .padding(12)
                     .textSelection(.enabled)
+                    .pinToScrollWidth()
+                    #if DEBUG && os(iOS)
+                    .background { if UserDefaults.standard.bool(forKey: "HGWidthProbe") { ScrollWidthProbe() } }
+                    #endif
                 }
                 .onChange(of: talk.lines.count) { _, n in withAnimation { proxy.scrollTo("line-\(max(0, n - 1))", anchor: .bottom) } }
                 .onChange(of: talk.busy) { _, b in if b { withAnimation { proxy.scrollTo("busy", anchor: .bottom) } } }
@@ -518,6 +523,13 @@ struct TalkSheet: View {
             if let s = talk.saved {
                 RecapRow(session: model.snapshot.sessions.first { $0.id == s.id } ?? s)
                 TapeRow(session: s)
+                // 上にもコピー。画面を閉じて履歴を開かなくても、ここから持ち出せる（2026-11-28 本人要望）。点検が終わってから出す
+                if model.talkAuditing.contains(s.id) {
+                    Note(text: String(localized: "直しを確かめ終わったら、ここにコピーのボタンが出ます。"))
+                } else {
+                    CopyButton(text: Logic.buildSessionText(model.snapshot.sessions.first { $0.id == s.id } ?? s, labels: SessionCard.labels),
+                               label: String(localized: "📋 結果をまとめてコピー（指摘つき）"))
+                }
             }
         }
         if !talk.good.isEmpty {
@@ -790,3 +802,24 @@ struct RecordingStrip: View {
         }
     }
 }
+
+#if DEBUG && os(iOS)
+import UIKit
+/// 検証用: いちばん近いスクロールの中身の幅と枠の幅を書き出す（-HGWidthProbe YES のときだけ）
+struct ScrollWidthProbe: UIViewRepresentable {
+    final class V: UIView {
+        override func layoutSubviews() { super.layoutSubviews(); report() }
+        override func didMoveToWindow() { super.didMoveToWindow(); DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in self?.report() } }
+        func report() {
+            var v: UIView? = superview
+            while let x = v, !(x is UIScrollView) { v = x.superview }
+            guard let s = v as? UIScrollView else { return }
+            let line = "content=\(s.contentSize.width) bounds=\(s.bounds.width) insetL=\(s.adjustedContentInset.left) insetR=\(s.adjustedContentInset.right) bounceH=\(s.alwaysBounceHorizontal) self=\(bounds.width)\n"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("hg_width_probe.txt")
+            if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close() } else { try? line.write(to: url, atomically: true, encoding: .utf8) }
+        }
+    }
+    func makeUIView(context: Context) -> V { V() }
+    func updateUIView(_ v: V, context: Context) { DispatchQueue.main.async { v.report() } }
+}
+#endif
